@@ -6,8 +6,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORLD_PATH = REPO_ROOT / "backend" / "world.md"
-OUTPUT_PATH = REPO_ROOT / "ai" / "trip_com" / "city_airport_mapping.json"
-DESTINATIONS_PATH = REPO_ROOT / "ai" / "google_flight" / "destinations.txt"
+OUTPUT_PATH = REPO_ROOT / "data" / "trip_com" / "city_airport_mapping.json"
+DESTINATIONS_PATH = REPO_ROOT / "data" / "google_flight" / "destinations.txt"
 WORLD_DATA = json.loads(WORLD_PATH.read_text(encoding="utf-8"))
 
 # Shared-airport cities need explicit canonical names instead of first-airport fallback.
