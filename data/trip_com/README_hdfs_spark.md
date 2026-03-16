@@ -1,4 +1,4 @@
-# Trip.com JSONL을 Hadoop(HDFS)에 저장하고 Spark로 처리하는 방법
+﻿# Trip.com JSONL을 Hadoop(HDFS)에 저장하고 Spark로 처리하는 방법
 
 이 문서는 현재 로컬에 저장 중인 Trip.com 크롤링 결과를 HDFS에 올리고, Spark로 읽어 Silver 레이어까지 처리하는 가장 실무적인 흐름을 정리한 문서다.
 
@@ -18,7 +18,7 @@ C:\Users\SSAFY\Desktop\soob\S14P21D206\ai\trip_com\bronze_airticket\dt=2026-03-0
 ### 1) 로컬 구조
 
 ```text
-ai/trip_com/bronze_airticket/
+data/trip_com/bronze_airticket/
   dt=2026-03-08/
     hour=15/
       all_cities.jsonl
@@ -169,7 +169,7 @@ df = (
 
 이 레포에는 이미 Trip.com Bronze를 Silver로 바꾸는 코드가 있다.
 
-- `ai/spark_pipeline/etl_bronze_to_silver_v2.py`
+- `data/spark_pipeline/etl_bronze_to_silver_v2.py`
 
 여기서 Trip.com 입력 경로는 현재 아래처럼 되어 있다.
 
@@ -195,7 +195,7 @@ raw_path = f"/data/bronze/airticket/trip_com/dt={run_date}/hour=*/all_cities.jso
 입력 경로를 위처럼 맞춘 뒤에는 아래처럼 실행하면 된다.
 
 ```bash
-spark-submit ai/spark_pipeline/etl_bronze_to_silver_v2.py 2026-03-08
+spark-submit data/spark_pipeline/etl_bronze_to_silver_v2.py 2026-03-08
 ```
 
 이 스크립트는 Trip.com 데이터로 아래 Silver 산출물을 만든다.
@@ -259,6 +259,7 @@ CSV는 검증용 산출물에 가깝다.
 
 1. `all_cities.jsonl`을 HDFS의 `/data/bronze/airticket/trip_com/dt=.../hour=.../` 아래로 업로드한다.
 2. Spark는 `/data/bronze/airticket/trip_com/dt=.../hour=*/all_cities.jsonl` 패턴으로 읽는다.
-3. 기존 `ai/spark_pipeline/etl_bronze_to_silver_v2.py`의 Trip.com 입력 경로만 현재 구조에 맞게 조정해서 실행한다.
+3. 기존 `data/spark_pipeline/etl_bronze_to_silver_v2.py`의 Trip.com 입력 경로만 현재 구조에 맞게 조정해서 실행한다.
 
 즉, 원본 포맷은 이미 충분히 좋고, 핵심은 HDFS 경로 설계와 Spark 입력 경로를 일치시키는 것이다.
+

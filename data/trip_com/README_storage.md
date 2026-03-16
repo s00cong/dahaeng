@@ -1,16 +1,16 @@
 ﻿# 트립닷컴 크롤링 저장 방식
 
-이 문서는 `ai/trip_com/trip_scraper.py`가 수집한 항공권 가격 데이터를 **어디에, 어떤 형식으로, 어떤 스키마로 저장하는지**를 설명한다.  
+이 문서는 `data/trip_com/trip_scraper.py`가 수집한 항공권 가격 데이터를 **어디에, 어떤 형식으로, 어떤 스키마로 저장하는지**를 설명한다.  
 공유용 요약이라 실행 방법이나 크롤링 로직은 최소로 다룬다.
 
 ---
 
 ## 1) 저장 위치(디렉터리 구조)
 
-데이터는 `ai/trip_com/bronze_airticket/` 아래에 **수집 날짜/시간 단위로 파티셔닝**된다.
+데이터는 `data/trip_com/bronze_airticket/` 아래에 **수집 날짜/시간 단위로 파티셔닝**된다.
 
 ```
-ai/trip_com/bronze_airticket/
+data/trip_com/bronze_airticket/
   dt=YYYY-MM-DD/
     hour=HH/
       all_cities.jsonl
@@ -20,7 +20,7 @@ ai/trip_com/bronze_airticket/
 
 - `dt`는 수집 날짜(로컬 시간 기준).
 - `hour`는 수집 시작 시각의 시(0~23).
-- 예시: `ai/trip_com/bronze_airticket/dt=2026-03-06/hour=01/`
+- 예시: `data/trip_com/bronze_airticket/dt=2026-03-06/hour=01/`
 
 ---
 
@@ -103,7 +103,7 @@ city_code,city_name_kr,country_kr,direction,dest_airport,date,price_krw,collecte
 
 ## 3) 체크포인트(중복 수집 방지)
 
-`ai/trip_com/checkpoint.json`에 **수집 완료된 노선(route)**를 기록한다.  
+`data/trip_com/checkpoint.json`에 **수집 완료된 노선(route)**를 기록한다.  
 같은 날짜(`dt`)에 대해 이미 완료된 노선은 재수집을 건너뛴다.
 
 ```json
@@ -141,8 +141,9 @@ city_code,city_name_kr,country_kr,direction,dest_airport,date,price_krw,collecte
 ## 6) 자주 보는 경로
 
 ```
-ai/trip_com/bronze_airticket/dt=YYYY-MM-DD/hour=HH/all_cities.jsonl
-ai/trip_com/bronze_airticket/dt=YYYY-MM-DD/hour=HH/all_cities.csv
-ai/trip_com/bronze_airticket/dt=YYYY-MM-DD/hour=HH/failed_routes.json
-ai/trip_com/checkpoint.json
+data/trip_com/bronze_airticket/dt=YYYY-MM-DD/hour=HH/all_cities.jsonl
+data/trip_com/bronze_airticket/dt=YYYY-MM-DD/hour=HH/all_cities.csv
+data/trip_com/bronze_airticket/dt=YYYY-MM-DD/hour=HH/failed_routes.json
+data/trip_com/checkpoint.json
 ```
+

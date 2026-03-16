@@ -4,7 +4,7 @@ import glob
 from pathlib import Path
 
 # Load English mapping
-eng_mapping_file = r'c:\Users\SSAFY\Desktop\soob\S14P21D206\ai\trip_com\en_city_airport_mapping.json'
+eng_mapping_file = r'c:\Users\SSAFY\Desktop\soob\S14P21D206\data\trip_com\en_city_airport_mapping.json'
 with open(eng_mapping_file, 'r', encoding='utf-8') as f:
     en_mapping = json.load(f)
 
@@ -66,8 +66,8 @@ def process_bronze_file(file_path):
 def main():
     # Base directories to search for bronze_airticket folders
     base_dirs = [
-        r'c:\Users\SSAFY\Desktop\soob\S14P21D206\ai\trip_com\bronze_airticket',
-        r'c:\Users\SSAFY\Desktop\soob\S14P21D206\ai\google_flight\bronze_airticket'
+        r'c:\Users\SSAFY\Desktop\soob\S14P21D206\data\trip_com\bronze_airticket',
+        r'c:\Users\SSAFY\Desktop\soob\S14P21D206\data\google_flight\bronze_airticket'
     ]
     
     total_files_processed = 0
