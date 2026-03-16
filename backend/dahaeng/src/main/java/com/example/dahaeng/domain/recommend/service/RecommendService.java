@@ -1,15 +1,11 @@
-package com.example.dahaeng.domain.recommend.Service;
+package com.example.dahaeng.domain.recommend.service;
 
 import com.example.dahaeng.domain.city.entity.City;
-import com.example.dahaeng.domain.city.entity.CityTag;
 import com.example.dahaeng.domain.city.repository.CityRepository;
 
 import com.example.dahaeng.domain.city.repository.CityTagRepository;
-import com.example.dahaeng.domain.country.entity.Danger;
 import com.example.dahaeng.domain.country.repository.DangerRepository;
-import com.example.dahaeng.domain.flight.entity.FlightSummary;
 import com.example.dahaeng.domain.flight.repository.FlightSummaryRepository;
-import com.example.dahaeng.domain.livingcost.entity.LivingCostOfCity;
 import com.example.dahaeng.domain.livingcost.repository.LivingCostOfCityRepository;
 import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 import com.example.dahaeng.domain.recommend.dto.response.RecommendCitiesResponse;
@@ -18,8 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor

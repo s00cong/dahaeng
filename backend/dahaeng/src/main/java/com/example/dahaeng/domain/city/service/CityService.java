@@ -21,11 +21,11 @@ import com.example.dahaeng.domain.livingcost.repository.LivingCostOfCityReposito
 import com.example.dahaeng.domain.place.entity.TouristSpot;
 import com.example.dahaeng.domain.place.repository.SpotTagRepository;
 import com.example.dahaeng.domain.place.repository.TouristSpotRepository;
-import com.example.dahaeng.domain.recommend.Service.CityRankResult;
-import com.example.dahaeng.domain.recommend.Service.NewsSearchService;
-import com.example.dahaeng.domain.recommend.Service.PlaceEnrichmentService;
-import com.example.dahaeng.domain.recommend.Service.RecommendTagNormalizer;
-import com.example.dahaeng.domain.recommend.Service.RecommendationNarrationService;
+import com.example.dahaeng.domain.recommend.service.CityRankResult;
+import com.example.dahaeng.domain.recommend.service.NewsSearchService;
+import com.example.dahaeng.domain.recommend.service.PlaceEnrichmentService;
+import com.example.dahaeng.domain.recommend.service.RecommendTagNormalizer;
+import com.example.dahaeng.domain.recommend.service.RecommendationNarrationService;
 import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 import com.example.dahaeng.domain.recommend.dto.response.RecommendCitiesResponse;
 import com.example.dahaeng.domain.recommend.repository.SpotRecommendationProjection;

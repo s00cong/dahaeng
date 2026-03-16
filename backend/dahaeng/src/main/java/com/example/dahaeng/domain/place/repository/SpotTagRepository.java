@@ -44,4 +44,22 @@ public interface SpotTagRepository extends JpaRepository<SpotTag, Long> {
             @Param("spotIds") List<Long> spotIds,
             @Param("selectedTags") List<String> selectedTags
     );
+
+    @Query(
+        value = """
+        select
+        st.tourist_spot_id as spotId,
+        t.name as tagName,
+        st.score as score
+        from spot_tags st
+        join tag t
+        on t.id = st.tag_id
+        and t.is_deleted = b'0'
+        where st.tourist_spot_id = :spotId
+        and st.is_deleted = b'0'
+        """
+    , nativeQuery = true)
+    List<SpotTagScoreProjection> findTageScoresBySpotId(
+        @Param("spotId") Long spotId
+    );
 }

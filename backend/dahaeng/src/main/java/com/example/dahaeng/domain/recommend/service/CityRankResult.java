@@ -1,4 +1,4 @@
-package com.example.dahaeng.domain.recommend.Service;
+package com.example.dahaeng.domain.recommend.service;
 
 public record CityRankResult(
         Long cityId,

@@ -1,4 +1,4 @@
-package com.example.dahaeng.domain.recommend.Service;
+package com.example.dahaeng.domain.recommend.service;
 
 import com.example.dahaeng.domain.recommend.dto.response.RecommendCitiesResponse;
 
