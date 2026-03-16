@@ -1,4 +1,4 @@
-package com.example.dahaeng.domain.recommend.Service;
+package com.example.dahaeng.domain.recommend.service;
 
 import com.example.dahaeng.domain.city.entity.CityTag;
 import com.example.dahaeng.domain.city.repository.CityTagRepository;

@@ -30,13 +30,13 @@ public class TouristSpot extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "website", length = 255)
+    @Column(name = "website", columnDefinition = "TEXT")
     private String website;
 
-    @Column(name = "address", length = 255)
+    @Column(name = "address", columnDefinition = "TEXT")
     private String address;
 
-    @Column(name = "sns", length = 255)
+    @Column(name = "sns", columnDefinition = "TEXT")
     private String sns;
 
     @Column(name = "imageUrl", columnDefinition = "TEXT")
