@@ -30,6 +30,7 @@ public class FlightService {
                 List<FlightPriceCalendar> calendars = flightPriceCalendarRepository
                                 .findByCityIdAndYearMonthOrderByCollectedDateDesc(cityId, yearMonth,
                                                 PageRequest.of(0, 15));
+                calendars = sortCalendarsByCollectedDateDesc(calendars);
 
                 if (calendars.isEmpty()) {
                         return CalendarResponseDto.builder()
@@ -63,23 +64,25 @@ public class FlightService {
                 if (basePrices == null)
                         return Collections.emptyList();
 
+                List<Map<String, Integer>> priceMaps = calendars.stream()
+                                .map(cal -> toDailyPriceMap(isOutbound ? cal.getOutboundDailyPrices()
+                                                : cal.getInboundDailyPrices()))
+                                .toList();
+
                 List<CalendarResponseDto.DailyPriceDto> result = new ArrayList<>();
 
-                for (int i = 0; i < basePrices.size(); i++) {
-                        FlightPriceCalendar.DailyPrice daily = basePrices.get(i);
+                for (FlightPriceCalendar.DailyPrice daily : basePrices) {
                         String date = daily.getDate();
                         Integer currentPrice = daily.getPrice();
 
                         List<CalendarResponseDto.PriceHistoryDto> history = new ArrayList<>();
-                        for (FlightPriceCalendar cal : calendars) {
-                                List<FlightPriceCalendar.DailyPrice> targetPrices = isOutbound
-                                                ? cal.getOutboundDailyPrices()
-                                                : cal.getInboundDailyPrices();
-                                if (targetPrices != null && i < targetPrices.size()
-                                                && targetPrices.get(i).getDate().equals(date)) {
+                        for (int i = 0; i < calendars.size(); i++) {
+                                Integer price = priceMaps.get(i).get(date);
+                                if (price != null) {
+                                        FlightPriceCalendar cal = calendars.get(i);
                                         history.add(CalendarResponseDto.PriceHistoryDto.builder()
                                                         .collectedDate(cal.getCollectedDate())
-                                                        .price(targetPrices.get(i).getPrice())
+                                                        .price(price)
                                                         .build());
                                 }
                         }
@@ -91,6 +94,26 @@ public class FlightService {
                                         .build());
                 }
                 return result;
+        }
+
+        private List<FlightPriceCalendar> sortCalendarsByCollectedDateDesc(List<FlightPriceCalendar> calendars) {
+                return calendars.stream()
+                                .sorted(Comparator.comparing(FlightPriceCalendar::getCollectedDate).reversed())
+                                .toList();
+        }
+
+        private Map<String, Integer> toDailyPriceMap(List<FlightPriceCalendar.DailyPrice> prices) {
+                if (prices == null || prices.isEmpty()) {
+                        return Collections.emptyMap();
+                }
+
+                return prices.stream()
+                                .filter(price -> price.getDate() != null && price.getPrice() != null)
+                                .collect(Collectors.toMap(
+                                                FlightPriceCalendar.DailyPrice::getDate,
+                                                FlightPriceCalendar.DailyPrice::getPrice,
+                                                (left, right) -> left,
+                                                LinkedHashMap::new));
         }
 
         public TrendResponseDto getSixMonthTrend(Long cityId) {
