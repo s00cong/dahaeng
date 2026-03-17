@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
-import { useExchangeRateNew } from "@/hooks/cost/useExchangeRateNew";
 import { useCostDetail } from "@/hooks/cost/useCostDetail";
 import dayjs from "dayjs";
 
@@ -83,30 +82,28 @@ function InfoCard({ icon: Icon, label, value, subValue, onClick }: InfoCardProps
 export function RecommendTab({ city, onTabChange, isAiLoading = false }: RecommendTabProps) {
   const recommendText = city.recommendationReason;
 
-  // livingCostFor1Day: food, transportation은 USD 월간 비용 → KRW 변환
+  // livingCostFor1Day: 백엔드에서 이미 KRW로 변환된 월간 비용
   const lc = city.livingCostFor1Day;
-  const { data: erData } = useExchangeRateNew('USD');
-  const usdToKrw = erData?.krw_per_1target ?? null;
-  const foodKRW = lc && usdToKrw ? Math.round(lc.food * usdToKrw) : (lc?.food ?? 0);
-  const transKRW = lc && usdToKrw ? Math.round(lc.transportation * usdToKrw) : (lc?.transportation ?? 0);
+  const foodKRW = lc?.food ?? 0;
+  const transKRW = lc?.transportation ?? 0;
 
-  // 숙박: living_cost_of_city.without_rent — API가 이미 KRW로 반환하므로 그대로 사용
+  // 숙박: living_cost_of_city.without_rent(월) ÷ 30 → 하루치
   const { data: costDetail } = useCostDetail('city', city.cityId);
-  const hotelMonthly = costDetail?.living_cost?.without_rent ?? (city.airTicketAndHotel?.hotel ?? 0);
+  const hotelDaily = Math.round((costDetail?.living_cost?.without_rent ?? (city.airTicketAndHotel?.hotel ?? 0)) / 30);
 
   const at = city.airTicketAndHotel;
-  const totalMonthly = lc ? (foodKRW + transKRW + hotelMonthly) : undefined;
+  const totalDaily = lc ? (foodKRW + transKRW + hotelDaily) : undefined;
 
-  const accomPct = totalMonthly ? (hotelMonthly / totalMonthly) * 100 : 45;
-  const foodPct = totalMonthly ? (foodKRW / totalMonthly) * 100 : 35;
-  const transPct = totalMonthly ? (transKRW / totalMonthly) * 100 : 20;
+  const accomPct = totalDaily ? (hotelDaily / totalDaily) * 100 : 45;
+  const foodPct = totalDaily ? (foodKRW / totalDaily) * 100 : 35;
+  const transPct = totalDaily ? (transKRW / totalDaily) * 100 : 20;
 
   // 항공권 정보
   const flightValue = at?.airTicket
     ? `₩${at.airTicket.toLocaleString()}~`
     : "조회하기";
 
-  const costValue = totalMonthly ? `월평균 ₩${totalMonthly.toLocaleString()}` : "비교 보기";
+  const costValue = totalDaily ? `일평균 ₩${totalDaily.toLocaleString()}` : "비교 보기";
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
@@ -156,34 +153,34 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
 
           <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex-1 flex flex-col">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              한달 예상 비용
+              하루 예상 비용
             </p>
 
-            {totalMonthly ? (
+            {totalDaily ? (
               <div className="flex flex-col gap-5">
                 <div className="flex items-end gap-1.5">
                   <span className="text-3xl font-black text-slate-900 leading-none">
-                    ₩{totalMonthly.toLocaleString()}
+                    ₩{totalDaily.toLocaleString()}
                   </span>
-                  <span className="text-slate-400 text-xs font-medium">/ 월</span>
+                  <span className="text-slate-400 text-xs font-medium">/ 일</span>
                 </div>
 
                 <div className="space-y-4">
                   <CostBar
                     label="숙박 (평균)"
-                    amount={`₩${(hotelMonthly || Math.round(totalMonthly * 0.45)).toLocaleString()}`}
+                    amount={`₩${(hotelDaily || Math.round(totalDaily * 0.45)).toLocaleString()}`}
                     pct={accomPct}
                     color="bg-blue-500"
                   />
                   <CostBar
                     label="식비"
-                    amount={`₩${(foodKRW || Math.round(totalMonthly * 0.35)).toLocaleString()}`}
+                    amount={`₩${(foodKRW || Math.round(totalDaily * 0.35)).toLocaleString()}`}
                     pct={foodPct}
                     color="bg-emerald-500"
                   />
                   <CostBar
                     label="교통"
-                    amount={`₩${(transKRW || Math.round(totalMonthly * 0.2)).toLocaleString()}`}
+                    amount={`₩${(transKRW || Math.round(totalDaily * 0.2)).toLocaleString()}`}
                     pct={transPct}
                     color="bg-amber-500"
                   />
