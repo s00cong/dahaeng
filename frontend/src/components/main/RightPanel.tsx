@@ -6,11 +6,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
 import { useCityList } from "@/hooks/city/useCityList";
+import { useCostDetail } from "@/hooks/cost/useCostDetail";
 function getMatchColor(score: number | undefined) {
   if (score === undefined) return "bg-slate-100 text-slate-600";
   if (score >= 80) return "bg-emerald-500 text-white";
   if (score >= 50) return "bg-blue-500 text-white";
   return "bg-amber-500 text-white";
+}
+
+const DANGER_PRIORITY = ["여행금지", "출국권고", "여행자제", "여행유의"];
+
+function getDangerInfo(items: { level: string }[] | undefined) {
+  if (!items || items.length === 0) return { label: "안전", textColor: "text-emerald-600", bgColor: "bg-emerald-50", iconColor: "text-emerald-500" };
+  const topLevel = DANGER_PRIORITY.find((d) => items.some((i) => i.level === d));
+  if (topLevel === "여행금지") return { label: "여행금지", textColor: "text-red-600", bgColor: "bg-red-50", iconColor: "text-red-500" };
+  if (topLevel === "출국권고") return { label: "출국권고", textColor: "text-orange-600", bgColor: "bg-orange-50", iconColor: "text-orange-500" };
+  if (topLevel === "여행자제") return { label: "여행자제", textColor: "text-amber-600", bgColor: "bg-amber-50", iconColor: "text-amber-500" };
+  return { label: "여행유의", textColor: "text-yellow-600", bgColor: "bg-yellow-50", iconColor: "text-yellow-500" };
 }
 
 export function RightPanel() {
@@ -41,6 +53,8 @@ export function RightPanel() {
   );
 
   const city = cityFromApi ?? null;
+
+  const { data: costDetail } = useCostDetail('city', selectedCityId ?? 0);
 
   const handleOpenDetail = () => {
     openCityModal("recommend");
@@ -146,12 +160,9 @@ export function RightPanel() {
                 ) : (
                   <span className="text-xs font-bold text-slate-800 text-center">
                     {(() => {
-                      const lc = city?.livingCostFor1Day;
-                      const hotel = city?.airTicketAndHotel?.hotel ?? 0;
-                      const cost = lc
-                        ? lc.food + lc.transportation + hotel
-                        : undefined;
-                      return cost ? `₩${(cost / 10000).toFixed(0)}만` : "-";
+                      const dailyBudget = costDetail?.living_cost?.daily_budget;
+                      if (!dailyBudget) return "-";
+                      return `₩${((dailyBudget + 30000) / 10000).toFixed(0)}만`;
                     })()}
                   </span>
                 )}
@@ -176,19 +187,22 @@ export function RightPanel() {
               </div>
 
               {/* 안전 */}
-              <div className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-emerald-50">
-                <Shield className="size-4 text-emerald-500" />
-                <span className="text-[10px] text-slate-500 text-center">
-                  안전도
-                </span>
-                {isLoading ? (
-                  <Skeleton className="h-4 w-12" />
-                ) : (
-                  <span className="text-[10px] font-bold text-slate-800 text-center leading-tight">
-                    안전
-                  </span>
-                )}
-              </div>
+              {(() => {
+                const { label, textColor, bgColor, iconColor } = getDangerInfo(city?.danger?.items);
+                return (
+                  <div className={`flex flex-col items-center gap-1 p-2.5 rounded-xl ${bgColor}`}>
+                    <Shield className={`size-4 ${iconColor}`} />
+                    <span className="text-[10px] text-slate-500 text-center">안전도</span>
+                    {isLoading ? (
+                      <Skeleton className="h-4 w-12" />
+                    ) : (
+                      <span className={`text-[10px] font-bold text-center leading-tight ${textColor}`}>
+                        {label}
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 추천 이유 or 위험도 */}

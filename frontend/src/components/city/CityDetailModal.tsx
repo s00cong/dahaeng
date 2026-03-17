@@ -77,16 +77,15 @@ export function CityDetailModal() {
     isRecommendActive &&
     recommendResults.some((r) => r.city === selectedCityName);
 
-  // 선택된 도시 ID로 API에서 도시 상세 정보를 가져옴 (모달 열렸을 때만)
+  // 빠른 호출: 기본 정보 즉시 표시
   const {
-    data: cityFromApi,
-    isLoading,
+    data: basicCity,
+    isLoading: isBasicLoading,
     isError,
   } = useCityDetail(selectedCityId, isRecommendedCity, {
     enabled: isCityModalOpen,
     recommendParams: isRecommendedCity && recommendRequest ? recommendRequest : undefined,
   });
-
 
   // 느린 호출: AI 생성 콘텐츠 (recommendationReason, news) — 모달에서는 항상 호출
   const { data: aiCity, isLoading: isAiLoading } = useCityDetail(selectedCityId, true);
