@@ -99,7 +99,7 @@ export const DUMMY_SEOUL_COST_DETAIL: CostDetail = {
       local_transport_ticket: 1.4,
       monthly_ticket_local_transport: 55.0,
       taxi_ride: 9.5,
-      gas_pterol: 1.55,
+      gas_petrol: 1.55,
     },
     groceries: {
       milk: 2.0, bread: 2.2, rice: 3.0, egg: 2.0,
@@ -151,7 +151,7 @@ export const DUMMY_COST_DETAIL: CostDetail = {
       local_transport_ticket: 2.3,
       monthly_ticket_local_transport: 80.0,
       taxi_ride: 14.0,
-      gas_pterol: 1.6,
+      gas_petrol: 1.6,
     },
     groceries: {
       milk: 1.8,

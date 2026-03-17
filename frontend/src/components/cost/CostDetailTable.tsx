@@ -26,7 +26,7 @@ const TRANSPORT_LABELS: Record<string, string> = {
   local_transport_ticket: '편도 대중교통',
   monthly_ticket_local_transport: '대중교통 월정기권',
   taxi_ride: '택시 기본요금',
-  gas_pterol: '휘발유 (1L)',
+  gas_petrol: '휘발유 (1L)',
 };
 
 const GROCERIES_LABELS: Record<string, string> = {

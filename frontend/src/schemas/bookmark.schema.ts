@@ -31,7 +31,7 @@ export const ExchangeAtSavedSchema = z.object({
 // 저장 당시 뉴스 스냅샷
 export const NewsAtSavedItemSchema = z.object({
   title: z.string(),
-  source: z.string(),
+  source: z.string().optional(),
   url: z.string().url(),
 });
 
@@ -49,8 +49,8 @@ export const BookmarkDetailSchema = z.object({
   cityId: z.number(),
   cityName: z.string(),
   countryName: z.string(),
-  imgUrl: z.string().url(),
-  createdAt: z.string().datetime(),
+  imgUrl: z.string().nullable(),
+  createdAt: z.string(),
   matchingScore: z.number().optional(),
   exchangeAtSaved: ExchangeAtSavedSchema.optional(),
   newsAtSaved: z.array(NewsAtSavedItemSchema).optional(),

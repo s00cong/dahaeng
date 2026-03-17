@@ -24,7 +24,6 @@ import type {
   FlightCalendar,
   FlightTrend,
   DailyPriceEntry,
-  FlightSummary,
 } from '@/schemas/flight.schema';
 
 interface FlightTabProps {

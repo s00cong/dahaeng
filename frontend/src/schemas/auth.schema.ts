@@ -26,7 +26,7 @@ export type TokenReissueResponse = z.infer<typeof TokenReissueResponseSchema>;
 
 // Google 로그인 URL 응답
 export const GoogleLoginUrlResponseSchema = z.object({
-  loginUrl: z.string().url(),
+  loginUrl: z.string(), // 백엔드가 "/oauth2/authorization/google" (상대경로) 반환
 });
 export type GoogleLoginUrlResponse = z.infer<typeof GoogleLoginUrlResponseSchema>;
 

@@ -114,7 +114,7 @@ export const CostTransportationSchema = z.object({
   local_transport_ticket: z.number(),
   monthly_ticket_local_transport: z.number(),
   taxi_ride: z.number(),
-  gas_pterol: z.number(),
+  gas_petrol: z.number(),
 });
 export type CostTransportation = z.infer<typeof CostTransportationSchema>;
 
