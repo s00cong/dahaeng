@@ -22,176 +22,167 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class FlightService {
 
-        private final FlightSummaryRepository flightSummaryRepository;
-        private final FlightPriceCalendarRepository flightPriceCalendarRepository;
+    private final FlightSummaryRepository flightSummaryRepository;
+    private final FlightPriceCalendarRepository flightPriceCalendarRepository;
 
-        public CalendarResponseDto getCalendarWithHistory(Long cityId, String yearMonth) {
-                yearMonth = resolveYearMonth(yearMonth);
-                List<FlightPriceCalendar> calendars = flightPriceCalendarRepository
-                                .findByCityIdAndYearMonthOrderByCollectedDateDesc(cityId, yearMonth,
-                                                PageRequest.of(0, 15));
-                calendars = sortCalendarsByCollectedDateDesc(calendars);
+    public CalendarResponseDto getCalendarWithHistory(Long cityId, String yearMonth) {
+        yearMonth = resolveYearMonth(yearMonth);
+        List<FlightPriceCalendar> calendars = flightPriceCalendarRepository
+                .findByCityIdAndYearMonthOrderByCollectedDateDesc(cityId, yearMonth, PageRequest.of(0, 15));
+        calendars = sortCalendarsByCollectedDateDesc(calendars);
 
-                if (calendars.isEmpty()) {
-                        return CalendarResponseDto.builder()
-                                        .cityId(cityId)
-                                        .yearMonth(yearMonth)
-                                        .updatedAt(null)
-                                        .outboundDailyPrices(Collections.emptyList())
-                                        .inboundDailyPrices(Collections.emptyList())
-                                        .build();
+        if (calendars.isEmpty()) {
+            return CalendarResponseDto.builder()
+                .cityId(cityId)
+                .yearMonth(yearMonth)
+                .updatedAt(null)
+                .outboundDailyPrices(Collections.emptyList())
+                .inboundDailyPrices(Collections.emptyList())
+                .build();
+        }
+
+        FlightPriceCalendar latest = calendars.get(0);
+        List<CalendarResponseDto.DailyPriceDto> outbound = buildDailyPricesWithHistory(calendars, true);
+        List<CalendarResponseDto.DailyPriceDto> inbound = buildDailyPricesWithHistory(calendars, false);
+
+        return CalendarResponseDto.builder()
+            .cityId(cityId)
+            .yearMonth(yearMonth)
+            .updatedAt(latest.getCollectedDate() + "T00:00:00Z")
+            .outboundDailyPrices(outbound)
+            .inboundDailyPrices(inbound)
+            .build();
+    }
+
+    private List<CalendarResponseDto.DailyPriceDto> buildDailyPricesWithHistory(List<FlightPriceCalendar> calendars,boolean isOutbound) {
+            FlightPriceCalendar latest = calendars.get(0);
+            List<FlightPriceCalendar.DailyPrice> basePrices = isOutbound ? latest.getOutboundDailyPrices() : latest.getInboundDailyPrices();
+
+        if (basePrices == null)
+            return Collections.emptyList();
+
+        List<Map<String, Integer>> priceMaps = calendars.stream()
+                .map(cal -> toDailyPriceMap(isOutbound ? cal.getOutboundDailyPrices(): cal.getInboundDailyPrices()))
+                .toList();
+
+        List<CalendarResponseDto.DailyPriceDto> result = new ArrayList<>();
+
+        for (FlightPriceCalendar.DailyPrice daily : basePrices) {
+            String date = daily.getDate();
+            Integer currentPrice = daily.getPrice();
+
+            List<CalendarResponseDto.PriceHistoryDto> history = new ArrayList<>();
+            for (int i = 0; i < calendars.size(); i++) {
+                Integer price = priceMaps.get(i).get(date);
+                if (price != null) {
+                    FlightPriceCalendar cal = calendars.get(i);
+                    history.add(CalendarResponseDto.PriceHistoryDto.builder()
+                        .collectedDate(cal.getCollectedDate())
+                        .price(price)
+                        .build());
                 }
+            }
 
-                FlightPriceCalendar latest = calendars.get(0);
-                List<CalendarResponseDto.DailyPriceDto> outbound = buildDailyPricesWithHistory(calendars, true);
-                List<CalendarResponseDto.DailyPriceDto> inbound = buildDailyPricesWithHistory(calendars, false);
+            result.add(CalendarResponseDto.DailyPriceDto.builder()
+                .date(date)
+                .price(currentPrice)
+                .history(history)
+                .build());
+        }
+        return result;
+    }
 
-                return CalendarResponseDto.builder()
-                                .cityId(cityId)
-                                .yearMonth(yearMonth)
-                                .updatedAt(latest.getCollectedDate() + "T00:00:00Z")
-                                .outboundDailyPrices(outbound)
-                                .inboundDailyPrices(inbound)
-                                .build();
+    private List<FlightPriceCalendar> sortCalendarsByCollectedDateDesc(List<FlightPriceCalendar> calendars) {
+        return calendars.stream()
+            .sorted(Comparator.comparing(FlightPriceCalendar::getCollectedDate).reversed())
+            .toList();
+    }
+
+    private Map<String, Integer> toDailyPriceMap(List<FlightPriceCalendar.DailyPrice> prices) {
+        if (prices == null || prices.isEmpty()) {
+            return Collections.emptyMap();
         }
 
-        private List<CalendarResponseDto.DailyPriceDto> buildDailyPricesWithHistory(List<FlightPriceCalendar> calendars,
-                        boolean isOutbound) {
-                FlightPriceCalendar latest = calendars.get(0);
-                List<FlightPriceCalendar.DailyPrice> basePrices = isOutbound ? latest.getOutboundDailyPrices()
-                                : latest.getInboundDailyPrices();
+        return prices.stream()
+            .filter(price -> price.getDate() != null && price.getPrice() != null)
+            .collect(Collectors.toMap(
+                FlightPriceCalendar.DailyPrice::getDate,
+                FlightPriceCalendar.DailyPrice::getPrice,
+                (left, right) -> left,
+                LinkedHashMap::new));
+    }
 
-                if (basePrices == null)
-                        return Collections.emptyList();
+    public TrendResponseDto getSixMonthTrend(Long cityId) {
+        String currentYearMonth = YearMonth.now().toString();
 
-                List<Map<String, Integer>> priceMaps = calendars.stream()
-                                .map(cal -> toDailyPriceMap(isOutbound ? cal.getOutboundDailyPrices()
-                                                : cal.getInboundDailyPrices()))
-                                .toList();
+        List<FlightSummary> summaries = flightSummaryRepository.findByCityIdAndYearMonthGreaterThanEqualOrderByYearMonthAsc(
+            cityId, currentYearMonth, PageRequest.of(0, 6));
 
-                List<CalendarResponseDto.DailyPriceDto> result = new ArrayList<>();
+        List<TrendResponseDto.MonthlyTrendDto> trendData = summaries.stream()
+            .map(s -> TrendResponseDto.MonthlyTrendDto.builder()
+                .yearMonth(s.getYearMonth())
+                .avgFlightPrice(s.getAvgFlightPrice())
+                .avgHotelPrice(s.getAvgHotelPrice())
+                .build())
+            .collect(Collectors.toList());
 
-                for (FlightPriceCalendar.DailyPrice daily : basePrices) {
-                        String date = daily.getDate();
-                        Integer currentPrice = daily.getPrice();
+        return TrendResponseDto.builder()
+            .cityId(cityId)
+            .trendData(trendData)
+            .build();
+    }
 
-                        List<CalendarResponseDto.PriceHistoryDto> history = new ArrayList<>();
-                        for (int i = 0; i < calendars.size(); i++) {
-                                Integer price = priceMaps.get(i).get(date);
-                                if (price != null) {
-                                        FlightPriceCalendar cal = calendars.get(i);
-                                        history.add(CalendarResponseDto.PriceHistoryDto.builder()
-                                                        .collectedDate(cal.getCollectedDate())
-                                                        .price(price)
-                                                        .build());
-                                }
-                        }
+    public CitySummaryResponseDto getCitySummary(Long cityId, String yearMonth) {
+        yearMonth = resolveYearMonth(yearMonth);
+        Optional<FlightSummary> summaryOpt = flightSummaryRepository.findByCityIdAndYearMonthWithCity(cityId,yearMonth);
 
-                        result.add(CalendarResponseDto.DailyPriceDto.builder()
-                                        .date(date)
-                                        .price(currentPrice)
-                                        .history(history)
-                                        .build());
-                }
-                return result;
+        if (summaryOpt.isEmpty()) {
+            return CitySummaryResponseDto.builder()
+                .cityId(cityId)
+                .build();
         }
 
-        private List<FlightPriceCalendar> sortCalendarsByCollectedDateDesc(List<FlightPriceCalendar> calendars) {
-                return calendars.stream()
-                                .sorted(Comparator.comparing(FlightPriceCalendar::getCollectedDate).reversed())
-                                .toList();
+        FlightSummary summary = summaryOpt.get();
+        City city = summary.getCity();
+
+        return CitySummaryResponseDto.builder()
+            .cityId(cityId)
+            .cityNameKr(city.getCityName())
+            .cityNameEn(city.getCityName())
+            .countryNameKr(city.getCountry() != null ? city.getCountry().getCountryName() : "")
+
+            .cityImageUrl(city.getImgUrl())
+            .avgFlightPrice(summary.getAvgFlightPrice())
+            .avgHotelPrice(summary.getAvgHotelPrice())
+            .typicalStopsText(summary.getStops() == null || summary.getStops() == 0 ? "직항"
+                    : "경유 " + summary.getStops() + "회")
+            .avgDurationText(formatDuration(summary.getFlightDuration()))
+            .peakSeasonMonths(parseMonthList(summary.getPeakMonthList()))
+            .offSeasonMonths(parseMonthList(summary.getOffMonthList()))
+            .build();
+    }
+
+    private String formatDuration(Integer minutes) {
+        if (minutes == null)
+            return "-";
+        int h = minutes / 60;
+        int m = minutes % 60;
+        return h + "시간 " + m + "분";
+    }
+
+    private List<Integer> parseMonthList(String monthListStr) {
+        if (monthListStr == null || monthListStr.isBlank())
+            return Collections.emptyList();
+        return Arrays.stream(monthListStr.split(","))
+            .map(String::trim)
+            .map(Integer::parseInt)
+            .collect(Collectors.toList());
+    }
+
+    private String resolveYearMonth(String yearMonth) {
+        if (yearMonth == null || yearMonth.isBlank()) {
+            return YearMonth.now().toString();
         }
-
-        private Map<String, Integer> toDailyPriceMap(List<FlightPriceCalendar.DailyPrice> prices) {
-                if (prices == null || prices.isEmpty()) {
-                        return Collections.emptyMap();
-                }
-
-                return prices.stream()
-                                .filter(price -> price.getDate() != null && price.getPrice() != null)
-                                .collect(Collectors.toMap(
-                                                FlightPriceCalendar.DailyPrice::getDate,
-                                                FlightPriceCalendar.DailyPrice::getPrice,
-                                                (left, right) -> left,
-                                                LinkedHashMap::new));
-        }
-
-        public TrendResponseDto getSixMonthTrend(Long cityId) {
-                String currentYearMonth = YearMonth.now().toString();
-
-                List<FlightSummary> summaries = flightSummaryRepository
-                                .findByCityIdAndYearMonthGreaterThanEqualOrderByYearMonthAsc(
-                                                cityId, currentYearMonth, PageRequest.of(0, 6));
-
-                List<TrendResponseDto.MonthlyTrendDto> trendData = summaries.stream()
-                                .map(s -> TrendResponseDto.MonthlyTrendDto.builder()
-                                                .yearMonth(s.getYearMonth())
-                                                .avgFlightPrice(s.getAvgFlightPrice())
-                                                .avgHotelPrice(s.getAvgHotelPrice())
-                                                .build())
-                                .collect(Collectors.toList());
-
-                return TrendResponseDto.builder()
-                                .cityId(cityId)
-                                .trendData(trendData)
-                                .build();
-        }
-
-        public CitySummaryResponseDto getCitySummary(Long cityId, String yearMonth) {
-                yearMonth = resolveYearMonth(yearMonth);
-                Optional<FlightSummary> summaryOpt = flightSummaryRepository.findByCityIdAndYearMonthWithCity(cityId,
-                                yearMonth);
-
-                if (summaryOpt.isEmpty()) {
-                        return CitySummaryResponseDto.builder()
-                                        .cityId(cityId)
-                                        .build();
-                }
-
-                FlightSummary summary = summaryOpt.get();
-                City city = summary.getCity();
-
-                // New DDD City entity adaptation
-                return CitySummaryResponseDto.builder()
-                                .cityId(cityId)
-                                .cityNameKr(city.getCityName()) // Using cityName from new entity
-                                .cityNameEn(city.getCityName()) // Temporary fallback
-                                .countryNameKr(city.getCountry() != null ? city.getCountry().getCountryName() : "") // Fallback
-                                                                                                                    // to
-                                                                                                                    // new
-                                                                                                                    // logic
-                                .cityImageUrl(city.getImgUrl()) // New entity field
-                                .avgFlightPrice(summary.getAvgFlightPrice())
-                                .avgHotelPrice(summary.getAvgHotelPrice())
-                                .typicalStopsText(summary.getStops() == null || summary.getStops() == 0 ? "직항"
-                                                : "경유 " + summary.getStops() + "회")
-                                .avgDurationText(formatDuration(summary.getFlightDuration()))
-                                .peakSeasonMonths(parseMonthList(summary.getPeakMonthList()))
-                                .offSeasonMonths(parseMonthList(summary.getOffMonthList()))
-                                .build();
-        }
-
-        private String formatDuration(Integer minutes) {
-                if (minutes == null)
-                        return "-";
-                int h = minutes / 60;
-                int m = minutes % 60;
-                return h + "시간 " + m + "분";
-        }
-
-        private List<Integer> parseMonthList(String monthListStr) {
-                if (monthListStr == null || monthListStr.isBlank())
-                        return Collections.emptyList();
-                return Arrays.stream(monthListStr.split(","))
-                                .map(String::trim)
-                                .map(Integer::parseInt)
-                                .collect(Collectors.toList());
-        }
-
-        private String resolveYearMonth(String yearMonth) {
-                if (yearMonth == null || yearMonth.isBlank()) {
-                        return YearMonth.now().toString();
-                }
-                return yearMonth;
-        }
+        return yearMonth;
+    }
 }
