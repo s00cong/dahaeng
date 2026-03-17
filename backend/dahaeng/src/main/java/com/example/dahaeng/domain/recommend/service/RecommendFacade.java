@@ -2,6 +2,7 @@ package com.example.dahaeng.domain.recommend.service;
 
 import com.example.dahaeng.domain.city.entity.CityTag;
 import com.example.dahaeng.domain.city.repository.CityTagRepository;
+import com.example.dahaeng.domain.country.enums.CountryEnum;
 import com.example.dahaeng.domain.country.service.DangerService;
 import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 import com.example.dahaeng.domain.recommend.dto.response.RecommendCitySummaryResponse;
@@ -47,6 +48,13 @@ public class RecommendFacade {
                         city.cityName(),
                         city.cityImageUrl(),
                         round(nz(city.flightPrice()) + nz(city.hotelPerDay()) + nz(city.dailyLocalCost())),
+                        new RecommendCitySummaryResponse.Scores(
+                                round(nz(city.totalScore())),
+                                round(nz(city.tagScore())),
+                                round(nz(city.budgetScore())),
+                                round(nz(city.safetyScore())),
+                                round(nz(city.newsPenaltyScore()))
+                        ),
                         dangerService.dangers(city.countryId()),
                         city.lat(),
                         city.lon()
@@ -57,7 +65,7 @@ public class RecommendFacade {
     }
 
     private CityRankResult score(CityCandidateProjection city, List<CityTag> cityTags, int travelDays, double totalBudget) {
-        if (isExcludedByDanger(city)) {
+        if (isDomestic(city) || isExcludedByDanger(city)) {
             return null;
         }
 
@@ -107,6 +115,10 @@ public class RecommendFacade {
 
     private boolean isExcludedByDanger(CityCandidateProjection city) {
         return hasText(city.getDangerControl()) || hasText(city.getDangerLimita());
+    }
+
+    private boolean isDomestic(CityCandidateProjection city) {
+        return CountryEnum.SOUTH_KOREA.getCountryName().equalsIgnoreCase(city.getCountryName());
     }
 
     private boolean hasText(String value) {

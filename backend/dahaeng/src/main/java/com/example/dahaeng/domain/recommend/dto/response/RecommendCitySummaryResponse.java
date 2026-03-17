@@ -34,9 +34,19 @@ public record RecommendCitySummaryResponse(
             String name,
             String imgUrl,
             Double expectedBudgetFor1day,
+            Scores scores,
             CountryDangerResponse danger,
             Double lat,
             Double lon
+    ) {
+    }
+
+    public record Scores(
+            Double total,
+            Double tag,
+            Double budget,
+            Double safety,
+            Double newsPenalty
     ) {
     }
 }

@@ -13,6 +13,7 @@ import com.example.dahaeng.domain.country.entity.Danger;
 import com.example.dahaeng.domain.country.repository.DangerRepository;
 import com.example.dahaeng.domain.country.service.DangerService;
 import com.example.dahaeng.domain.exchange.entity.Exchange;
+import com.example.dahaeng.domain.exchange.enums.Currency;
 import com.example.dahaeng.domain.exchange.repository.ExchangeRepository;
 import com.example.dahaeng.domain.flight.entity.FlightSummary;
 import com.example.dahaeng.domain.flight.repository.FlightSummaryRepository;
@@ -65,6 +66,7 @@ public class CityService {
 
     public List<AllCitiesResponse> getAllCities() {
         String targetYearMonth = currentYearMonth();
+        Exchange usdExchange = getLatestUsdExchange();
         List<City> cities = cityRepository.findAll();
         List<AllCitiesResponse> result = new ArrayList<>();
 
@@ -109,14 +111,18 @@ public class CityService {
         City city = cityRepository.findById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "도시 정보를 찾을 수 없습니다."));
         String targetYearMonth = resolveYearMonth(request);
+        Exchange usdExchange = getLatestUsdExchange();
 
         FlightSummary summary = flightSummaryRepository.findByCityIdAndYearMonthWithCity(id, targetYearMonth).orElse(null);
         double avgFlightPrice = summary != null && summary.getAvgFlightPrice() != null ? summary.getAvgFlightPrice() : 0.0;
         double avgHotelPrice = summary != null && summary.getAvgHotelPrice() != null ? summary.getAvgHotelPrice() : 0.0;
+        Exchange exchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(city.getCountry().getCurrency()).orElse(null);
 
         LivingCostOfCity cost = livingCostOfCityRepository.findOneByCityId(id).orElse(null);
-        double food = cost != null && cost.getFood() != null ? cost.getFood() : 0.0;
-        double transport = cost != null && cost.getTransport() != null ? cost.getTransport() : 0.0;
+        double estimatedFood = estimateDailyFood(cost);
+        double estimatedTransport = estimateDailyTransport(cost);
+        double foodKrw = convertUsdCostToKrw(estimatedFood, usdExchange);
+        double transportKrw = convertUsdCostToKrw(estimatedTransport, usdExchange);
 
         List<CityTag> cityTags = cityTagRepository.findCityTagsByCityId(id);
         List<String> selectedTags = normalizeSelectedTags(request, cityTags);
@@ -124,12 +130,11 @@ public class CityService {
         double tagScore = calculateTagScore(id, selectedTags);
         Danger danger = dangerRepository.findByCountryId(city.getCountry().getId()).orElse(null);
         double safetyScore = calculateSafetyScore(danger);
-        double budgetScore = calculateBudgetScore(request, avgFlightPrice, avgHotelPrice, food, transport);
+        double budgetScore = calculateBudgetScore(request, avgFlightPrice, avgHotelPrice, foodKrw, transportKrw);
         double newsPenaltyScore = -Math.min(15.0, Math.max(0.0, nz(city.getNews_penalty_score())));
         double finalScore = clamp(tagScore + safetyScore + budgetScore + newsPenaltyScore, 0.0, 100.0);
 
         List<RecommendCitiesResponse.RecommendedPlace> places = buildRecommendedPlaces(id, selectedTags);
-        Exchange exchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(city.getCountry().getCurrency()).orElse(null);
         RecommendCitiesResponse.NewsInsight newsInsight =
                 newsSearchService.searchAndSummarize(city.getCityName(), city.getCountry().getCountryName(), newsPenaltyScore);
 
@@ -147,7 +152,7 @@ public class CityService {
                         round(newsPenaltyScore),
                         city.getCountry().getCurrency().name(),
                         avgHotelPrice,
-                        food + transport,
+                        foodKrw + transportKrw,
                         summary != null ? summary.getOriginAirport() : null,
                         (int) avgFlightPrice,
                         city.getDescription(),
@@ -207,7 +212,7 @@ public class CityService {
                         round(newsPenaltyScore)
                 ),
                 recommendationReason,
-                new RecommendCityDetailResponse.LivingCostFor1Day(food, transport),
+                new RecommendCityDetailResponse.LivingCostFor1Day(foodKrw, transportKrw),
                 new RecommendCityDetailResponse.AirTicketAndHotel(avgFlightPrice, avgHotelPrice),
                 new RecommendCityDetailResponse.ExchangeRate(
                         city.getCountry().getCurrency().name(),
@@ -225,15 +230,18 @@ public class CityService {
         City city = cityRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("도시 정보를 찾을 수 없습니다."));
         String targetYearMonth = currentYearMonth();
+        Exchange usdExchange = getLatestUsdExchange();
 
         FlightSummary summary = flightSummaryRepository.findByCityIdAndYearMonthWithCity(id, targetYearMonth).orElse(null);
         double avgFlightPrice = summary != null && summary.getAvgFlightPrice() != null ? summary.getAvgFlightPrice() : 0.0;
         double avgHotelPrice = summary != null && summary.getAvgHotelPrice() != null ? summary.getAvgHotelPrice() : 0.0;
+        Exchange exchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(city.getCountry().getCurrency()).orElse(null);
 
         LivingCostOfCity cost = livingCostOfCityRepository.findOneByCityId(id).orElse(null);
-        double food = cost != null && cost.getFood() != null ? cost.getFood() : 0.0;
-        double transport = cost != null && cost.getTransport() != null ? cost.getTransport() : 0.0;
-        Exchange exchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(city.getCountry().getCurrency()).orElse(null);
+        double estimatedFood = estimateDailyFood(cost);
+        double estimatedTransport = estimateDailyTransport(cost);
+        double foodKrw = convertUsdCostToKrw(estimatedFood, usdExchange);
+        double transportKrw = convertUsdCostToKrw(estimatedTransport, usdExchange);
 
         List<NotRecommendCityDetailResponse.TagResponse> tags = cityTagRepository.findCityTagsByCityId(id).stream()
                 .map(cityTag -> new NotRecommendCityDetailResponse.TagResponse(
@@ -245,7 +253,7 @@ public class CityService {
         return new NotRecommendCityDetailResponse(
                 city.getId(),
                 city.getCityName(),
-                new NotRecommendCityDetailResponse.LivingCostFor1Day(food, transport),
+                new NotRecommendCityDetailResponse.LivingCostFor1Day(foodKrw, transportKrw),
                 new NotRecommendCityDetailResponse.AirTicketAndHotel(avgFlightPrice, avgHotelPrice),
                 new NotRecommendCityDetailResponse.ExchangeRate(
                         city.getCountry().getCurrency().name(),
@@ -437,5 +445,36 @@ public class CityService {
 
     private double round4(double value) {
         return Math.round(value * 10000.0) / 10000.0;
+    }
+
+    private double convertUsdCostToKrw(double usdCost, Exchange usdExchange) {
+        if (usdCost <= 0) {
+            return 0.0;
+        }
+        if (usdExchange == null || usdExchange.getKrwPer1cur() == null || usdExchange.getKrwPer1cur() <= 0) {
+            return round(usdCost);
+        }
+        return Math.round(usdCost * usdExchange.getKrwPer1cur());
+    }
+
+    private double estimateDailyFood(LivingCostOfCity cost) {
+        if (cost == null) {
+            return 0.0;
+        }
+        return nz(cost.getLunchMenu()) * 1.5
+                + nz(cost.getCappuccino())
+                + nz(cost.getCokePepsi())
+                + (nz(cost.getDinnerInAResturantFor2()) / 2.0);
+    }
+
+    private double estimateDailyTransport(LivingCostOfCity cost) {
+        if (cost == null) {
+            return 0.0;
+        }
+        return nz(cost.getLocalTransportTicket()) * 2.0;
+    }
+
+    private Exchange getLatestUsdExchange() {
+        return exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(Currency.USD).orElse(null);
     }
 }
