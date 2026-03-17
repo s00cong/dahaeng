@@ -1,5 +1,7 @@
 package com.example.dahaeng.domain.bookmark.entity;
 
+import java.time.LocalDateTime;
+
 import com.example.dahaeng.domain.city.entity.City;
 import com.example.dahaeng.domain.member.entity.Member;
 import com.example.dahaeng.global.entity.BaseEntity;
@@ -38,5 +40,14 @@ public class Bookmark extends BaseEntity {
 			throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 삭제된 북마크입니다.");
 		}
 		super.delete();
+	}
+
+	public void createdAt(LocalDateTime createdAt) {
+		setCreatedAt(createdAt);
+	}
+
+	@Override
+	protected void setCreatedAt(LocalDateTime createdAt) {
+		super.setCreatedAt(createdAt);
 	}
 }
