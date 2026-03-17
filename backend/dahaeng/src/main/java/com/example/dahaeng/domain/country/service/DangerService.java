@@ -39,8 +39,18 @@ public class DangerService {
 		addAttention(res, danger);
 		addBan(res, danger);
 		addLimita(res, danger);
+		addSpecial(res, danger);
 
 		return new CountryDangerResponse(danger.getCountry().getCountryName(), res);
+	}
+
+	private void addSpecial(List<CountryDanger> res, Danger danger) {
+		if (danger.getEvacuateRegionTy() != null && !danger.getEvacuateRegionTy().isEmpty()) {
+			addDanger(res, "특별여행주의보(" + danger.getEvacuateRegionTy() + ")", danger.getEvacuateRcmndRemark());
+		}
+		if (danger.getForbiddenRegionTy() != null && !danger.getForbiddenRegionTy().isEmpty()) {
+			addDanger(res, "특별여행주의보(" + danger.getForbiddenRegionTy() + ")", danger.getForbiddenRcmndRemark());
+		}
 	}
 
 	private void addAttention(List<CountryDanger> res, Danger danger) {
