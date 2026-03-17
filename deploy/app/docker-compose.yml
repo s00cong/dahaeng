@@ -29,65 +29,19 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     networks:
       - app-internal
 
-  danger-worker:
-    build:
-      context: ../../data/danger
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-    environment:
-      TZ: ${TZ:-Asia/Seoul}
-      APP_RUNTIME: docker
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${MYSQL_DATABASE:-dahaeng}
-    restart: "no"
-    profiles: ["workers"]
-    networks:
-      - db-external
-
-  exchange-worker:
-    build:
-      context: ../../data/exchange
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-    environment:
-      TZ: ${TZ:-Asia/Seoul}
-      APP_RUNTIME: docker
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${MYSQL_DATABASE:-dahaeng}
-    restart: "no"
-    profiles: ["workers"]
-    networks:
-      - db-external
-
-  livingcost-worker:
-    build:
-      context: ../../data/livingcost
-      dockerfile: Dockerfile
-    env_file:
-      - .env
-    environment:
-      TZ: ${TZ:-Asia/Seoul}
-      APP_RUNTIME: docker
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${MYSQL_DATABASE:-dahaeng}
-    restart: "no"
-    networks:
-      - db-external
-    profiles: ["workers"]
+  certbot:
+    image: certbot/certbot:latest
+    container_name: dahaeng-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
 
 networks:
   app-internal:
