@@ -1,4 +1,7 @@
 export const queryKeys = {
+  tag: {
+    all: ['tag'] as const,
+  },
   city: {
     all: ['city'] as const,
     list: (params?: object) => ['city', 'list', params] as const,

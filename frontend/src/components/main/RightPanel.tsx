@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
+import { useCityList } from "@/hooks/city/useCityList";
 function getMatchColor(score: number | undefined) {
   if (score === undefined) return "bg-slate-100 text-slate-600";
   if (score >= 80) return "bg-emerald-500 text-white";
@@ -18,13 +19,25 @@ export function RightPanel() {
     selectedCityImgUrl,
     isRightPanelOpen,
     isRecommendActive,
+    recommendResults,
+    recommendRequest,
     closeRightPanel,
     openCityModal,
   } = useUiStore();
 
+  const { data: cities, isSuccess: citiesLoaded } = useCityList();
+  const selectedCityName = cities?.find((c) => c.cityId === selectedCityId)?.cityName;
+  const isRecommendedCity =
+    isRecommendActive &&
+    recommendResults.some((r) => r.city === selectedCityName);
+
   const { data: cityFromApi, isLoading } = useCityDetail(
     selectedCityId,
-    isRecommendActive,
+    isRecommendedCity,
+    {
+      enabled: citiesLoaded,
+      recommendParams: isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+    },
   );
 
   const city = cityFromApi ?? null;
@@ -178,21 +191,47 @@ export function RightPanel() {
               </div>
             </div>
 
-            {/* 추천 이유 미리보기 */}
+            {/* 추천 이유 or 위험도 */}
             <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-              <p className="text-xs font-semibold text-slate-700 mb-1.5">
-                AI 추천 이유
-              </p>
-              {isLoading ? (
-                <div className="flex flex-col gap-1.5">
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-4/5" />
-                </div>
+              {isRecommendedCity ? (
+                <>
+                  <p className="text-xs font-semibold text-slate-700 mb-1.5">
+                    AI 추천 이유
+                  </p>
+                  {isLoading ? (
+                    <div className="flex flex-col gap-1.5">
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-4/5" />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">
+                      {city?.recommendationReason ?? "추천 이유를 불러오는 중입니다."}
+                    </p>
+                  )}
+                </>
               ) : (
-                <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">
-                  {city?.recommendationReason ??
-                    "AI가 분석한 추천 이유를 불러오는 중입니다."}
-                </p>
+                <>
+                  <p className="text-xs font-semibold text-slate-700 mb-1.5">
+                    위험도
+                  </p>
+                  {isLoading ? (
+                    <div className="flex flex-col gap-1.5">
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-4/5" />
+                    </div>
+                  ) : city?.danger?.items && city.danger.items.length > 0 ? (
+                    <ul className="flex flex-col gap-1">
+                      {city.danger.items.map((item, i) => (
+                        <li key={i} className="text-xs text-slate-500 leading-relaxed">
+                          <span className="font-medium text-slate-600">[{item.level}]</span>{" "}
+                          {item.description}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-slate-500">위험 정보가 없습니다.</p>
+                  )}
+                </>
               )}
             </div>
           </div>

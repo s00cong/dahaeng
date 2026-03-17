@@ -76,12 +76,11 @@ const BackendNewsItemSchema = z.object({
   createdAt: z.string().nullable().optional(),
 });
 
-// 환율 (선택 제공)
+// 환율 (선택 제공) — 백엔드 RecommendCityDetailResponse.ExchangeRate
 const BackendExchangeRateSchema = z.object({
   currency: z.string(),
-  krwPer1Cur: z.number(),
-  displayUnit: z.number().optional(),
-  displaySymbol: z.string().optional(),
+  krwPerDisplayUnit: z.number(),
+  eventDate: z.string().nullable().optional(),
 }).nullable().optional();
 
 // 백엔드 touristSpot: tags는 string[], tagScores는 Record<string, number>
@@ -145,7 +144,7 @@ const BackendNotRecommendDetailSchema = z.object({
   id: z.number().nullable().optional(),
   name: z.string(),
   livingCostFor1Day: BackendLivingCostSchema.nullable().optional(),
-  airTicket: BackendAirTicketSchema.nullable().optional(),  // not-recommend는 airTicket 키
+  airTicketAndHotel: BackendAirTicketSchema.nullable().optional(),
   danger: BackendCountryDangerSchema,
   tags: z.array(BackendTagResponseSchema).optional(),
   exchangeRate: BackendExchangeRateSchema,
@@ -175,9 +174,18 @@ export const cityApi = {
   getDetail: async (
     cityId: number,
     recommend: boolean,
+    recommendParams?: {
+      selectedTags: string[];
+      userDailyBudget: number;
+      travelDays: number;
+      month: number;
+    },
   ): Promise<CityDetail> => {
     const { data } = await axiosInstance.get(`/api/city/${cityId}`, {
-      params: { recommend },
+      params: recommend && recommendParams
+        ? { recommend, ...recommendParams }
+        : { recommend },
+      timeout: recommend ? 60_000 : 10_000,
     });
 
     if (recommend) {
@@ -216,7 +224,7 @@ export const cityApi = {
         longitude: 0,
         livingCostFor1Day: city.livingCostFor1Day ?? undefined,
         // not-recommend는 airTicket 키 사용
-        airTicketAndHotel: city.airTicket ?? undefined,
+        airTicketAndHotel: city.airTicketAndHotel ?? undefined,
         danger: city.danger ?? undefined,
         tags: city.tags,
         exchangeRate: city.exchangeRate ?? undefined,
@@ -224,8 +232,7 @@ export const cityApi = {
     }
   },
 
-  // POST /api/recommend
-  // POST /api/recommend → RecommendCitiesResponse
+  // POST /api/recommend → RecommendCitySummaryResponse
   recommend: async (body: {
     selectedTags: string[];
     userDailyBudget: number;
@@ -233,33 +240,32 @@ export const cityApi = {
     month: number;
   }) => {
     const BackendRecommendResponseSchema = z.object({
-      status: z.string(),
-      data: z.object({
-        recommendations: z.array(
-          z.object({
-            rank: z.number(),
-            country: z.string(),
-            city: z.string(),
-            scores: z.object({
-              totalScore: z.number().nullable().optional(),
-              budgetScore: z.number().nullable().optional(),
-              safetyScore: z.number().nullable().optional(),
-              tagMatchScore: z.number().nullable().optional(),
-              newPenaltyScore: z.number().nullable().optional(),
-            }),
-            recommendationReason: z.string().nullable().optional(),
-          }),
-        ),
-      }),
+      requestContext: z.object({
+        selectedTags: z.array(z.string()),
+        userDailyBudget: z.number(),
+        travelDays: z.number(),
+        month: z.number(),
+      }).optional(),
+      recommendations: z.array(
+        z.object({
+          id: z.number(),
+          name: z.string(),
+          imgUrl: z.string().nullable().optional(),
+          expectedBudgetFor1day: z.number().nullable().optional(),
+          danger: BackendCountryDangerSchema,
+          lat: z.number().nullable().optional(),
+          lon: z.number().nullable().optional(),
+        }),
+      ),
     });
     const { data } = await axiosInstance.post("/api/recommend", body);
     const parsed = BackendRecommendResponseSchema.parse(data);
-    return parsed.data.recommendations.map((item) => ({
-      rank: item.rank,
-      country: item.country,
-      city: item.city,
-      totalScore: item.scores.totalScore ?? 0,
-      reason: item.recommendationReason ?? null,
+    return parsed.recommendations.map((item, index) => ({
+      rank: index + 1,
+      country: item.danger?.countryName ?? "",
+      city: item.name,
+      totalScore: 0,
+      reason: null,
     }));
   },
 };

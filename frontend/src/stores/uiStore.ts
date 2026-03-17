@@ -21,8 +21,15 @@ interface UiState {
 
   // 추천 상태
   isRecommendActive: boolean;
+  isRecommendLoading: boolean;
 
   recommendResults: RecommendResultItem[];
+  recommendRequest: {
+    selectedTags: string[];
+    userDailyBudget: number;
+    travelDays: number;
+    month: number;
+  } | null;
 
   // 도시 상세 모달 (전체 화면)
   isCityModalOpen: boolean;
@@ -48,7 +55,9 @@ interface UiState {
   setGlobeDuration: (days: number) => void;
   setGlobeTravelMonth: (year: number, month: number) => void;
   setRecommendActive: (v: boolean) => void;
+  setRecommendLoading: (v: boolean) => void;
   setRecommendResults: (results: RecommendResultItem[]) => void;
+  setRecommendRequest: (req: { selectedTags: string[]; userDailyBudget: number; travelDays: number; month: number }) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -82,7 +91,11 @@ export const useUiStore = create<UiState>((set) => ({
   setGlobeTravelMonth: (year, month) =>
     set({ globeTravelYear: year, globeTravelMonth: month }),
   isRecommendActive: false,
+  isRecommendLoading: false,
   recommendResults: [],
+  recommendRequest: null,
   setRecommendActive: (v) => set({ isRecommendActive: v }),
+  setRecommendLoading: (v) => set({ isRecommendLoading: v }),
   setRecommendResults: (results) => set({ recommendResults: results }),
+  setRecommendRequest: (req) => set({ recommendRequest: req }),
 }));

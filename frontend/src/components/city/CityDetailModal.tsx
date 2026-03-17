@@ -3,6 +3,7 @@ import { Loader2, AlertCircle, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
+import { useCityList } from "@/hooks/city/useCityList";
 import { DestinationHeroCard } from "@/components/city/DestinationHeroCard";
 import { CityDetailTabNav } from "@/components/city/CityDetailTabNav";
 import { RecommendTab } from "@/components/city/tabs/RecommendTab";
@@ -63,16 +64,27 @@ export function CityDetailModal() {
     isCityModalOpen,
     activeCityTab,
     isRecommendActive,
+    recommendResults,
+    recommendRequest,
     closeCityModal,
     setActiveCityTab,
   } = useUiStore();
 
-  // 선택된 도시 ID로 API에서 도시 상세 정보를 가져옴
+  const { data: cities } = useCityList();
+  const selectedCityName = cities?.find((c) => c.cityId === selectedCityId)?.cityName;
+  const isRecommendedCity =
+    isRecommendActive &&
+    recommendResults.some((r) => r.city === selectedCityName);
+
+  // 선택된 도시 ID로 API에서 도시 상세 정보를 가져옴 (모달 열렸을 때만)
   const {
     data: cityFromApi,
     isLoading,
     isError,
-  } = useCityDetail(selectedCityId, isRecommendActive);
+  } = useCityDetail(selectedCityId, isRecommendedCity, {
+    enabled: isCityModalOpen,
+    recommendParams: isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+  });
 
   const city = cityFromApi ?? null;
   const showError = isError && !city;
