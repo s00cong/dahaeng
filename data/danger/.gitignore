@@ -12,6 +12,7 @@ venv/
 # Local env files
 .env
 .env.*
+!.env*.example
 
 # Runtime/generated artifacts
 *.log

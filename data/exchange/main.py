@@ -3,9 +3,9 @@ from datetime import date, datetime, timezone
 from typing import List
 
 try:
-    from exchange_worker.modules.country_currency_map import COUNTRY_NAME_TO_CURRENCY
-    from exchange_worker.modules.db_ops import prepare_exchange_db, sync_county_currencies, upsert_exchange_row
-    from exchange_worker.modules.rate_rows import build_display_metadata, persist_exchange_row, safe_inverse
+    from exchange.modules.country_currency_map import COUNTRY_NAME_TO_CURRENCY
+    from exchange.modules.db_ops import prepare_exchange_db, sync_county_currencies, upsert_exchange_row
+    from exchange.modules.rate_rows import build_display_metadata, persist_exchange_row, safe_inverse
 except ModuleNotFoundError:
     from modules.country_currency_map import COUNTRY_NAME_TO_CURRENCY
     from modules.db_ops import prepare_exchange_db, sync_county_currencies, upsert_exchange_row

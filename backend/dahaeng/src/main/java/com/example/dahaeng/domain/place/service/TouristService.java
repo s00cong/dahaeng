@@ -15,6 +15,7 @@ import com.example.dahaeng.domain.member.entity.MemberTag;
 import com.example.dahaeng.domain.member.repository.MemberRepository;
 import com.example.dahaeng.domain.member.repository.MemberTagRepository;
 import com.example.dahaeng.domain.place.dto.response.PlaceDetailResponse;
+import com.example.dahaeng.domain.place.dto.response.PlaceListResponse;
 import com.example.dahaeng.domain.place.dto.response.PlaceResponse;
 import com.example.dahaeng.domain.place.dto.response.SpotTagResponse;
 import com.example.dahaeng.domain.place.dto.util.PlaceTagDto;
@@ -44,7 +45,7 @@ public class TouristService {
 	private final TagRepository tagRepository;
 
 	@Transactional
-	public List<PlaceResponse> places(Long cityId, Long memberId) {
+	public List<PlaceListResponse> places(Long cityId, Long memberId) {
 		// 1. memberId 확인
 		// 2. 분기 ( 추천, 비추천 )
 		if (memberId != null) {
@@ -70,7 +71,7 @@ public class TouristService {
 		return PlaceDetailResponse.from(touristSpot, tagResList);
 	}
 
-	private List<PlaceResponse> recommend(Long cityId, Long memberId) {
+	private List<PlaceListResponse> recommend(Long cityId, Long memberId) {
 		Member member = validMember(memberId);
 
 		List<MemberTag> memberTags = memberTagRepository.findAllByMember(member);
@@ -98,7 +99,7 @@ public class TouristService {
 		return getPlaceResponses(places, spotMap);
 	}
 
-	private List<PlaceResponse> unrecommend(Long cityId) {
+	private List<PlaceListResponse> unrecommend(Long cityId) {
 		log.info("unrecommended={}", cityId);
 		List<TouristSpot> places = touristSpotRepository.findByCityId(cityId);
 
@@ -132,7 +133,7 @@ public class TouristService {
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "유효하지 않은 멤버아이디입니다."));
 	}
 
-	private @NonNull List<PlaceResponse> getPlaceResponses(
+	private @NonNull List<PlaceListResponse> getPlaceResponses(
 		List<TouristSpot> places,
 		Map<Long, List<SpotTagScoreProjection>> spotMap
 	) {
@@ -164,17 +165,17 @@ public class TouristService {
 			}
 		});
 
-		List<PlaceResponse> res = new ArrayList<>();
+		List<PlaceListResponse> res = new ArrayList<>();
 
 		int cnt = 0;
 		for (PlaceTagDto placeTagDto : pq) {
 			if (cnt == 10) {
 				break;
 			}
-			res.add(PlaceResponse.from(
+			res.add(PlaceListResponse.from(
 				placeTagDto.place(),
 				placeTagDto.tags().stream()
-					.map(SpotTagScoreProjection::getTagName)
+					.map(tag -> new SpotTagResponse(tag.getTagName(), tag.getScore()))
 					.toList()
 			));
 			cnt++;
