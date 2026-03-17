@@ -2,22 +2,19 @@ import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { authApi } from "@/api/auth.api";
 import { useAuthStore } from "@/stores/authStore";
-import { usePreferenceStore } from "@/stores/preferenceStore";
 
 /**
  * 선호도 입력 (최초 등록) — 성공 시 /main으로 이동
- * POST /api/members/tag
+ * POST /api/member/tag  body: { tagIds: number[] }
  */
 export const useSubmitPreference = () => {
   const { setHasCompletedPreference } = useAuthStore();
-  const { reset } = usePreferenceStore();
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: (tags: string[]) => authApi.submitPreference({ tags }),
+    mutationFn: (tagIds: number[]) => authApi.submitPreference({ tagIds }),
     onSuccess: () => {
       setHasCompletedPreference(true);
-      reset();
     },
     onSettled: () => {
       navigate({ to: '/main', search: { tab: 'recommend' } });
@@ -27,13 +24,13 @@ export const useSubmitPreference = () => {
 
 /**
  * 선호도 수정 — 성공 시 /mypage로 이동
- * PATCH /api/members/tag
+ * POST /api/member/tag  body: { tagIds: number[] }  (백엔드 upsert)
  */
 export const useUpdatePreference = () => {
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: (tags: string[]) => authApi.updatePreference({ tags }),
+    mutationFn: (tagIds: number[]) => authApi.updatePreference({ tagIds }),
     onSettled: () => {
       navigate({ to: '/mypage' });
     },

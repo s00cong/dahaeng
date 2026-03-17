@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Loader2, RefreshCw, SearchX } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCityList } from "@/hooks/city/useCityList";
 import { useUiStore } from "@/stores/uiStore";
@@ -11,7 +11,7 @@ const TOP_N = 5;
 
 export function TopMatchingList() {
   const { data: citiesFromApi, isLoading } = useCityList();
-  const { isRecommendActive, recommendResults } = useUiStore();
+  const { isRecommendActive, isRecommendLoading, recommendResults } = useUiStore();
 
   const cities = citiesFromApi ?? [];
 
@@ -20,7 +20,7 @@ export function TopMatchingList() {
       return recommendResults.slice(0, TOP_N).map((r) => {
         const matched = cities.find((c) => c.cityName === r.city);
         return matched
-          ? { ...matched, matchingScore: r.totalScore }
+          ? { ...matched, matchingScore: r.totalScore > 0 ? r.totalScore : undefined }
           : {
               cityId: r.rank,
               cityName: r.city,
@@ -30,11 +30,11 @@ export function TopMatchingList() {
               riskLevel: 1,
               latitude: 0,
               longitude: 0,
-              matchingScore: r.totalScore,
+              matchingScore: r.totalScore > 0 ? r.totalScore : undefined,
             };
       });
     }
-    return [...cities].slice(0, TOP_N);
+    return [];
   }, [cities, recommendResults, isRecommendActive]);
 
   return (
@@ -58,7 +58,7 @@ export function TopMatchingList() {
         </span>
       </div>
 
-      {/* 로딩 스켈레톤 */}
+      {/* 도시 목록 로딩 스켈레톤 */}
       {isLoading && (
         <div
           className="flex flex-col gap-2"
@@ -79,19 +79,47 @@ export function TopMatchingList() {
         </div>
       )}
 
-      {/* 빈 상태 */}
-      {!isLoading && topCities.length === 0 && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-2 py-6 text-center">
-          <MapPin className="size-8 text-slate-300" aria-hidden="true" />
-          <p className="text-xs text-slate-400">추천 여행지가 없습니다.</p>
-          <p className="text-[10px] text-slate-400">
-            여행 설정을 업데이트해 보세요.
+      {/* 추천 API 로딩 중 */}
+      {!isLoading && isRecommendLoading && (
+        <div
+          className="flex flex-col items-center justify-center flex-1 gap-3 py-6"
+          role="status"
+          aria-label="추천 계산 중"
+        >
+          <Loader2 className="size-8 text-blue-400 animate-spin" />
+          <p className="text-xs font-medium text-slate-600">추천 여행지 계산 중...</p>
+          <p className="text-[10px] text-slate-400">잠시만 기다려 주세요</p>
+        </div>
+      )}
+
+      {/* 추천 전 안내 메시지 */}
+      {!isLoading && !isRecommendLoading && !isRecommendActive && (
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+          <RefreshCw className="size-8 text-slate-300" aria-hidden="true" />
+          <p className="text-xs font-medium text-slate-600">
+            아직 추천 결과가 없어요
+          </p>
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            여행 설정을 입력하고<br />추천 업데이트를 눌러주세요
+          </p>
+        </div>
+      )}
+
+      {/* 추천 결과 없음 */}
+      {!isLoading && !isRecommendLoading && isRecommendActive && topCities.length === 0 && (
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+          <SearchX className="size-8 text-slate-300" aria-hidden="true" />
+          <p className="text-xs font-medium text-slate-600">
+            추천된 도시가 없습니다
+          </p>
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            설정을 변경하고<br />다시 추천해주세요
           </p>
         </div>
       )}
 
       {/* 목록 */}
-      {!isLoading && topCities.length > 0 && (
+      {!isLoading && !isRecommendLoading && isRecommendActive && topCities.length > 0 && (
         <ul className="flex flex-col overflow-y-auto flex-1" role="list">
           {topCities.map((city, index) => (
             <li key={city.cityId} role="listitem">

@@ -2,12 +2,17 @@ import { type LucideIcon } from 'lucide-react';
 import { motion, type Variants } from 'framer-motion';
 import { TagChip } from '@/components/preference/TagChip';
 
+export interface TagOption {
+  id: number;
+  name: string;
+}
+
 interface TagCategorySectionProps {
   category: string;
   icon: LucideIcon;
-  tags: string[];
-  selectedTags: string[];
-  onToggle: (tag: string) => void;
+  tags: TagOption[];
+  selectedTagIds: number[];
+  onToggle: (id: number) => void;
 }
 
 const chipListVariants: Variants = {
@@ -32,7 +37,7 @@ export function TagCategorySection({
   category,
   icon: Icon,
   tags,
-  selectedTags,
+  selectedTagIds,
   onToggle,
 }: TagCategorySectionProps) {
   return (
@@ -55,11 +60,11 @@ export function TagCategorySection({
         aria-label={`${category} 태그 목록`}
       >
         {tags.map((tag) => (
-          <motion.div key={tag} variants={chipItemVariants}>
+          <motion.div key={tag.id} variants={chipItemVariants}>
             <TagChip
-              label={tag}
-              selected={selectedTags.includes(tag)}
-              onToggle={onToggle}
+              label={tag.name}
+              selected={selectedTagIds.includes(tag.id)}
+              onToggle={() => onToggle(tag.id)}
             />
           </motion.div>
         ))}

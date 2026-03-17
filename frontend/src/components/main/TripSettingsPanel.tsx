@@ -1,4 +1,4 @@
-import { useState, useCallback, type ChangeEvent } from "react";
+import { useState, useCallback, useRef, type ChangeEvent } from "react";
 import { SlidersHorizontal, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUiStore } from "@/stores/uiStore";
+import { usePreferenceStore } from "@/stores/preferenceStore";
 import { useRecommend } from "@/hooks/city/useRecommend";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -52,6 +53,7 @@ export function TripSettingsPanel() {
     new Date().getMonth() + 1,
   );
 
+  const { selectedTags } = usePreferenceStore();
   const { mutate: recommend, isPending } = useRecommend();
 
   // 선택한 연/월이 현재 시점보다 과거인지 검사한다.
@@ -147,7 +149,7 @@ export function TripSettingsPanel() {
       setGlobeTravelMonth(selectedYear, selectedMonth);
       setRecommendActive(true);
       recommend({
-        selectedTags: [],
+        selectedTags,
         userDailyBudget: budget / duration,
         travelDays: duration,
         month: selectedMonth,
@@ -158,6 +160,7 @@ export function TripSettingsPanel() {
     durationInput,
     selectedYear,
     selectedMonth,
+    selectedTags,
     setGlobeBudgetFilter,
     setGlobeDuration,
     setGlobeTravelMonth,

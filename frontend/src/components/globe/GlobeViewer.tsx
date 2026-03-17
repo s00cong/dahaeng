@@ -12,6 +12,15 @@ import { useCityList } from "@/hooks/city/useCityList";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 import { COUNTRY_NAME_ISO3 } from "@/data/countryNameIso3";
 import React from "react";
+import medal1Img from "@/assets/medal1.png";
+import medal2Img from "@/assets/medal2.png";
+import medal3Img from "@/assets/medal3.png";
+
+const MEDAL_IMGS: Record<1 | 2 | 3, string> = {
+  1: medal1Img,
+  2: medal2Img,
+  3: medal3Img,
+};
 
 // 베이스 지도: 로컬 50m (public/geo/ — CDN 대신 로컬 서버에서 로드)
 // admin-1: 클릭된 나라의 /geo/{ISO3}.json (10m, lazy load)
@@ -755,7 +764,12 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       }
 
       // POLYGON_LEVEL_CLICK 나라는 마우스 좌표를 역투영해 어느 폴리곤인지 판별
-      let bounds: { minLng: number; maxLng: number; minLat: number; maxLat: number } | null;
+      let bounds: {
+        minLng: number;
+        maxLng: number;
+        minLat: number;
+        maxLat: number;
+      } | null;
       if (POLYGON_LEVEL_CLICK.has(rawName)) {
         const svgEl = containerRef.current?.querySelector("svg");
         if (svgEl) {
@@ -880,6 +894,12 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         .map((c) => c.cityId),
     );
   }, [cities, recommendResults, isRecommendActive]);
+
+  // 추천 활성 시 도시명 → 점수 매핑 (마커 색상에 사용)
+  const recommendScoreMap = useMemo<Map<string, number>>(() => {
+    if (!isRecommendActive || recommendResults.length === 0) return new Map();
+    return new Map(recommendResults.map((r) => [r.city, r.totalScore]));
+  }, [isRecommendActive, recommendResults]);
 
   // 추천 활성 시 상위 3개 도시 → cityId: rank(1|2|3) 매핑
   const medalRankMap = useMemo<Map<number, 1 | 2 | 3>>(() => {
@@ -1022,8 +1042,14 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                 const isMatched =
                   !isRecommendActive || matchedCityIds.has(city.cityId);
                 const medalRank = medalRankMap.get(city.cityId);
-                const r = 5 / zoom;
-                const medalSize = 30 / zoom;
+                const rawScore = isRecommendActive
+                  ? recommendScoreMap.get(city.cityName)
+                  : undefined;
+                // If backend doesn't return scores (totalScore=0), treat as undefined → blue marker
+                const matchScore =
+                  rawScore !== undefined && rawScore > 0 ? rawScore : undefined;
+                const r = 5 / Math.pow(zoom, 0.8);
+                const medalSize = 30 / Math.pow(zoom, 0.8);
 
                 // 클릭된 국가에 속한 도시라면 3D 상면으로 이동
                 const isCityInClickedCountry =
@@ -1058,9 +1084,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                       <circle
                         r={r}
                         fill={
-                          isMatched
-                            ? getMarkerColor(city.matchingScore)
-                            : "#CBD5E1"
+                          isMatched ? getMarkerColor(matchScore) : "#CBD5E1"
                         }
                         stroke="#fff"
                         strokeWidth={1 / zoom}
@@ -1077,7 +1101,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                       />
                       {medalRank && (
                         <image
-                          href={`/src/assets/medal${medalRank}.png`}
+                          href={MEDAL_IMGS[medalRank]}
                           x={-medalSize / 2}
                           y={-(r + medalSize)}
                           width={medalSize}

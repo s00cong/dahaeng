@@ -7,10 +7,22 @@ import { queryKeys } from '@/utils/queryKeys';
  * GET /api/city/{cityId}?recommend=true|false
  * staleTime: 5분
  */
-export const useCityDetail = (cityId: number | null, recommend: boolean) =>
+export const useCityDetail = (
+  cityId: number | null,
+  recommend: boolean,
+  options?: {
+    enabled?: boolean;
+    recommendParams?: {
+      selectedTags: string[];
+      userDailyBudget: number;
+      travelDays: number;
+      month: number;
+    };
+  },
+) =>
   useQuery({
-    queryKey: [...queryKeys.city.detail(cityId!), recommend],
-    queryFn: () => cityApi.getDetail(cityId!, recommend),
-    enabled: cityId !== null,
+    queryKey: [...queryKeys.city.detail(cityId!), recommend, options?.recommendParams ?? null],
+    queryFn: () => cityApi.getDetail(cityId!, recommend, options?.recommendParams),
+    enabled: cityId !== null && (options?.enabled ?? true),
     staleTime: 5 * 60 * 1000,
   });

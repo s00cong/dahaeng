@@ -4,6 +4,8 @@ import { useUiStore } from "@/stores/uiStore";
 
 export const useRecommend = () => {
   const setRecommendResults = useUiStore((s) => s.setRecommendResults);
+  const setRecommendRequest = useUiStore((s) => s.setRecommendRequest);
+  const setRecommendLoading = useUiStore((s) => s.setRecommendLoading);
 
   return useMutation({
     mutationFn: (body: {
@@ -12,8 +14,15 @@ export const useRecommend = () => {
       travelDays: number;
       month: number;
     }) => cityApi.recommend(body),
-    onSuccess: (data) => {
+    onMutate: () => {
+      setRecommendLoading(true);
+    },
+    onSuccess: (data, variables) => {
       setRecommendResults(data);
+      setRecommendRequest(variables);
+    },
+    onSettled: () => {
+      setRecommendLoading(false);
     },
   });
 };
