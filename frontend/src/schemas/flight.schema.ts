@@ -13,7 +13,7 @@ export const CitySummarySchema = z.object({
   city_name_kr: z.string(),
   city_name_en: z.string(),
   country_name_kr: z.string(),
-  city_image_url: z.string(),
+  city_image_url: z.string().nullable().optional(),
   avg_flight_price: z.number(),
   avg_hotel_price: z.number(),
   typical_stops_text: z.string(),

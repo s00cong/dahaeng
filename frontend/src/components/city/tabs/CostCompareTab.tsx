@@ -21,8 +21,8 @@ const tabVariants = {
 };
 
 export function CostCompareTab({ city }: CostCompareTabProps) {
-  // 도시 상세 정보에서 기본 통화 추출 (기본값 USD)
-  const [currency, setCurrency] = useState('USD');
+  // city.exchangeRate.currency(실제 외화 코드)를 우선 사용, 없으면 USD
+  const [currency, setCurrency] = useState(city.exchangeRate?.currency ?? 'USD');
 
   // 통합 훅 호출 (4개 API: 상세, 비교, 환율, 추이)
   const { exchangeRate, costDetail, costCompare, isLoading, isError } = useCityPriceTab(
@@ -33,13 +33,10 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
   // 서울 상세 정보 따로 호출 (비교 바 렌더링용)
   const seoulDetail = useCostDetail('city', SEOUL_CITY_ID);
 
-  // 데이터 로드 시 통화 코드 업데이트
+  // city가 바뀌면 currency도 재설정
   useEffect(() => {
-    const targetCurrency = costDetail.data?.target.currency;
-    if (targetCurrency) {
-      setCurrency(targetCurrency);
-    }
-  }, [costDetail.data]);
+    setCurrency(city.exchangeRate?.currency ?? 'USD');
+  }, [city.cityId, city.exchangeRate?.currency]);
 
   if (isLoading && !costDetail.data) {
     return (

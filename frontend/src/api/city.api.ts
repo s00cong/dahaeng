@@ -1,6 +1,11 @@
 import { axiosInstance } from "./axiosInstance";
 import type { CityDetail } from "@/schemas/city.schema";
 import { z } from "zod";
+import {
+  DUMMY_CITY_DETAIL_RECOMMEND,
+  DUMMY_CITY_DETAIL_NOT_RECOMMEND,
+  DUMMY_NEWS_ARTICLES,
+} from "@/data/city.dummy";
 
 // 백엔드 CountryDanger { level, description }
 const BackendCountryDangerItemSchema = z.object({
@@ -76,11 +81,14 @@ const BackendNewsItemSchema = z.object({
   createdAt: z.string().nullable().optional(),
 });
 
-// 환율 (선택 제공) — 백엔드 RecommendCityDetailResponse.ExchangeRate
+
+// 환율 (선택 제공) — 백엔드: { currency, krwPerDisplayUnit, eventDate }
 const BackendExchangeRateSchema = z.object({
   currency: z.string(),
   krwPerDisplayUnit: z.number(),
-  eventDate: z.string().nullable().optional(),
+  eventDate: z.string().optional(),
+  displayUnit: z.number().optional(),
+  displaySymbol: z.string().optional(),
 }).nullable().optional();
 
 // 백엔드 touristSpot: tags는 string[], tagScores는 Record<string, number>
@@ -144,7 +152,7 @@ const BackendNotRecommendDetailSchema = z.object({
   id: z.number().nullable().optional(),
   name: z.string(),
   livingCostFor1Day: BackendLivingCostSchema.nullable().optional(),
-  airTicketAndHotel: BackendAirTicketSchema.nullable().optional(),
+  airTicketAndHotel: BackendAirTicketSchema.nullable().optional(),  // 백엔드 키: airTicketAndHotel
   danger: BackendCountryDangerSchema,
   tags: z.array(BackendTagResponseSchema).optional(),
   exchangeRate: BackendExchangeRateSchema,
@@ -181,6 +189,7 @@ export const cityApi = {
       month: number;
     },
   ): Promise<CityDetail> => {
+    try {
     const { data } = await axiosInstance.get(`/api/city/${cityId}`, {
       params: recommend && recommendParams
         ? { recommend, ...recommendParams }
@@ -202,7 +211,9 @@ export const cityApi = {
         recommendationReason: city.recommendationReason ?? undefined,
         livingCostFor1Day: city.livingCostFor1Day ?? undefined,
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
-        news: city.news ?? undefined,
+        news: city.news?.top3?.length
+          ? city.news
+          : { summation: undefined, top3: DUMMY_NEWS_ARTICLES },
         danger: city.danger ?? undefined,
         tags: city.tags,
         // tags(string[]) + tagScores({}) → Tag[] 변환
@@ -229,6 +240,11 @@ export const cityApi = {
         tags: city.tags,
         exchangeRate: city.exchangeRate ?? undefined,
       };
+    }
+    } catch {
+      // 외부 API(News API, OpenAI, Google Places) 장애 또는 개발 환경에서 더미 데이터 반환
+      const dummy = recommend ? DUMMY_CITY_DETAIL_RECOMMEND : DUMMY_CITY_DETAIL_NOT_RECOMMEND;
+      return { ...dummy, cityId };
     }
   },
 

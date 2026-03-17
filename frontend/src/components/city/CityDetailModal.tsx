@@ -70,6 +70,7 @@ export function CityDetailModal() {
     setActiveCityTab,
   } = useUiStore();
 
+
   const { data: cities } = useCityList();
   const selectedCityName = cities?.find((c) => c.cityId === selectedCityId)?.cityName;
   const isRecommendedCity =
@@ -86,7 +87,13 @@ export function CityDetailModal() {
     recommendParams: isRecommendedCity && recommendRequest ? recommendRequest : undefined,
   });
 
-  const city = cityFromApi ?? null;
+
+  // 느린 호출: AI 생성 콘텐츠 (recommendationReason, news) — 모달에서는 항상 호출
+  const { data: aiCity, isLoading: isAiLoading } = useCityDetail(selectedCityId, true);
+
+  // AI 데이터 우선, 없으면 기본 데이터 사용
+  const city = (aiCity ?? basicCity) ?? null;
+  const isLoading = isBasicLoading;
   const showError = isError && !city;
 
   return (
@@ -183,6 +190,7 @@ export function CityDetailModal() {
                       <RecommendTab
                         city={city}
                         onTabChange={setActiveCityTab}
+                        isAiLoading={isRecommendActive && isAiLoading}
                       />
                     )}
                     {activeCityTab === "cost" && <CostCompareTab city={city} />}
