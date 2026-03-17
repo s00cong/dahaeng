@@ -5,7 +5,7 @@ import { z } from "zod";
 // 백엔드 CountryDanger { level, description }
 const BackendCountryDangerItemSchema = z.object({
   level: z.string(),
-  description: z.string(),
+  description: z.string().nullable(),
 });
 
 // 백엔드 CountryDangerResponse { countryName, items }
@@ -46,9 +46,17 @@ const dangerToRiskLevel = (
 const BackendLivingCostSchema = z.object({
   food: z.number(),
   transportation: z.number(),
+  accommodation: z.number().nullable().optional(),
 });
 
+// recommend=true 응답의 airTicketAndHotel
 const BackendAirTicketAndHotelSchema = z.object({
+  airTicket: z.number(),
+  hotel: z.number(),
+});
+
+// recommend=false 응답의 airTicket
+const BackendAirTicketSchema = z.object({
   airTicket: z.number(),
   hotel: z.number(),
 });
@@ -65,15 +73,43 @@ const BackendNewsItemSchema = z.object({
   description: z.string().nullable().optional(),
   urlToImage: z.string().nullable().optional(),
   publishedAt: z.string().nullable().optional(),
+  createdAt: z.string().nullable().optional(),
 });
 
+// 환율 (선택 제공)
+const BackendExchangeRateSchema = z.object({
+  currency: z.string(),
+  krwPer1Cur: z.number(),
+  displayUnit: z.number().optional(),
+  displaySymbol: z.string().optional(),
+}).nullable().optional();
+
+// 백엔드 touristSpot: tags는 string[], tagScores는 Record<string, number>
 const BackendTouristSpotSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   lat: z.number().nullable().optional(),
   lon: z.number().nullable().optional(),
   imageUrl: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  snsLink: z.string().nullable().optional(),
+  websiteLink: z.string().nullable().optional(),
+  spotScore: z.number().nullable().optional(),
+  tags: z.array(z.string()).optional(),           // string[]
+  tagScores: z.record(z.string(), z.number()).optional(), // { "태그명": score }
 });
+
+// touristSpot 변환: string[] tags + tagScores → Tag[]
+function convertSpotTags(spot: {
+  tags?: string[];
+  tagScores?: Record<string, number>;
+  [key: string]: unknown;
+}) {
+  return spot.tags?.map((name) => ({
+    name,
+    tagScore: spot.tagScores?.[name] ?? null,
+  }));
+}
 
 // GET /api/city/{id}?recommend=true → RecommendCityDetailResponse
 const BackendRecommendDetailSchema = z.object({
@@ -101,6 +137,7 @@ const BackendRecommendDetailSchema = z.object({
   danger: BackendCountryDangerSchema,
   tags: z.array(BackendTagResponseSchema).optional(),
   touristSpot: z.array(BackendTouristSpotSchema).optional(),
+  exchangeRate: BackendExchangeRateSchema,
 });
 
 // GET /api/city/{id}?recommend=false → NotRecommendCityDetailResponse
@@ -108,9 +145,10 @@ const BackendNotRecommendDetailSchema = z.object({
   id: z.number().nullable().optional(),
   name: z.string(),
   livingCostFor1Day: BackendLivingCostSchema.nullable().optional(),
-  airTicketAndHotel: BackendAirTicketAndHotelSchema.nullable().optional(),
+  airTicket: BackendAirTicketSchema.nullable().optional(),  // not-recommend는 airTicket 키
   danger: BackendCountryDangerSchema,
   tags: z.array(BackendTagResponseSchema).optional(),
+  exchangeRate: BackendExchangeRateSchema,
 });
 
 export const cityApi = {
@@ -168,7 +206,12 @@ export const cityApi = {
         news: city.news ?? undefined,
         danger: city.danger ?? undefined,
         tags: city.tags,
-        touristSpot: city.touristSpot,
+        // tags(string[]) + tagScores({}) → Tag[] 변환
+        touristSpot: city.touristSpot?.map((spot) => ({
+          ...spot,
+          tags: convertSpotTags(spot),
+        })),
+        exchangeRate: city.exchangeRate ?? undefined,
       };
     } else {
       const city = BackendNotRecommendDetailSchema.parse(data);
@@ -181,9 +224,11 @@ export const cityApi = {
         latitude: 0,
         longitude: 0,
         livingCostFor1Day: city.livingCostFor1Day ?? undefined,
-        airTicketAndHotel: city.airTicketAndHotel ?? undefined,
+        // not-recommend는 airTicket 키 사용
+        airTicketAndHotel: city.airTicket ?? undefined,
         danger: city.danger ?? undefined,
         tags: city.tags,
+        exchangeRate: city.exchangeRate ?? undefined,
       };
     }
   },

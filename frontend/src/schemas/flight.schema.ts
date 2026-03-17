@@ -28,7 +28,7 @@ export type CitySummary = z.infer<typeof CitySummarySchema>;
 export const PriceHistoryEntrySchema = z.object({
   collected_date: z.string(),
   price: z.number(),
-  label: z.string(), // "오늘" | "어제" | "1주 전" | "2주 전"
+  label: z.string(), // "오늘" | "어제" | "그제" | "3일 전" | ... | "14일 전" (최대 15일치)
 });
 export type PriceHistoryEntry = z.infer<typeof PriceHistoryEntrySchema>;
 

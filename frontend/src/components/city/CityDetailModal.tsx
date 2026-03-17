@@ -9,7 +9,7 @@ import { CityDetailTabNav } from "@/components/city/CityDetailTabNav";
 import { RecommendTab } from "@/components/city/tabs/RecommendTab";
 import { CostCompareTab } from "@/components/city/tabs/CostCompareTab";
 import { FlightTab } from "@/components/city/tabs/FlightTab";
-import { NewsTab } from "@/components/city/tabs/NewsTab";
+import { SpotTab } from "@/components/city/tabs/SpotTab";
 // 배경 오버레이 페이드 인/아웃 애니메이션 정의
 const backdropVariants: Variants = {
   hidden: { opacity: 0 },
@@ -187,7 +187,7 @@ export function CityDetailModal() {
                     )}
                     {activeCityTab === "cost" && <CostCompareTab city={city} />}
                     {activeCityTab === "flight" && <FlightTab city={city} />}
-                    {activeCityTab === "news" && <NewsTab city={city} />}
+                    {activeCityTab === "spots" && <SpotTab city={city} />}
                   </motion.div>
                 )}
               </div>

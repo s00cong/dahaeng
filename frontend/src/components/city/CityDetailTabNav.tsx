@@ -1,7 +1,7 @@
-import { Sparkles, TrendingUp, Plane, Newspaper, type LucideIcon } from 'lucide-react';
+import { Sparkles, TrendingUp, Plane, MapPin, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type CityDetailTab = 'recommend' | 'cost' | 'flight' | 'news';
+type CityDetailTab = 'recommend' | 'cost' | 'flight' | 'spots';
 
 interface TabConfig {
   id: CityDetailTab;
@@ -13,7 +13,7 @@ const TABS: TabConfig[] = [
   { id: 'recommend', label: '추천 이유', icon: Sparkles },
   { id: 'cost', label: '생활물가 비교', icon: TrendingUp },
   { id: 'flight', label: '항공권 탐색', icon: Plane },
-  { id: 'news', label: '현지 뉴스', icon: Newspaper },
+  { id: 'spots', label: '관광지', icon: MapPin },
 ];
 
 interface CityDetailTabNavProps {

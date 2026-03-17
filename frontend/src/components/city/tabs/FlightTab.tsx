@@ -24,7 +24,6 @@ import type {
   FlightCalendar,
   FlightTrend,
   DailyPriceEntry,
-  FlightSummary,
 } from '@/schemas/flight.schema';
 
 interface FlightTabProps {
@@ -563,28 +562,31 @@ function DateHistoryPanel({
 
   const totalPriceTrend = useMemo(() => {
     if (!departure || !returnDate) return null;
-    
+
     const outHistory = departure.entry.history || [];
     const inHistory = returnDate.entry.history || [];
-    const labels = ["오늘", "어제", "1주 전", "2주 전"];
-    
-    const trend = labels.map(label => {
-      const outH = outHistory.find(h => h.label === label);
-      const inH = inHistory.find(h => h.label === label);
-      
-      let outPrice = outH?.price;
-      if (label === "오늘" && outPrice === undefined) outPrice = departure.entry.price;
-      
-      let inPrice = inH?.price;
-      if (label === "오늘" && inPrice === undefined) inPrice = returnDate.entry.price;
-      
-      if (outPrice !== undefined && inPrice !== undefined) {
-        return { label, price: outPrice + inPrice };
-      }
-      return null;
-    }).filter(Boolean) as { label: string; price: number }[];
-    
-    return trend.reverse(); // 차트 표시를 위해 과거 -> 현재 순서로
+
+    // collected_date 기준으로 가는편 + 오는편 가격 매칭
+    const dateMap = new Map<string, { label: string; outPrice?: number; inPrice?: number }>();
+
+    for (const h of outHistory) {
+      const existing = dateMap.get(h.collected_date) ?? {};
+      dateMap.set(h.collected_date, { ...existing, label: h.label, outPrice: h.price });
+    }
+    for (const h of inHistory) {
+      const existing = dateMap.get(h.collected_date) ?? {};
+      dateMap.set(h.collected_date, { ...existing, label: h.label, inPrice: h.price });
+    }
+
+    return Array.from(dateMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b)) // 오래된 날짜 → 최신 순
+      .map(([date, { label, outPrice, inPrice }]) => {
+        if (outPrice !== undefined && inPrice !== undefined) {
+          return { date, label, price: outPrice + inPrice };
+        }
+        return null;
+      })
+      .filter(Boolean) as { date: string; label: string; price: number }[];
   }, [departure, returnDate]);
 
   if (!displayDay && !isRangeComplete) return null;
@@ -643,21 +645,41 @@ function DateHistoryPanel({
             <div className="rounded-xl p-3 border border-border bg-card shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">왕복 합계 추이</span>
-                <span className="text-[10px] font-black text-emerald-600">최근 가격 변동</span>
+                <span className="text-[10px] font-black text-emerald-600">
+                  {totalPriceTrend.length}일치 기록
+                </span>
               </div>
-              <div className="h-[80px] w-full">
+              <div className="h-[120px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={totalPriceTrend}>
-                    <Line 
-                      type="monotone" 
-                      dataKey="price" 
-                      stroke="#10b981" 
-                      strokeWidth={2} 
-                      dot={{ r: 3, fill: '#10b981' }} 
+                  <LineChart data={totalPriceTrend} margin={{ top: 6, right: 6, left: -8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 8, fill: '#94a3b8', fontWeight: 600 }}
+                      axisLine={false}
+                      tickLine={false}
+                      interval="preserveStartEnd"
+                      tickFormatter={(v) => dayjs(v).format('M/D')}
                     />
-                    <Tooltip 
+                    <YAxis
+                      hide
+                      domain={[
+                        (dataMin: number) => Math.floor(dataMin * 0.975),
+                        (dataMax: number) => Math.ceil(dataMax * 1.025),
+                      ]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="price"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={{ r: 2.5, fill: '#10b981', strokeWidth: 0 }}
+                      activeDot={{ r: 4 }}
+                    />
+                    <Tooltip
                       contentStyle={{ fontSize: 10, borderRadius: 8, padding: '4px 8px' }}
-                      formatter={(v) => [`${v.toLocaleString()}원`, '합계']}
+                      formatter={(v) => [`${Number(v).toLocaleString()}원`, '왕복 합계']}
+                      labelFormatter={(v) => dayjs(String(v)).format('M월 D일')}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -691,12 +713,12 @@ function DateHistoryPanel({
   );
 }
 
-function HistoryCard({ 
-  label, 
-  entry, 
-  subLabel 
-}: { 
-  label: string; 
+function HistoryCard({
+  label,
+  entry,
+  subLabel,
+}: {
+  label: string;
   entry: DailyPriceEntry | undefined;
   subLabel?: string;
 }) {
@@ -710,46 +732,92 @@ function HistoryCard({
   }
 
   const history = entry.history ?? [];
-  const oldest = history[history.length - 1];
+  // 오래된 날짜 → 최신 순으로 정렬해서 스파크라인 데이터 생성
+  const sparkData = [...history]
+    .sort((a, b) => a.collected_date.localeCompare(b.collected_date))
+    .map((h) => ({ price: h.price, label: h.label }));
+
+  const oldest = sparkData[0];
   const diff = oldest ? entry.price - oldest.price : 0;
   const isDown = diff < 0;
   const isUp = diff > 0;
+  const lineColor = isDown ? '#10b981' : isUp ? '#f43f5e' : '#94a3b8';
 
   return (
     <div className="rounded-xl p-3.5 flex flex-col gap-2.5 border border-border bg-card shadow-sm">
-      <div className="flex flex-col gap-0.5">
-        <div className="flex justify-between items-center">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
-          {subLabel && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1 rounded">{subLabel}</span>}
+      {/* 헤더: 편명 + 현재 가격 + 추이 뱃지 */}
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
+            {subLabel && (
+              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 rounded">{subLabel}</span>
+            )}
+          </div>
+          <span className="text-xl font-black text-foreground">{entry.price.toLocaleString()}원</span>
         </div>
-        <span className="text-xl font-black text-foreground">{entry.price.toLocaleString()}원</span>
+
+        {oldest && (
+          <div
+            className={cn(
+              'flex items-center gap-0.5 text-[10px] font-bold px-2 py-1 rounded-full',
+              isDown && 'bg-emerald-50 text-emerald-600',
+              isUp && 'bg-rose-50 text-rose-600',
+              !isDown && !isUp && 'bg-muted text-muted-foreground',
+            )}
+          >
+            {isDown && <TrendingDown className="size-3 shrink-0" />}
+            {isUp && <TrendingUp className="size-3 shrink-0" />}
+            {!isDown && !isUp && <Minus className="size-3 shrink-0" />}
+            <span>
+              {isDown ? `${Math.abs(diff).toLocaleString()}↓` : isUp ? `${diff.toLocaleString()}↑` : '동일'}
+            </span>
+          </div>
+        )}
       </div>
 
-      {history.length > 0 && (
-        <div className="flex flex-col gap-1.5 rounded-lg p-2.5 bg-muted/40">
-          {history.map((h, idx) => (
-            <div key={h.collected_date} className="flex items-center justify-between text-xs">
-              <span className={cn('font-medium', idx === 0 ? 'text-foreground' : 'text-muted-foreground/80')}>{h.label}</span>
-              <span className={cn('font-bold', idx === 0 ? 'text-foreground' : 'text-muted-foreground/80')}>{h.price.toLocaleString()}원</span>
-            </div>
-          ))}
+      {/* 스파크라인 차트 (15일치, Y축 타이트 스케일) */}
+      {sparkData.length > 1 && (
+        <div className="h-[64px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={sparkData} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+              <YAxis
+                hide
+                domain={[
+                  (dataMin: number) => Math.floor(dataMin * 0.975),
+                  (dataMax: number) => Math.ceil(dataMax * 1.025),
+                ]}
+              />
+              <Line
+                type="monotone"
+                dataKey="price"
+                stroke={lineColor}
+                strokeWidth={2}
+                dot={false}
+                activeDot={{ r: 3, fill: lineColor, strokeWidth: 0 }}
+              />
+              <Tooltip
+                contentStyle={{ fontSize: 10, borderRadius: 6, padding: '2px 8px', border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                formatter={(v) => [`${Number(v).toLocaleString()}원`, label]}
+                labelFormatter={(_, payload) => payload?.[0]?.payload?.label ?? ''}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       )}
 
+      {/* 비교 요약: oldest 레이블 기준 */}
       {oldest && (
-        <div className={cn(
-          'flex items-center gap-1 text-xs font-bold pt-2 border-t border-border',
-          isDown && 'text-emerald-600',
-          isUp && 'text-rose-600',
-          !isDown && !isUp && 'text-muted-foreground',
-        )}>
-          {isDown && <TrendingDown className="size-3.5 shrink-0" />}
-          {isUp && <TrendingUp className="size-3.5 shrink-0" />}
-          {!isDown && !isUp && <Minus className="size-3.5 shrink-0" />}
-          <span className="truncate">
-            {isDown && `저렴`}
-            {isUp && `상승`}
-            {!isDown && !isUp && '동일'}
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground border-t border-border pt-2">
+          <span>{oldest.label} {oldest.price.toLocaleString()}원</span>
+          <span
+            className={cn(
+              'font-bold',
+              isDown && 'text-emerald-600',
+              isUp && 'text-rose-600',
+            )}
+          >
+            {isDown ? '저렴해졌어요' : isUp ? '올랐어요' : '변동 없음'}
           </span>
         </div>
       )}

@@ -16,7 +16,7 @@ import dayjs from "dayjs";
 
 interface RecommendTabProps {
   city: CityDetail;
-  onTabChange: (tab: "recommend" | "cost" | "flight" | "news") => void;
+  onTabChange: (tab: "recommend" | "cost" | "flight" | "spots") => void;
 }
 
 // ── 비용 항목 바 ──────────────────────────────────────────────
@@ -201,8 +201,8 @@ export function RecommendTab({ city, onTabChange }: RecommendTabProps) {
               <Newspaper className="size-4 text-blue-500" aria-hidden="true" />
               현지 소식 요약
             </h3>
-            <button 
-              onClick={() => onTabChange("news")}
+            <button
+              onClick={() => onTabChange("spots")}
               className="text-[11px] font-bold text-blue-600 hover:underline flex items-center gap-0.5"
             >
               전체보기 <ChevronRight className="size-3" />
@@ -221,7 +221,7 @@ export function RecommendTab({ city, onTabChange }: RecommendTabProps) {
 
             {/* Top 3 News Preview */}
             <div className="flex flex-col gap-2 overflow-y-auto">
-              {city.news?.top3.map((news, idx) => (
+              {city.news?.top3?.map((news, idx) => (
                 <a
                   key={idx}
                   href={news.url}
