@@ -66,6 +66,12 @@ export const authApi = {
     await axiosInstance.post('/api/member/tag', body); // { tagIds: number[] }
   },
 
+  // GET /api/member/tag — 내 태그 목록 조회 (태그 등록 여부 확인용)
+  getMemberTags: async (): Promise<{ id: number; tagId: number }[]> => {
+    const { data } = await axiosInstance.get('/api/member/tag');
+    return data;
+  },
+
   // GET /api/members/youtube/status
   getYoutubeStatus: async () => {
     const { data } = await axiosInstance.get('/api/members/youtube/status');

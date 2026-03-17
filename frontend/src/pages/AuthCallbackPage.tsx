@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useMutation } from '@tanstack/react-query';
 import { authApi } from '@/api/auth.api';
@@ -10,16 +10,24 @@ const AuthCallbackPage = () => {
   const navigate = useNavigate();
   const { code, error: oauthError } = useSearch({ from: '/auth/callback' });
   const { setAccessToken, setUser, setHasCompletedPreference } = useAuthStore();
+  const called = useRef(false);
 
   const { mutate: processCallback, isError, error } = useMutation({
     mutationFn: (authCode: string) => authApi.exchangeCode(authCode),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       const { accessToken, member } = data;
       setAccessToken(accessToken);
       setUser(member);
-      
-      // 현재 백엔드 사양에는 취향 완료 여부가 포함되지 않으므로 /main으로 이동
-      navigate({ to: '/main' });
+
+      try {
+        const tags = await authApi.getMemberTags();
+        const hasTags = tags.length > 0;
+        setHasCompletedPreference(hasTags);
+        navigate({ to: hasTags ? '/main' : '/preference' });
+      } catch {
+        setHasCompletedPreference(false);
+        navigate({ to: '/preference' });
+      }
     },
     onError: () => {
       navigate({ to: '/login' });
@@ -27,6 +35,9 @@ const AuthCallbackPage = () => {
   });
 
   useEffect(() => {
+    if (called.current) return;
+    called.current = true;
+
     if (oauthError) {
       console.error('[OAuth Error]', oauthError);
       navigate({ to: '/login' });
