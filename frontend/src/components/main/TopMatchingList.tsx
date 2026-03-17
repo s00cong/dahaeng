@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MapPin, Loader2, RefreshCw } from "lucide-react";
+import { MapPin, Loader2, RefreshCw, SearchX } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCityList } from "@/hooks/city/useCityList";
 import { useUiStore } from "@/stores/uiStore";
@@ -101,6 +101,19 @@ export function TopMatchingList() {
           </p>
           <p className="text-[10px] text-slate-400 leading-relaxed">
             여행 설정을 입력하고<br />추천 업데이트를 눌러주세요
+          </p>
+        </div>
+      )}
+
+      {/* 추천 결과 없음 */}
+      {!isLoading && !isRecommendLoading && isRecommendActive && topCities.length === 0 && (
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+          <SearchX className="size-8 text-slate-300" aria-hidden="true" />
+          <p className="text-xs font-medium text-slate-600">
+            추천된 도시가 없습니다
+          </p>
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            설정을 변경하고<br />다시 추천해주세요
           </p>
         </div>
       )}

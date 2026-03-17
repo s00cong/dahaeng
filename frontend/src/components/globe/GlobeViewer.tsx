@@ -764,7 +764,12 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       }
 
       // POLYGON_LEVEL_CLICK 나라는 마우스 좌표를 역투영해 어느 폴리곤인지 판별
-      let bounds: { minLng: number; maxLng: number; minLat: number; maxLat: number } | null;
+      let bounds: {
+        minLng: number;
+        maxLng: number;
+        minLat: number;
+        maxLat: number;
+      } | null;
       if (POLYGON_LEVEL_CLICK.has(rawName)) {
         const svgEl = containerRef.current?.querySelector("svg");
         if (svgEl) {
@@ -1041,9 +1046,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                   ? recommendScoreMap.get(city.cityName)
                   : undefined;
                 // If backend doesn't return scores (totalScore=0), treat as undefined → blue marker
-                const matchScore = rawScore !== undefined && rawScore > 0 ? rawScore : undefined;
-                const r = 5 / zoom;
-                const medalSize = 30 / zoom;
+                const matchScore =
+                  rawScore !== undefined && rawScore > 0 ? rawScore : undefined;
+                const r = 5 / Math.pow(zoom, 0.8);
+                const medalSize = 30 / Math.pow(zoom, 0.8);
 
                 // 클릭된 국가에 속한 도시라면 3D 상면으로 이동
                 const isCityInClickedCountry =
@@ -1078,9 +1084,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                       <circle
                         r={r}
                         fill={
-                          isMatched
-                            ? getMarkerColor(matchScore)
-                            : "#CBD5E1"
+                          isMatched ? getMarkerColor(matchScore) : "#CBD5E1"
                         }
                         stroke="#fff"
                         strokeWidth={1 / zoom}

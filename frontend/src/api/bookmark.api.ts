@@ -71,9 +71,9 @@ export const bookmarkApi = {
         createdAt: data.savedAt,
         // CityDetail.score.finalScore → matchingScore
         matchingScore: json.score?.finalScore ?? undefined,
-        // before: 저장 당시 환율(krwPer1Cur × displayUnit), current: 현재 환율
+        // before: 저장 당시 환율(krwPerDisplayUnit), current: 현재 환율
         exchangeAtSaved: {
-          before: (json.exchangeRate?.krwPer1Cur ?? 0) * (json.exchangeRate?.displayUnit ?? 1),
+          before: json.exchangeRate?.krwPerDisplayUnit ?? 0,
           current: data.currentExchange?.krwPerDisplayUnit ?? 0,
         },
         // CityDetail.news.top3 → newsAtSaved

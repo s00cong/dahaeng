@@ -76,12 +76,11 @@ const BackendNewsItemSchema = z.object({
   createdAt: z.string().nullable().optional(),
 });
 
-// 환율 (선택 제공)
+// 환율 (선택 제공) — 백엔드 RecommendCityDetailResponse.ExchangeRate
 const BackendExchangeRateSchema = z.object({
   currency: z.string(),
-  krwPer1Cur: z.number(),
-  displayUnit: z.number().optional(),
-  displaySymbol: z.string().optional(),
+  krwPerDisplayUnit: z.number(),
+  eventDate: z.string().nullable().optional(),
 }).nullable().optional();
 
 // 백엔드 touristSpot: tags는 string[], tagScores는 Record<string, number>
@@ -145,7 +144,7 @@ const BackendNotRecommendDetailSchema = z.object({
   id: z.number().nullable().optional(),
   name: z.string(),
   livingCostFor1Day: BackendLivingCostSchema.nullable().optional(),
-  airTicket: BackendAirTicketSchema.nullable().optional(),  // not-recommend는 airTicket 키
+  airTicketAndHotel: BackendAirTicketSchema.nullable().optional(),
   danger: BackendCountryDangerSchema,
   tags: z.array(BackendTagResponseSchema).optional(),
   exchangeRate: BackendExchangeRateSchema,
@@ -225,7 +224,7 @@ export const cityApi = {
         longitude: 0,
         livingCostFor1Day: city.livingCostFor1Day ?? undefined,
         // not-recommend는 airTicket 키 사용
-        airTicketAndHotel: city.airTicket ?? undefined,
+        airTicketAndHotel: city.airTicketAndHotel ?? undefined,
         danger: city.danger ?? undefined,
         tags: city.tags,
         exchangeRate: city.exchangeRate ?? undefined,

@@ -19,7 +19,7 @@ export type CityListItem = z.infer<typeof CityListItemSchema>;
 // ── CountryDanger: 백엔드 CountryDanger { level, description } ────────────
 export const CountryDangerItemSchema = z.object({
   level: z.string(),
-  description: z.string(),
+  description: z.string().nullable(),
 });
 
 // ── CountryDangerResponse: 백엔드 { countryName, items } ──────────────────
@@ -89,11 +89,12 @@ export const TouristSpotSchema = z.object({
 });
 
 // ── ExchangeRate: 환율 (백엔드 선택 제공) ─────────────────────────────
+// 백엔드 RecommendCityDetailResponse.ExchangeRate / NotRecommendCityDetailResponse.ExchangeRate
+// { currency, krwPerDisplayUnit, eventDate }
 export const ExchangeRateSchema = z.object({
   currency: z.string(),
-  krwPer1Cur: z.number(),
-  displayUnit: z.number().optional(),
-  displaySymbol: z.string().optional(),
+  krwPerDisplayUnit: z.number(),
+  eventDate: z.string().nullable().optional(),
 });
 export type ExchangeRate = z.infer<typeof ExchangeRateSchema>;
 

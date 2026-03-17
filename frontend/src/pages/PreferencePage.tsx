@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { motion, type Variants } from "framer-motion";
 import {
   Mountain,
@@ -5,49 +6,48 @@ import {
   UtensilsCrossed,
   Sparkles,
   Zap,
+  Tags,
   Loader2,
   ArrowRight,
   Check,
   Circle,
   RefreshCw,
 } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TagCategorySection } from "@/components/preference/TagCategorySection";
 import { usePreferenceStore } from "@/stores/preferenceStore";
 import { useSubmitPreference, useUpdatePreference } from "@/hooks/auth/usePreference";
+import { useTagList } from "@/hooks/tag/useTagList";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Constants
+// 카테고리명 → 아이콘 매핑 (백엔드 categoryName 키워드 기반)
 // ---------------------------------------------------------------------------
 
-const TAG_CATEGORIES = [
-  {
-    category: "자연 & 아웃도어",
-    icon: Mountain,
-    tags: ["자연", "해변", "산", "트레킹", "캠핑"],
-  },
-  {
-    category: "도시 & 문화",
-    icon: Building2,
-    tags: ["도시", "역사", "문화", "건축", "박물관"],
-  },
-  {
-    category: "음식 & 쇼핑",
-    icon: UtensilsCrossed,
-    tags: ["음식", "쇼핑", "야시장", "카페", "길거리음식"],
-  },
-  {
-    category: "여행 스타일",
-    icon: Sparkles,
-    tags: ["럭셔리", "배낭여행", "가족여행", "커플여행", "혼자여행"],
-  },
-  {
-    category: "액티비티",
-    icon: Zap,
-    tags: ["액티비티", "다이빙", "서핑", "스키", "번지점프"],
-  },
-] as const;
+const CATEGORY_ICON_MAP: { keyword: string; icon: LucideIcon }[] = [
+  { keyword: "자연", icon: Mountain },
+  { keyword: "아웃도어", icon: Mountain },
+  { keyword: "도시", icon: Building2 },
+  { keyword: "문화", icon: Building2 },
+  { keyword: "음식", icon: UtensilsCrossed },
+  { keyword: "쇼핑", icon: UtensilsCrossed },
+  { keyword: "액티비티", icon: Zap },
+  { keyword: "스포츠", icon: Zap },
+  { keyword: "여행", icon: Sparkles },
+  { keyword: "스타일", icon: Sparkles },
+];
+
+function getCategoryIcon(categoryName: string): LucideIcon {
+  for (const { keyword, icon } of CATEGORY_ICON_MAP) {
+    if (categoryName.includes(keyword)) return icon;
+  }
+  return Tags; // 기본 아이콘
+}
+
+// ---------------------------------------------------------------------------
+// 단계 표시
+// ---------------------------------------------------------------------------
 
 const STEPS = [
   { label: "로그인 완료", status: "completed" as const },
@@ -120,7 +120,6 @@ function StepIndicator({ label, status, isLast }: StepIndicatorProps) {
   return (
     <li className="flex flex-col items-start gap-0">
       <div className="flex items-center gap-3">
-        {/* Icon */}
         <span
           className={cn(
             "flex items-center justify-center size-7 rounded-full border-2 shrink-0 transition-colors",
@@ -140,8 +139,6 @@ function StepIndicator({ label, status, isLast }: StepIndicatorProps) {
             <Circle className="size-3 opacity-50" />
           )}
         </span>
-
-        {/* Label */}
         <span
           className={cn(
             "text-sm font-medium",
@@ -153,8 +150,6 @@ function StepIndicator({ label, status, isLast }: StepIndicatorProps) {
           {label}
         </span>
       </div>
-
-      {/* Connector line */}
       {!isLast && (
         <div
           className={cn(
@@ -174,7 +169,6 @@ interface SelectionCounterProps {
 
 function SelectionCounter({ count }: SelectionCounterProps) {
   const isPositive = count >= POSITIVE_THRESHOLD;
-
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-slate-400">선택된 취향</span>
@@ -206,14 +200,48 @@ function SelectionCounter({ count }: SelectionCounterProps) {
 // ---------------------------------------------------------------------------
 
 const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
-  const { selectedTags, toggleTag, youtubeAutoSelected } = usePreferenceStore();
+  // 서버에서 태그 목록 fetch
+  const { data: tagList = [], isLoading: isTagLoading } = useTagList();
+
+  // 선택된 태그 ID 로컬 상태 (서버 전송 단위: number[])
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+
+  const { youtubeAutoSelected } = usePreferenceStore();
   const submitResult = useSubmitPreference();
   const updateResult = useUpdatePreference();
   const { mutate, isPending } = isEdit ? updateResult : submitResult;
 
-  const handleSubmit = () => {
-    mutate(selectedTags);
+  // 태그 토글
+  const handleToggle = (id: number) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
   };
+
+  // 선택 완료 → 서버에 tagIds 전송
+  const handleSubmit = () => {
+    mutate(selectedTagIds);
+  };
+
+  // categoryName 기준으로 태그 그룹화
+  const categories = useMemo(() => {
+    const map = new Map<string, { categoryId: number; tags: { id: number; name: string }[] }>();
+    for (const tag of tagList) {
+      if (!map.has(tag.categoryName)) {
+        map.set(tag.categoryName, { categoryId: tag.categoryId, tags: [] });
+      }
+      map.get(tag.categoryName)!.tags.push({ id: tag.tagId, name: tag.tagName });
+    }
+    return [...map.entries()].map(([name, { categoryId, tags }]) => ({
+      category: name,
+      categoryId,
+      icon: getCategoryIcon(name),
+      tags,
+    }));
+  }, [tagList]);
+
+  // 전체 태그 수 (progress bar 최댓값)
+  const totalTagCount = tagList.length || 25;
 
   return (
     <motion.div
@@ -239,7 +267,6 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
           aria-label="단계 안내 사이드바"
         >
           <div className="flex flex-col gap-10">
-            {/* Logo */}
             <div>
               <span
                 className="text-2xl font-bold tracking-tight text-white"
@@ -249,8 +276,6 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
               </span>
               <p className="mt-1 text-xs text-slate-500">나에게 맞는 여행</p>
             </div>
-
-            {/* Step Indicator */}
             <nav aria-label="설정 단계">
               <ul className="flex flex-col" role="list">
                 {STEPS.map((step, idx) => (
@@ -264,8 +289,6 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
               </ul>
             </nav>
           </div>
-
-          {/* Bottom description */}
           <p className="text-xs leading-relaxed text-slate-500">
             당신의 취향을 알려주세요.
             <br />더 정확한 여행지를 추천해 드립니다.
@@ -294,10 +317,8 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
                     <span className="text-slate-500">(최소 1개)</span>
                   </p>
                 </div>
-
-                {/* Selection counter — top right */}
                 <div className="mt-1">
-                  <SelectionCounter count={selectedTags.length} />
+                  <SelectionCounter count={selectedTagIds.length} />
                 </div>
               </div>
 
@@ -305,15 +326,15 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
               <div
                 className="mt-5 h-1 w-full rounded-full bg-slate-800 overflow-hidden"
                 role="progressbar"
-                aria-valuenow={selectedTags.length}
+                aria-valuenow={selectedTagIds.length}
                 aria-valuemin={0}
-                aria-valuemax={25}
+                aria-valuemax={totalTagCount}
                 aria-label="태그 선택 진행도"
               >
                 <motion.div
                   className="h-full rounded-full bg-blue-600"
                   animate={{
-                    width: `${Math.min((selectedTags.length / 25) * 100, 100)}%`,
+                    width: `${Math.min((selectedTagIds.length / totalTagCount) * 100, 100)}%`,
                   }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                 />
@@ -344,38 +365,51 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
               </div>
             )}
 
-            {/* Tag Category Sections */}
-            <motion.div
-              variants={categoriesVariants}
-              initial="hidden"
-              animate="visible"
-              className="flex flex-col gap-7 flex-1"
-            >
-              {TAG_CATEGORIES.map((cat) => (
-                <motion.div key={cat.category} variants={categoryItemVariants}>
-                  <TagCategorySection
-                    category={cat.category}
-                    icon={cat.icon}
-                    tags={[...cat.tags]}
-                    selectedTags={selectedTags}
-                    onToggle={toggleTag}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
+            {/* 태그 목록 로딩 중 */}
+            {isTagLoading && (
+              <div
+                className="flex flex-col items-center justify-center flex-1 gap-3 py-16"
+                role="status"
+                aria-label="태그 목록 불러오는 중"
+              >
+                <Loader2 className="size-8 text-blue-400 animate-spin" />
+                <p className="text-sm text-slate-400">태그 목록을 불러오는 중...</p>
+              </div>
+            )}
+
+            {/* 태그 카테고리 목록 */}
+            {!isTagLoading && (
+              <motion.div
+                variants={categoriesVariants}
+                initial="hidden"
+                animate="visible"
+                className="flex flex-col gap-7 flex-1"
+              >
+                {categories.map((cat) => (
+                  <motion.div key={cat.categoryId} variants={categoryItemVariants}>
+                    <TagCategorySection
+                      category={cat.category}
+                      icon={cat.icon}
+                      tags={cat.tags}
+                      selectedTagIds={selectedTagIds}
+                      onToggle={handleToggle}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
 
             {/* CTA Footer */}
             <footer className="mt-10 pt-6 border-t border-slate-700/60">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                {/* Inline reminder if nothing selected */}
-                {selectedTags.length === 0 ? (
+                {selectedTagIds.length === 0 ? (
                   <p className="text-sm text-slate-500 order-2 sm:order-1">
                     최소 1개 이상의 태그를 선택해 주세요.
                   </p>
                 ) : (
                   <p className="text-sm text-slate-400 order-2 sm:order-1">
                     <span className="text-blue-300 font-semibold">
-                      {selectedTags.length}개
+                      {selectedTagIds.length}개
                     </span>
                     의 취향이 선택되었습니다.
                   </p>
@@ -383,14 +417,14 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
 
                 <Button
                   onClick={handleSubmit}
-                  disabled={isPending || selectedTags.length === 0}
+                  disabled={isPending || selectedTagIds.length === 0}
                   size="lg"
                   className={cn(
                     "order-1 sm:order-2 min-w-[160px]",
                     "bg-blue-600 hover:bg-blue-500 text-white",
                     "disabled:opacity-40 disabled:cursor-not-allowed",
                     "transition-all duration-200",
-                    selectedTags.length > 0 && "shadow-lg shadow-blue-900/50",
+                    selectedTagIds.length > 0 && "shadow-lg shadow-blue-900/50",
                   )}
                   aria-label={
                     isPending ? "선호도 저장 중" : "선택 완료 후 여행 시작"

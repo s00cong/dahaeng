@@ -21,7 +21,7 @@ export const useCityDetail = (
   },
 ) =>
   useQuery({
-    queryKey: [...queryKeys.city.detail(cityId!), recommend],
+    queryKey: [...queryKeys.city.detail(cityId!), recommend, options?.recommendParams ?? null],
     queryFn: () => cityApi.getDetail(cityId!, recommend, options?.recommendParams),
     enabled: cityId !== null && (options?.enabled ?? true),
     staleTime: 5 * 60 * 1000,

@@ -54,16 +54,16 @@ export const authApi = {
     };
   },
 
-  // POST /api/member/tag (선호도 태그 최초 등록)
+  // POST /api/member/tag (선호도 태그 등록 — 신규/수정 모두 POST, 백엔드가 upsert 처리)
   submitPreference: async (body: PreferenceTagRequest) => {
     PreferenceTagRequestSchema.parse(body);
-    await axiosInstance.post('/api/member/tag', body);
+    await axiosInstance.post('/api/member/tag', body); // { tagIds: number[] }
   },
 
-  // PATCH /api/member/tag (선호도 태그 수정)
+  // POST /api/member/tag (선호도 태그 수정 — 백엔드에 PATCH 없음, POST upsert 재사용)
   updatePreference: async (body: PreferenceTagRequest) => {
     PreferenceTagRequestSchema.parse(body);
-    await axiosInstance.patch('/api/member/tag', body);
+    await axiosInstance.post('/api/member/tag', body); // { tagIds: number[] }
   },
 
   // GET /api/members/youtube/status
