@@ -8,64 +8,12 @@ services:
       - .env
     environment:
       TZ: ${TZ:-Asia/Seoul}
-      SPRING_PROFILES_ACTIVE: docker
     restart: unless-stopped
-    depends_on:
-      - mysql
-      - mongodb
     networks:
       - app-internal
       - db-external
     expose:
       - "8080"
-
-  mysql:
-    image: mysql:8.0
-    container_name: my-mysql
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: d206-1111
-      MYSQL_DATABASE: dahaeng
-      MYSQL_USER: d206
-      MYSQL_PASSWORD: d206-1111
-      TZ: Asia/Seoul
-    ports:
-      - "8900:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-authentication-plugin=mysql_native_password
-      - --innodb-buffer-pool-size=1G
-      - --innodb-log-file-size=256M
-      - --max_allowed_packet=256M
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ud206", "-pd206-1111"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-    networks:
-      - db-external
-  mongodb:
-    image: mongo:7
-    container_name: my-mongo
-    restart: always
-    environment:
-      TZ: Asia/Seoul
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    networks:
-      - db-external
 
   frontend:
     build:
@@ -95,10 +43,11 @@ services:
       APP_RUNTIME: docker
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: ${DB_USERNAME:-d206}
-      DB_PASSWORD: ${DB_PASSWORD:-d206-1111}
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-dahaeng}
     restart: "no"
+    profiles: ["workers"]
     networks:
       - db-external
 
@@ -113,10 +62,11 @@ services:
       APP_RUNTIME: docker
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: ${DB_USERNAME:-d206}
-      DB_PASSWORD: ${DB_PASSWORD:-d206-1111}
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-dahaeng}
     restart: "no"
+    profiles: ["workers"]
     networks:
       - db-external
 
@@ -131,12 +81,13 @@ services:
       APP_RUNTIME: docker
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: ${DB_USERNAME:-d206}
-      DB_PASSWORD: ${DB_PASSWORD:-d206-1111}
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-dahaeng}
     restart: "no"
     networks:
       - db-external
+    profiles: ["workers"]
 
 networks:
   app-internal:
