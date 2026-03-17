@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DollarSign, Users, ChevronDown } from 'lucide-react';
+import { DollarSign, ChevronDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -62,24 +62,19 @@ interface ItemRowProps {
   krwPerTarget: number | undefined;
 }
 
+function priceSize(isExpensive: boolean, absDiff: number): string {
+  if (!isExpensive) return 'text-[11px] font-semibold';
+  if (absDiff >= 60) return 'text-[17px] font-black';
+  if (absDiff >= 30) return 'text-[15px] font-extrabold';
+  if (absDiff >= 10) return 'text-[13px] font-bold';
+  return 'text-[11px] font-semibold';
+}
+
 function ItemRow({ cityVal, seoulVal, label, currency, cityName, krwPerTarget }: ItemRowProps) {
   const diff = seoulVal !== undefined ? calcDiff(cityVal, seoulVal) : null;
-  const isHigher = diff !== null && diff >= 0;
-  const cityKRW = krwPerTarget ? cityVal * krwPerTarget : null;
-
-  let seoulRatio = 50;
-  let cityRatio = 50;
-  if (seoulVal !== undefined && cityKRW !== null && seoulVal + cityKRW > 0) {
-    const total = seoulVal + cityKRW;
-    seoulRatio = (seoulVal / total) * 100;
-    cityRatio = (cityKRW / total) * 100;
-  } else if (diff !== null) {
-    const cityNorm = 100 + diff;
-    if (cityNorm > 0) {
-      seoulRatio = (100 / (100 + cityNorm)) * 100;
-      cityRatio = (cityNorm / (100 + cityNorm)) * 100;
-    }
-  }
+  const isHigher = diff !== null && diff >= 0; // 도시가 더 비쌈
+  const absDiff = diff !== null ? Math.abs(diff) : 0;
+  const cityKRW = currency === 'KRW' ? cityVal : (krwPerTarget ? cityVal * krwPerTarget : null);
 
   return (
     <div className="px-3.5 py-3">
@@ -98,35 +93,31 @@ function ItemRow({ cityVal, seoulVal, label, currency, cityName, krwPerTarget }:
         )}
       </div>
 
-      {/* 행 2: 서울 | ⇄ | 도시 */}
+      {/* 행 2: 서울 | ⇄ | 도시 (비싼 쪽 글자 크게) */}
       {seoulVal !== undefined && (
-        <div className="flex items-center gap-1.5 mb-2">
+        <div className="flex items-center gap-1.5">
           <div className="flex-1 min-w-0">
             <p className="text-[9px] text-muted-foreground mb-0.5">서울</p>
-            <p className="text-[11px] font-semibold text-blue-600 leading-none">
+            <p className={cn('leading-none', priceSize(!isHigher, absDiff), !isHigher ? 'text-red-600' : 'text-blue-600')}>
               {Math.round(seoulVal).toLocaleString()}원
             </p>
           </div>
           <span className="text-xs text-muted-foreground/50 shrink-0">⇄</span>
           <div className="flex-1 min-w-0 text-right">
             <p className="text-[9px] text-muted-foreground mb-0.5">{cityName}</p>
-            <p className="text-[11px] font-semibold text-red-600 leading-none">
+            <p className={cn('leading-none', priceSize(isHigher, absDiff), isHigher ? 'text-red-600' : 'text-blue-600')}>
               {cityKRW !== null && (
-                <span>{Math.round(cityKRW).toLocaleString()}원 </span>
+                <span>{Math.round(cityKRW).toLocaleString()}원</span>
               )}
-              <span className={cn('font-normal', cityKRW !== null ? 'text-muted-foreground text-[9px]' : '')}>
-                ({cityVal.toFixed(2)} {currency})
-              </span>
+              {currency !== 'KRW' && (
+                <span className={cn('font-normal', cityKRW !== null ? 'text-muted-foreground text-[9px]' : '')}>
+                  {' '}({cityVal.toFixed(2)} {currency})
+                </span>
+              )}
             </p>
           </div>
         </div>
       )}
-
-      {/* 행 3: 비교 바 */}
-      <div className="flex h-[5px] w-full gap-[2px]">
-        <div className="h-full bg-blue-400 rounded-l-full" style={{ flex: seoulRatio }} />
-        <div className="h-full bg-red-400 rounded-r-full" style={{ flex: cityRatio }} />
-      </div>
     </div>
   );
 }
@@ -263,13 +254,14 @@ export function CostDetailTable({ data, isLoading, seoulLivingCost, krwPerTarget
       {/* 범례 */}
       <div className="flex items-center gap-4 text-[11px] text-muted-foreground px-1">
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-2 rounded-full bg-blue-400 inline-block" />
-          대한민국 (서울)
+          <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
+          서울
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-2 rounded-full bg-red-400 inline-block" />
+          <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
           {cityName}
         </span>
+        <span className="ml-auto text-[10px] opacity-60">비싼 쪽 글자가 더 크게 표시</span>
       </div>
 
       {isLoading ? (

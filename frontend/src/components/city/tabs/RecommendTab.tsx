@@ -10,13 +10,17 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
+import { useExchangeRateNew } from "@/hooks/cost/useExchangeRateNew";
+import { useCostDetail } from "@/hooks/cost/useCostDetail";
 import dayjs from "dayjs";
 
 interface RecommendTabProps {
   city: CityDetail;
   onTabChange: (tab: "recommend" | "cost" | "flight" | "spots") => void;
+  isAiLoading?: boolean;
 }
 
 // ── 비용 항목 바 ──────────────────────────────────────────────
@@ -76,26 +80,33 @@ function InfoCard({ icon: Icon, label, value, subValue, onClick }: InfoCardProps
 }
 
 // ── RecommendTab ─────────────────────────────────────────────
-export function RecommendTab({ city, onTabChange }: RecommendTabProps) {
-  const recommendText =
-    city.recommendationReason ?? "AI가 분석한 추천 이유를 불러오는 중입니다.";
+export function RecommendTab({ city, onTabChange, isAiLoading = false }: RecommendTabProps) {
+  const recommendText = city.recommendationReason;
 
-  // API 데이터 (livingCostFor1Day) 사용 — 백엔드: { food, transportation }
+  // livingCostFor1Day: food, transportation은 USD 월간 비용 → KRW 변환
   const lc = city.livingCostFor1Day;
+  const { data: erData } = useExchangeRateNew('USD');
+  const usdToKrw = erData?.krw_per_1target ?? null;
+  const foodKRW = lc && usdToKrw ? Math.round(lc.food * usdToKrw) : (lc?.food ?? 0);
+  const transKRW = lc && usdToKrw ? Math.round(lc.transportation * usdToKrw) : (lc?.transportation ?? 0);
+
+  // 숙박: living_cost_of_city.without_rent — API가 이미 KRW로 반환하므로 그대로 사용
+  const { data: costDetail } = useCostDetail('city', city.cityId);
+  const hotelMonthly = costDetail?.living_cost?.without_rent ?? (city.airTicketAndHotel?.hotel ?? 0);
+
   const at = city.airTicketAndHotel;
-  const hotel = at?.hotel ?? 0;
-  const totalDaily = lc ? (lc.food + lc.transportation + hotel) : undefined;
+  const totalMonthly = lc ? (foodKRW + transKRW + hotelMonthly) : undefined;
 
-  const accomPct = lc && totalDaily ? (hotel / totalDaily) * 100 : 45;
-  const foodPct = lc && totalDaily ? (lc.food / totalDaily) * 100 : 35;
-  const transPct = lc && totalDaily ? (lc.transportation / totalDaily) * 100 : 20;
+  const accomPct = totalMonthly ? (hotelMonthly / totalMonthly) * 100 : 45;
+  const foodPct = totalMonthly ? (foodKRW / totalMonthly) * 100 : 35;
+  const transPct = totalMonthly ? (transKRW / totalMonthly) * 100 : 20;
 
-  // 항공권 정보 — 백엔드: { airTicket, hotel }
+  // 항공권 정보
   const flightValue = at?.airTicket
     ? `₩${at.airTicket.toLocaleString()}~`
     : "조회하기";
 
-  const costValue = totalDaily ? `일평균 ₩${totalDaily.toLocaleString()}` : "비교 보기";
+  const costValue = totalMonthly ? `월평균 ₩${totalMonthly.toLocaleString()}` : "비교 보기";
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
@@ -106,9 +117,17 @@ export function RecommendTab({ city, onTabChange }: RecommendTabProps) {
           {city.cityName} 추천 이유
         </h2>
         <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-sm">
-          <p className="text-slate-700 leading-relaxed text-base italic">
-            "{recommendText}"
-          </p>
+          {isAiLoading ? (
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-4/6" />
+            </div>
+          ) : (
+            <p className="text-slate-700 leading-relaxed text-base italic">
+              "{recommendText ?? 'AI가 분석한 추천 이유를 불러오는 중입니다.'}"
+            </p>
+          )}
           {/* 키워드 뱃지 */}
           {city.tags && city.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
@@ -137,34 +156,34 @@ export function RecommendTab({ city, onTabChange }: RecommendTabProps) {
 
           <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex-1 flex flex-col">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              하루 예상 비용
+              한달 예상 비용
             </p>
 
-            {totalDaily ? (
+            {totalMonthly ? (
               <div className="flex flex-col gap-5">
                 <div className="flex items-end gap-1.5">
                   <span className="text-3xl font-black text-slate-900 leading-none">
-                    ₩{totalDaily.toLocaleString()}
+                    ₩{totalMonthly.toLocaleString()}
                   </span>
-                  <span className="text-slate-400 text-xs font-medium">/ 일</span>
+                  <span className="text-slate-400 text-xs font-medium">/ 월</span>
                 </div>
 
                 <div className="space-y-4">
                   <CostBar
                     label="숙박 (평균)"
-                    amount={`₩${(hotel || Math.round((totalDaily ?? 0) * 0.45)).toLocaleString()}`}
+                    amount={`₩${(hotelMonthly || Math.round(totalMonthly * 0.45)).toLocaleString()}`}
                     pct={accomPct}
                     color="bg-blue-500"
                   />
                   <CostBar
                     label="식비"
-                    amount={`₩${(lc?.food ?? Math.round(totalDaily * 0.35)).toLocaleString()}`}
+                    amount={`₩${(foodKRW || Math.round(totalMonthly * 0.35)).toLocaleString()}`}
                     pct={foodPct}
                     color="bg-emerald-500"
                   />
                   <CostBar
                     label="교통"
-                    amount={`₩${(lc?.transportation ?? Math.round(totalDaily * 0.2)).toLocaleString()}`}
+                    amount={`₩${(transKRW || Math.round(totalMonthly * 0.2)).toLocaleString()}`}
                     pct={transPct}
                     color="bg-amber-500"
                   />
@@ -211,40 +230,56 @@ export function RecommendTab({ city, onTabChange }: RecommendTabProps) {
 
           <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm flex-1 flex flex-col gap-4 overflow-hidden">
             {/* AI Summation */}
-            {city.news?.summation && (
+            {isAiLoading ? (
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 flex flex-col gap-2">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-5/6" />
+              </div>
+            ) : city.news?.summation ? (
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
                 <p className="text-[13px] text-slate-600 leading-relaxed font-medium italic">
                   "{city.news.summation}"
                 </p>
               </div>
-            )}
+            ) : null}
 
             {/* Top 3 News Preview */}
             <div className="flex flex-col gap-2 overflow-y-auto">
-              {city.news?.top3?.map((news, idx) => (
-                <a
-                  key={idx}
-                  href={news.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-white hover:border-blue-200 hover:shadow-sm transition-all"
-                >
-                  <div className="min-w-0 pr-2">
-                    <p className="text-[13px] font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
-                      {news.title}
-                    </p>
-                    <p className="text-[9px] text-slate-400 mt-0.5">
-                      {dayjs(news.publishedAt).format('YYYY.MM.DD')}
-                    </p>
+              {isAiLoading ? (
+                [1, 2, 3].map((i) => (
+                  <div key={i} className="p-3 rounded-xl border border-slate-100 flex flex-col gap-1.5">
+                    <Skeleton className="h-3 w-4/5" />
+                    <Skeleton className="h-2.5 w-16" />
                   </div>
-                  <ExternalLink className="size-3 text-slate-300 group-hover:text-blue-400 transition-colors shrink-0" />
-                </a>
-              ))}
-              {(!city.news?.top3 || city.news.top3.length === 0) && (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2 py-8">
-                  <Newspaper className="size-8 opacity-20" />
-                  <p className="text-xs">관련 소식이 없습니다.</p>
-                </div>
+                ))
+              ) : (
+                <>
+                  {city.news?.top3?.map((news, idx) => (
+                    <a
+                      key={idx}
+                      href={news.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-white hover:border-blue-200 hover:shadow-sm transition-all"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="text-[13px] font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
+                          {news.title}
+                        </p>
+                        <p className="text-[9px] text-slate-400 mt-0.5">
+                          {dayjs(news.publishedAt).format('YYYY.MM.DD')}
+                        </p>
+                      </div>
+                      <ExternalLink className="size-3 text-slate-300 group-hover:text-blue-400 transition-colors shrink-0" />
+                    </a>
+                  ))}
+                  {(!city.news?.top3 || city.news.top3.length === 0) && (
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2 py-8">
+                      <Newspaper className="size-8 opacity-20" />
+                      <p className="text-xs">관련 소식이 없습니다.</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

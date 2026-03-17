@@ -36,6 +36,32 @@ const BUDGET_LABELS: Record<string, string> = {
   accommodation: '숙박',
 };
 
+const ITEM_LABELS: Record<string, string> = {
+  lunch_menu: '점심 식사',
+  dinner_for_2: '레스토랑 저녁 (2인)',
+  big_mac: '빅맥',
+  cappuccino: '카푸치노',
+  coke: '콜라',
+  bus_ticket: '편도 버스',
+  taxi_8km: '택시 8km',
+  brand_jeans: '브랜드 청바지',
+  brand_sneakers: '브랜드 운동화',
+  beer_in_pub: '맥주 (펍)',
+  fast_food: '패스트푸드',
+  milk: '우유 (1L)',
+  bread: '식빵',
+  rice: '쌀 (1kg)',
+  egg: '달걀 (12개)',
+  chicken: '닭고기 (1kg)',
+  steak: '소고기 (1kg)',
+  apple: '사과 (1kg)',
+  banana: '바나나 (1kg)',
+  water: '생수 (1.5L)',
+  gym_month: '헬스장 (월)',
+  cinema_ticket: '영화 티켓',
+  haircut: '헤어컷',
+};
+
 export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProps) {
   const vs = data?.costCompare;
   const isMoreExpensive = (vs?.dailyBudgetGapPercent ?? 0) >= 0;
@@ -53,7 +79,7 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
   // 서울=0 기준 ±% 다이버전트 차트 데이터
   const barData =
     data?.itemComparison.items.map((item) => ({
-      name: item.itemName,
+      name: ITEM_LABELS[item.itemKey] ?? item.itemName,
       차이: item.differencePercent,
       금액차이: item.difference,
     })) ?? [];
@@ -192,9 +218,13 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
                         value?: number;
                       };
                       const val = value ?? 0;
-                      const lx = (x ?? 0) + (width ?? 0) + 8;
+                      const w = width ?? 0;
+                      const isNegative = val < 0;
+                      const lx = isNegative
+                        ? (x ?? 0) + w - 8   // 파란색: 바 왼쪽 끝에서 왼쪽으로
+                        : (x ?? 0) + w + 8;  // 빨간색: 바 오른쪽 끝에서 오른쪽으로
                       const ly = (y ?? 0) + (height ?? 0) / 2;
-                      const color = val >= 0 ? '#ef4444' : '#3b82f6';
+                      const color = isNegative ? '#3b82f6' : '#ef4444';
                       return (
                         <text
                           x={lx}
@@ -203,6 +233,7 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
                           fontSize={11}
                           fontWeight={700}
                           dominantBaseline="middle"
+                          textAnchor={isNegative ? 'end' : 'start'}
                         >
                           {val >= 0 ? '+' : ''}₩{Math.abs(val).toLocaleString()}
                         </text>

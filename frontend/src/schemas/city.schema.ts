@@ -60,6 +60,7 @@ export const NewsItemSchema = z.object({
   urlToImage: z.string().nullable().optional(),
   publishedAt: z.string().nullable().optional(),
 });
+export type NewsItem = z.infer<typeof NewsItemSchema>;
 
 // ── News: 백엔드 { summation, top3 } ─────────────────────────────────────
 export const NewsSchema = z.object({
@@ -94,7 +95,9 @@ export const TouristSpotSchema = z.object({
 export const ExchangeRateSchema = z.object({
   currency: z.string(),
   krwPerDisplayUnit: z.number(),
-  eventDate: z.string().nullable().optional(),
+  eventDate: z.string().optional(),
+  displayUnit: z.number().optional(),
+  displaySymbol: z.string().optional(),
 });
 export type ExchangeRate = z.infer<typeof ExchangeRateSchema>;
 
