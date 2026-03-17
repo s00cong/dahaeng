@@ -50,10 +50,10 @@ axiosInstance.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const { data } = await axiosInstance.post<{ data: { accessToken: string } }>(
+        const { data } = await axiosInstance.post<{ accessToken: string }>(
           '/api/auth/reissue',
         );
-        const newToken = data.data.accessToken;
+        const newToken = data.accessToken;
         useAuthStore.getState().setAccessToken(newToken);
         processQueue(null, newToken);
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
