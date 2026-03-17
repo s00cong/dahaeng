@@ -1,6 +1,6 @@
 package com.example.dahaeng.domain.recommend.controller;
 
-import com.example.dahaeng.domain.recommend.Service.RecommendFacade;
+import com.example.dahaeng.domain.recommend.service.RecommendFacade;
 import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 import com.example.dahaeng.domain.recommend.dto.response.RecommendCitySummaryResponse;
 import lombok.RequiredArgsConstructor;

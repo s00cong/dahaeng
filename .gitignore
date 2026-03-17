@@ -1,11 +1,23 @@
 Jira/.env
-ai/docs/.temp/*
-ai/trip_com/bronze_airticket/*
+data/docs/.temp/*
+data/trip_com/bronze_airticket/*
 ### Spring Boot Config ###
-application.ymlbackend/dahaeng/.gradle-user-home/
+application.yml
+backend/dahaeng/.gradle-user-home/
 backend/dahaeng/.gradle-home/
 
-ai/google_flight/*
+data/google_flight/*
 .idea/*
-ai/silver/*
-ai/spark_pipeline/*
+data/silver/*
+data/spark_pipeline/*
+
+# Global env files
+.env
+.env.*
+!.env.example
+
+# Deployment env files
+deploy/app/.env
+deploy/app/.env.*
+!deploy/app/.env.example
+data/trip_com/__pycache__/*

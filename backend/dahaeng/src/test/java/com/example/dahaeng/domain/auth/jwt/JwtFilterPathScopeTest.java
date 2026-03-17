@@ -5,21 +5,23 @@ import static org.mockito.Mockito.mock;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
+import com.example.dahaeng.domain.auth.config.SecurityConfig;
 import com.example.dahaeng.domain.member.repository.MemberRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 class JwtFilterPathScopeTest {
 
-	private static final RequestMatcher PROTECTED_MATCHER =
-		PathPatternRequestMatcher.withDefaults().matcher("/api/private/**");
+	private static final RequestMatcher PUBLIC_MATCHER =
+		PathPatternRequestMatcher.withDefaults().matcher("/api/public/**");
 
 	@Test
 	void jwtFilter_shouldSkipPublicPath() {
-		ExposedJwtFilter filter = new ExposedJwtFilter(PROTECTED_MATCHER);
+		ExposedJwtFilter filter = new ExposedJwtFilter(PUBLIC_MATCHER);
 		MockHttpServletRequest request = request("GET", "/api/public/ping");
 
 		assertThat(filter.shouldSkip(request)).isTrue();
@@ -27,7 +29,7 @@ class JwtFilterPathScopeTest {
 
 	@Test
 	void jwtFilter_shouldRunOnProtectedPath() {
-		ExposedJwtFilter filter = new ExposedJwtFilter(PROTECTED_MATCHER);
+		ExposedJwtFilter filter = new ExposedJwtFilter(PUBLIC_MATCHER);
 		MockHttpServletRequest request = request("GET", "/api/private/resource");
 
 		assertThat(filter.shouldSkip(request)).isFalse();
@@ -35,7 +37,7 @@ class JwtFilterPathScopeTest {
 
 	@Test
 	void jwtExceptionFilter_shouldSkipPublicPath() {
-		ExposedJwtExceptionFilter filter = new ExposedJwtExceptionFilter(PROTECTED_MATCHER);
+		ExposedJwtExceptionFilter filter = new ExposedJwtExceptionFilter(PUBLIC_MATCHER);
 		MockHttpServletRequest request = request("GET", "/api/public/ping");
 
 		assertThat(filter.shouldSkip(request)).isTrue();
@@ -43,7 +45,7 @@ class JwtFilterPathScopeTest {
 
 	@Test
 	void jwtExceptionFilter_shouldRunOnProtectedPath() {
-		ExposedJwtExceptionFilter filter = new ExposedJwtExceptionFilter(PROTECTED_MATCHER);
+		ExposedJwtExceptionFilter filter = new ExposedJwtExceptionFilter(PUBLIC_MATCHER);
 		MockHttpServletRequest request = request("GET", "/api/private/resource");
 
 		assertThat(filter.shouldSkip(request)).isFalse();
@@ -60,6 +62,17 @@ class JwtFilterPathScopeTest {
 
 		assertThat(new ExposedJwtFilter(matcher).shouldSkip(optionsRequest)).isTrue();
 		assertThat(new ExposedJwtExceptionFilter(matcher).shouldSkip(optionsRequest)).isTrue();
+	}
+
+	@Test
+	void securityConfig_filterChain_shouldUsePublicMatcherParameterName() throws NoSuchMethodException {
+		String parameterName = SecurityConfig.class
+			.getMethod("filterChain", org.springframework.security.config.annotation.web.builders.HttpSecurity.class,
+				RequestMatcher.class)
+			.getParameters()[1]
+			.getName();
+
+		assertThat(parameterName).isEqualTo("publicPathMatcher");
 	}
 
 	private static class ExposedJwtFilter extends JwtFilter {

@@ -38,10 +38,11 @@ export const CityScoreSchema = z.object({
   newPenaltyScore: z.number().nullable().optional(),
 });
 
-// ── LivingCostFor1Day: 백엔드 { food, transportation } ──────────────────
+// ── LivingCostFor1Day: 백엔드 { food, transportation, accommodation } ──────────────────
 export const LivingCostFor1DaySchema = z.object({
   food: z.number(),
   transportation: z.number(),
+  accommodation: z.number().nullable().optional(),
 });
 
 // ── AirTicketAndHotel: 백엔드 { airTicket, hotel } ───────────────────────
@@ -72,14 +73,29 @@ export const TagSchema = z.object({
   tagScore: z.number().nullable().optional(),
 });
 
-// ── TouristSpot: 백엔드 { name, description, lat, lon, imageUrl } ─────────
+// ── TouristSpot: 프론트 표현 (tags는 api.ts에서 변환) ─────────────────
 export const TouristSpotSchema = z.object({
   name: z.string(),
   description: z.string().nullable().optional(),
   lat: z.number().nullable().optional(),
   lon: z.number().nullable().optional(),
   imageUrl: z.string().nullable().optional(),
+  address: z.string().nullable().optional(),
+  snsLink: z.string().nullable().optional(),
+  websiteLink: z.string().nullable().optional(),
+  spotScore: z.number().nullable().optional(),
+  // 백엔드 tags(string[]) + tagScores({name:score}) → Tag[] 로 변환
+  tags: z.array(TagSchema).optional(),
 });
+
+// ── ExchangeRate: 환율 (백엔드 선택 제공) ─────────────────────────────
+export const ExchangeRateSchema = z.object({
+  currency: z.string(),
+  krwPer1Cur: z.number(),
+  displayUnit: z.number().optional(),
+  displaySymbol: z.string().optional(),
+});
+export type ExchangeRate = z.infer<typeof ExchangeRateSchema>;
 
 // ── CityDetail: GET /api/city/{id}?recommend=true|false 결과 ─────────────
 // cityId, countryId, countryName, imgUrl, latitude, longitude는 api.ts에서 보완
@@ -100,6 +116,7 @@ export const CityDetailSchema = z.object({
   danger: CountryDangerSchema.nullable().optional(),
   tags: z.array(TagSchema).optional(),
   touristSpot: z.array(TouristSpotSchema).optional(),
+  exchangeRate: ExchangeRateSchema.nullable().optional(),
 });
 export type CityDetail = z.infer<typeof CityDetailSchema>;
 

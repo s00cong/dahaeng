@@ -1,0 +1,21 @@
+# VCS / IDE
+.git
+.gitignore
+.idea
+*.iml
+.vscode
+
+# Build output / caches
+build
+.gradle
+.gradle-user-home
+out
+
+# Local env / secrets
+.env
+.env.*
+src/main/resources/application.yml
+
+# OS files
+.DS_Store
+Thumbs.db

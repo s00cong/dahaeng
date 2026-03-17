@@ -62,7 +62,8 @@ public class BookmarkService {
 		return new BookmarkDetailResponse(
 			bookmark.getId(),
 			mapper.readTree(bookmark.getJson()),
-			ExchangeRateResponse.from(exchange)
+			ExchangeRateResponse.from(exchange),
+			bookmark.getCreatedAt()
 		);
 	}
 

@@ -2,42 +2,32 @@
   application:
     name: dahaeng
 
-  # AI 설정 (OpenAI)
   ai:
     openai:
-      base-url: ${OPENAI_BASE_URL}
+      base-url: ${OPENAI_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com}
       api-key: ${OPENAI_API_KEY}
       chat:
         options:
           model: gpt-4o-mini
           temperature: 0.2
 
-  # 데이터베이스 설정
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/dahaeng}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD:}
 
-  # JPA / Hibernate 설정
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/dahaeng}
+
   jpa:
     hibernate:
-      # 로컬 개발 시에는 update가 편리하지만, 운영 단계에서는 none 또는 validate를 권장합니다.
       ddl-auto: ${DDL_AUTO:update}
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     generate-ddl: true
-  # data:
-  #   mongodb:
-  #     uri: ${MONGODB_URI:mongodb://localhost:27017/dahaeng}
 
-  # JWT 보안 설정
-  jwt:
-    secret: ${JWT_SECRET:your-jwt-secret-base64-default-for-local}
-    access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
-    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
-
-  # OAuth2 설정 (Google)
   security:
     oauth2:
       client:
@@ -52,7 +42,11 @@
             authorization-grant-type: authorization_code
             redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
 
-# 앱 커스텀 설정
+jwt:
+  secret: ${JWT_SECRET:your-jwt-secret-for-local}
+  access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
 app:
   front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:8080/}
   demo-data:

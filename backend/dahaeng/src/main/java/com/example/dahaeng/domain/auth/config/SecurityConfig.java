@@ -40,6 +40,9 @@ public class SecurityConfig {
             "/",
             "/login/**",
             "/oauth2/**",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/v3/api-docs/**",
             "/api/auth/google/login-url",
             "/api/auth/exchange",
             "/api/cost/**",
@@ -51,7 +54,9 @@ public class SecurityConfig {
             "/api/city",
             "/api/city/*",
             "/api/flights/**",
-            "/api/cities/**"
+            "/api/cities/**",
+            "/api/*/places",
+            "/api/places/**"
     };
 
     private final CustomOAuth2UserService customOAuth2UserService;
@@ -62,13 +67,13 @@ public class SecurityConfig {
     private final ObjectMapper objectMapper;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, RequestMatcher jwtProtectedPathMatcher) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, RequestMatcher publicPathMatcher) throws Exception {
 
         http
                 .cors(corsCustomizer -> corsCustomizer
                         .configurationSource(new CorsConfigurationSource() {
-                            @Override
-                            public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+                                @Override
+                                public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
                                 CorsConfiguration configuration = new CorsConfiguration();
                                 configuration.setAllowedOrigins(Collections.singletonList("http://localhost:3000"));
                                 configuration.setAllowedMethods(Collections.singletonList("*"));
@@ -78,7 +83,7 @@ public class SecurityConfig {
                                 configuration.setExposedHeaders(Collections.singletonList("Authorization"));
 
                                 return configuration;
-                            }
+                                }
                         }));
 
         http
@@ -87,9 +92,9 @@ public class SecurityConfig {
                 .httpBasic((auth) -> auth.disable());
 
         http
-                .addFilterBefore(new JwtFilter(jwtUtil, memberRepository, jwtProtectedPathMatcher),
+                .addFilterBefore(new JwtFilter(jwtUtil, memberRepository, publicPathMatcher),
                         UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new JwtExceptionFilter(objectMapper, jwtProtectedPathMatcher),
+                .addFilterBefore(new JwtExceptionFilter(objectMapper, publicPathMatcher),
                         JwtFilter.class);
 
         http

@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: ../../backend/dahaeng
+      dockerfile: Dockerfile
+    container_name: dahaeng-backend
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+    restart: unless-stopped
+    networks:
+      - app-internal
+      - db-external
+    expose:
+      - "8080"
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+        VITE_ENABLE_MSW: ${VITE_ENABLE_MSW:-false}
+    container_name: dahaeng-frontend
+    depends_on:
+      - backend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - app-internal
+
+networks:
+  app-internal:
+    driver: bridge
+
+  db-external:
+    external: true
+    name: ${DB_EXTERNAL_NETWORK:-dahaeng-db-net}
