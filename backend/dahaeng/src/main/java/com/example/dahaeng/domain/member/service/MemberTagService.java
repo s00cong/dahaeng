@@ -70,6 +70,7 @@ public class MemberTagService {
 					.isFromYoutube(false)
 					.build()
 			);
+			memberTag.setFromYoutube(false);
 			memberTag.updateTime();
 			return memberTag;
 		}).toList();
