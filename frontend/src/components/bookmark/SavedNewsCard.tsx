@@ -1,5 +1,6 @@
-import { Newspaper, ExternalLink } from 'lucide-react';
+import { Newspaper, ExternalLink, ImageOff } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import dayjs from '@/utils/dayjs';
 import type { BookmarkDetail } from '@/schemas/bookmark.schema';
 
 type NewsAtSavedItem = NonNullable<BookmarkDetail['newsAtSaved']>[number];
@@ -8,45 +9,56 @@ const MAX_NEWS_ITEMS = 3;
 
 interface SavedNewsCardProps {
   news?: NewsAtSavedItem[];
+  summation?: string;
 }
 
-interface NewsItemRowProps {
-  item: NewsAtSavedItem;
-  index: number;
-}
-
-function NewsItemRow({ item, index }: NewsItemRowProps) {
+function NewsItemCard({ item }: { item: NewsAtSavedItem }) {
   return (
     <a
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-start gap-3 rounded-lg p-2 -mx-2 hover:bg-slate-50 transition-colors"
-      aria-label={`${item.title} — ${item.source} (새 탭에서 열기)`}
+      className="group flex gap-3 rounded-xl border border-slate-100 bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all"
+      aria-label={`${item.title} (새 탭에서 열기)`}
     >
-      {/* 번호 배지 */}
-      <span
-        className="flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[10px] font-bold text-blue-600 mt-0.5"
-        aria-hidden="true"
-      >
-        {index + 1}
-      </span>
+      {/* 썸네일 */}
+      <div className="w-20 h-16 shrink-0 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+        {item.urlToImage ? (
+          <img
+            src={item.urlToImage}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        ) : (
+          <ImageOff className="size-5 text-slate-300" />
+        )}
+      </div>
 
-      {/* 뉴스 내용 */}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-slate-800 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors">
+      {/* 텍스트 */}
+      <div className="min-w-0 flex-1 flex flex-col justify-between">
+        <p className="text-xs font-semibold text-slate-800 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors">
           {item.title}
         </p>
-        <div className="mt-0.5 flex items-center gap-1">
-          <p className="text-xs text-slate-400">{item.source}</p>
-          <ExternalLink className="size-3 text-slate-300 group-hover:text-blue-400 transition-colors" aria-hidden="true" />
+        {item.description && (
+          <p className="text-[11px] text-slate-400 leading-snug line-clamp-2 mt-1">
+            {item.description}
+          </p>
+        )}
+        <div className="flex items-center justify-between mt-1.5">
+          {item.publishedAt && (
+            <span className="text-[10px] text-slate-400">
+              {dayjs(item.publishedAt).format('YYYY.MM.DD')}
+            </span>
+          )}
+          <ExternalLink className="size-3 text-slate-300 group-hover:text-blue-400 transition-colors ml-auto" />
         </div>
       </div>
     </a>
   );
 }
 
-export function SavedNewsCard({ news }: SavedNewsCardProps) {
+export function SavedNewsCard({ news, summation }: SavedNewsCardProps) {
   const displayedNews = news && news.length > 0 ? news.slice(0, MAX_NEWS_ITEMS) : null;
 
   return (
@@ -57,11 +69,17 @@ export function SavedNewsCard({ news }: SavedNewsCardProps) {
           주요 이슈
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-3">
+        {/* AI 뉴스 요약 */}
+        {summation && (
+          <p className="text-xs text-slate-500 leading-relaxed bg-slate-50 rounded-lg px-3 py-2 italic">
+            "{summation}"
+          </p>
+        )}
         {displayedNews ? (
-          <div className="space-y-1">
+          <div className="flex flex-col gap-2">
             {displayedNews.map((item, idx) => (
-              <NewsItemRow key={idx} item={item} index={idx} />
+              <NewsItemCard key={idx} item={item} />
             ))}
           </div>
         ) : (

@@ -55,31 +55,53 @@ export const bookmarkApi = {
       const { data } = await axiosInstance.get(`/api/bookmarks/${bookmarkId}`);
       const json = data.json ?? {};
 
-      // news.top3 → newsAtSaved (source 없으면 undefined)
+      // news.top3 → newsAtSaved
       const newsAtSaved = json.news?.top3
         ?.filter((n: { url?: string }) => !!n.url)
-        .map((n: { title: string; url: string }) => ({
+        .map((n: { title: string; url: string; description?: string; urlToImage?: string; publishedAt?: string }) => ({
           title: n.title,
           url: n.url,
+          description: n.description ?? undefined,
+          urlToImage: n.urlToImage ?? undefined,
+          publishedAt: n.publishedAt ?? undefined,
         }));
 
       return BookmarkDetailSchema.parse({
         cityId: json.cityId,
         cityName: json.cityName,
-        countryName: json.countryName,
-        imgUrl: json.imgUrl ?? null,
+        // countryName이 빈 문자열이면 danger.countryName으로 대체
+        countryName: json.countryName || json.danger?.countryName || '',
+        imgUrl: json.imgUrl || null,
         createdAt: data.savedAt,
-        // CityDetail.score.finalScore → matchingScore
+        // 매칭 점수
         matchingScore: json.score?.finalScore ?? undefined,
-        // before: 저장 당시 환율(krwPerDisplayUnit), current: 현재 환율
+        // 환율 (저장 당시 / 현재)
         exchangeAtSaved: {
           before: json.exchangeRate?.krwPerDisplayUnit ?? 0,
           current: data.currentExchange?.krwPerDisplayUnit ?? 0,
+          currency: json.exchangeRate?.currency ?? undefined,
         },
-        // CityDetail.news.top3 → newsAtSaved
+        // 뉴스
         newsAtSaved: newsAtSaved?.length ? newsAtSaved : undefined,
-        // CityDetail.airTicketAndHotel은 구조가 달라 flightAtSaved 불가
-        flightAtSaved: undefined,
+        newsSummation: json.news?.summation ?? undefined,
+        // 항공권 & 숙박 (저장 당시 city detail 기준)
+        savedAirTicket: json.airTicketAndHotel?.airTicket ?? undefined,
+        savedHotel: json.airTicketAndHotel?.hotel ?? undefined,
+        // AI 추천 이유
+        recommendationReason: json.recommendationReason ?? undefined,
+        // 태그
+        tags: json.tags?.map((t: { name: string }) => t.name) ?? undefined,
+        // 하루 예상 비용 (백엔드에서 이미 KRW)
+        dailyFood: json.livingCostFor1Day?.food ?? undefined,
+        dailyTransport: json.livingCostFor1Day?.transportation ?? undefined,
+        // 위험도
+        danger: json.danger ?? undefined,
+        // 관광지
+        touristSpots: json.touristSpot?.map((s: { name: string; lat: number; lon: number }) => ({
+          name: s.name,
+          lat: s.lat,
+          lon: s.lon,
+        })) ?? undefined,
       });
     } catch {
       return DUMMY_DETAIL;
@@ -95,6 +117,7 @@ export const bookmarkApi = {
 
   // DELETE /api/bookmarks/{bookmarkId}
   remove: async (bookmarkId: number) => {
-    await axiosInstance.delete(`/api/bookmarks/${bookmarkId}`);
+    const { data } = await axiosInstance.delete(`/api/bookmarks/${bookmarkId}`);
+    return data as { message: string; id: number };
   },
 };

@@ -62,6 +62,44 @@ const ITEM_LABELS: Record<string, string> = {
   haircut: '헤어컷',
 };
 
+interface BarTooltipPayload {
+  name: string;
+  차이: number;
+  금액차이: number;
+  서울가격: number;
+  도시가격: number;
+}
+
+function BarTooltip({ active, payload, targetName }: {
+  active?: boolean;
+  payload?: { payload: BarTooltipPayload }[];
+  targetName: string;
+}) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  const isPositive = d.차이 >= 0;
+  return (
+    <div className="bg-white border border-border rounded-xl shadow-lg px-4 py-3 text-xs flex flex-col gap-1.5 min-w-[160px]">
+      <p className="font-bold text-foreground mb-0.5">{d.name}</p>
+      <div className="flex justify-between gap-4">
+        <span className="text-muted-foreground">서울</span>
+        <span className="font-semibold">₩{d.서울가격.toLocaleString()}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-muted-foreground">{targetName}</span>
+        <span className="font-semibold">₩{d.도시가격.toLocaleString()}</span>
+      </div>
+      <div className={cn('flex justify-between gap-4 pt-1 border-t border-border', isPositive ? 'text-red-600' : 'text-blue-600')}>
+        <span>서울 대비</span>
+        <span className="font-bold">
+          {isPositive ? '+' : ''}{d.차이.toFixed(1)}%
+          &nbsp;({d.금액차이 >= 0 ? '+₩' : '-₩'}{Math.abs(d.금액차이).toLocaleString()})
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProps) {
   const vs = data?.costCompare;
   const isMoreExpensive = (vs?.dailyBudgetGapPercent ?? 0) >= 0;
@@ -82,6 +120,8 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
       name: ITEM_LABELS[item.itemKey] ?? item.itemName,
       차이: item.differencePercent,
       금액차이: item.difference,
+      서울가격: item.basePrice,
+      도시가격: item.targetPrice,
     })) ?? [];
 
   return (
@@ -198,13 +238,7 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
                 />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={90} />
                 <ReferenceLine x={0} stroke="#64748b" strokeWidth={1.5} />
-                <Tooltip
-                  contentStyle={{ fontSize: 13, borderRadius: 8 }}
-                  formatter={(value: number | undefined) => [
-                    `${(value ?? 0) >= 0 ? '+' : ''}${(value ?? 0).toFixed(1)}%`,
-                    '서울 대비',
-                  ]}
-                />
+                <Tooltip content={<BarTooltip targetName={targetName} />} />
                 <Bar dataKey="차이" barSize={18} radius={[0, 4, 4, 0]}>
                   <LabelList
                     dataKey="금액차이"
@@ -235,7 +269,7 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
                           dominantBaseline="middle"
                           textAnchor={isNegative ? 'end' : 'start'}
                         >
-                          {val >= 0 ? '+' : ''}₩{Math.abs(val).toLocaleString()}
+                          {val >= 0 ? '+₩' : '-₩'}{Math.abs(val).toLocaleString()}
                         </text>
                       );
                     }}
