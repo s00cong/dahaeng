@@ -42,10 +42,10 @@
             authorization-grant-type: authorization_code
             redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
 
-jwt:
-  secret: ${JWT_SECRET:your-jwt-secret-for-local}
-  access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  jwt:
+    secret: ${JWT_SECRET:your-jwt-secret-for-local}
+    access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
 app:
   front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:8080/}
