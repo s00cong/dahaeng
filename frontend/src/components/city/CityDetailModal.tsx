@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { Loader2, AlertCircle, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -87,13 +88,22 @@ export function CityDetailModal() {
     recommendParams: isRecommendedCity && recommendRequest ? recommendRequest : undefined,
   });
 
-  // 느린 호출: AI 생성 콘텐츠 (recommendationReason, news) — 모달에서는 항상 호출
-  const { data: aiCity, isLoading: isAiLoading } = useCityDetail(selectedCityId, true);
+  // 느린 호출: 추천 도시만 recommend API 호출 (비추천 도시는 호출 안 함)
+  const { data: aiCity, isLoading: isAiLoading } = useCityDetail(selectedCityId, true, {
+    enabled: isCityModalOpen && isRecommendedCity,
+  });
 
   // AI 데이터 우선, 없으면 기본 데이터 사용
   const city = (aiCity ?? basicCity) ?? null;
   const isLoading = isBasicLoading;
   const showError = isError && !city;
+
+  // 비추천 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
+  useEffect(() => {
+    if (!isRecommendedCity && activeCityTab === 'recommend') {
+      setActiveCityTab('cost');
+    }
+  }, [isRecommendedCity, activeCityTab, setActiveCityTab]);
 
   return (
     // 모달 열림/닫힘 시 AnimatePresence가 exit 애니메이션을 실행한 후 DOM에서 제거
@@ -149,6 +159,7 @@ export function CityDetailModal() {
               <CityDetailTabNav
                 activeTab={activeCityTab}
                 onTabChange={setActiveCityTab}
+                showRecommendTab={isRecommendedCity}
               />
 
               {/* 스크롤 가능한 탭 콘텐츠 패널 */}
@@ -194,7 +205,7 @@ export function CityDetailModal() {
                     )}
                     {activeCityTab === "cost" && <CostCompareTab city={city} />}
                     {activeCityTab === "flight" && <FlightTab city={city} />}
-                    {activeCityTab === "spots" && <SpotTab city={city} />}
+                    {activeCityTab === "spots" && <SpotTab city={city} isRecommended={isRecommendedCity} />}
                   </motion.div>
                 )}
               </div>
