@@ -33,7 +33,7 @@ public record RecommendCitySummaryResponse(
             Long id,
             String name,
             String imgUrl,
-            Double expectedBudgetFor1day,
+            Double livingCostFor1Day,
             Scores scores,
             CountryDangerResponse danger,
             Double lat,

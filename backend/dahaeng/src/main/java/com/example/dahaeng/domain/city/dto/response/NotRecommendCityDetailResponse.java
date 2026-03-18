@@ -14,8 +14,27 @@ public record NotRecommendCityDetailResponse(
         List<TagResponse> tags
 ) {
     public record LivingCostFor1Day(
-            double food,
-            double transportation
+            Food food,
+            Transportation transportation,
+            double hotel,
+            double total
+    ){
+    }
+
+    public record Food(
+            double total,
+            double breakfast,
+            double lunch,
+            double dinner,
+            double cappuccino,
+            double cokePepsi
+    ){
+    }
+
+    public record Transportation(
+            double total,
+            double localTransportTicket,
+            double ticketCount
     ){
     }
     public record AirTicketAndHotel(

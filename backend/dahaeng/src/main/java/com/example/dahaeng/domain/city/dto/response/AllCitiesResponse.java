@@ -6,7 +6,7 @@ public record AllCitiesResponse(
 		Long id,
         String name,
         String imgUrl,
-        Double expectedBudgetFor1day,
+        Double livingCostFor1Day,
         CountryDangerResponse danger,
 
         Double lat,
