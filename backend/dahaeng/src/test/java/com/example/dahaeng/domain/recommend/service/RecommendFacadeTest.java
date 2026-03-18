@@ -4,7 +4,7 @@ import com.example.dahaeng.domain.city.repository.CityTagRepository;
 import com.example.dahaeng.domain.country.dto.response.CountryDanger;
 import com.example.dahaeng.domain.country.dto.response.CountryDangerResponse;
 import com.example.dahaeng.domain.country.service.DangerService;
-import com.example.dahaeng.domain.recommend.Service.RecommendFacade;
+import com.example.dahaeng.domain.recommend.service.RecommendFacade;
 import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 import com.example.dahaeng.domain.recommend.dto.response.RecommendCitySummaryResponse;
 import com.example.dahaeng.domain.recommend.repository.CityCandidateProjection;
