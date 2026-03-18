@@ -1,5 +1,6 @@
 package com.example.dahaeng.domain.bookmark.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -69,6 +70,14 @@ public class BookmarkService {
 
 	public NoContentResponse save(BookMarkCreateRequest request, Long memberId) throws JsonProcessingException {
 		Member member = validMember(memberId);
+
+		bookmarkRepository
+			.findFirstByCityIdAndMemberAndIsDeletedFalseOrderByCreatedAtDesc(request.cityId(), member)
+			.ifPresent((bookmark) -> {
+				if (bookmark.getCreatedAt().toLocalDate().equals(LocalDate.now())) {
+					throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 생성된 북마크입니다.");
+				}
+			});
 
 		City city = cityRepository.findById(request.cityId())
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "유효하지 않은 도시 아이디입니다."));
