@@ -26,6 +26,15 @@ import {
 import { z } from 'zod';
 
 export const SEOUL_CITY_ID = 162;
+export const SEOUL_COUNTRY_ID = 58; // South Korea
+
+export type CostCardItem = {
+  rank: number;
+  id: number;
+  name: string;
+  imgUrl: string | null;
+  dailyBudget: number; // KRW
+};
 
 const DUMMY_HISTORY_MAP = {
   d: DUMMY_EXCHANGE_RATE_HISTORY_D,
@@ -183,6 +192,46 @@ export const costApi = {
         ...DUMMY_COST_DETAIL,
         target: { ...DUMMY_COST_DETAIL.target, id: targetId },
       };
+    }
+  },
+
+  // GET /api/cost/card?mode=TOP
+  getCostCard: async (): Promise<CostCardItem[]> => {
+    try {
+      const { data } = await axiosInstance.get('/api/cost/card', {
+        params: { mode: 'TOP' },
+      });
+      return (data.cards as CostCardItem[]).map((c) => ({
+        rank: c.rank ?? 0,
+        id: c.id,
+        name: c.name,
+        imgUrl: c.imgUrl ?? null,
+        dailyBudget: c.dailyBudget,
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  // GET /api/cost/card?mode=SEARCH&type=CONTINENT|COUNTRY&keyword=...&sort=ASC|DESC
+  getCostSearch: async (
+    type: 'CONTINENT' | 'COUNTRY',
+    keyword: string,
+    sort: 'ASC' | 'DESC' = 'ASC',
+  ): Promise<CostCardItem[]> => {
+    try {
+      const { data } = await axiosInstance.get('/api/cost/card', {
+        params: { mode: 'SEARCH', type, keyword, sort },
+      });
+      return (data.cards as CostCardItem[]).map((c, i) => ({
+        rank: i + 1,
+        id: c.id,
+        name: c.name,
+        imgUrl: c.imgUrl ?? null,
+        dailyBudget: c.dailyBudget,
+      }));
+    } catch {
+      return [];
     }
   },
 

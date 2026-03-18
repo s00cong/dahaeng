@@ -5,13 +5,11 @@ import type { LivingCost } from '@/schemas/cost.schema';
 interface SalaryPopulationSectionProps {
   livingCost: LivingCost | undefined;
   isLoading: boolean;
-  currency: string;
 }
 
 export function SalaryPopulationSection({
   livingCost,
   isLoading,
-  currency,
 }: SalaryPopulationSectionProps) {
   if (isLoading) {
     return (
@@ -33,7 +31,7 @@ export function SalaryPopulationSection({
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-0.5">세후 평균 월급</p>
           <p className="text-lg font-black text-foreground">
-            {livingCost.monthly_salary_after_tax.toLocaleString()} {currency}
+            ₩{livingCost.monthly_salary_after_tax.toLocaleString()}
           </p>
         </div>
       </div>
