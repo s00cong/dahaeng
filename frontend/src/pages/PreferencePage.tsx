@@ -19,6 +19,7 @@ import { TagCategorySection } from "@/components/preference/TagCategorySection";
 import { usePreferenceStore } from "@/stores/preferenceStore";
 import { useSubmitPreference, useUpdatePreference } from "@/hooks/auth/usePreference";
 import { useTagList } from "@/hooks/tag/useTagList";
+import { youtubeApi } from "@/api/youtube.api";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -203,10 +204,13 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
   // 서버에서 태그 목록 fetch
   const { data: tagList = [], isLoading: isTagLoading } = useTagList();
 
-  // 선택된 태그 ID 로컬 상태 (서버 전송 단위: number[])
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const { youtubeAutoSelected, youtubeTagIds, setYoutubeTagIds } = usePreferenceStore();
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const { youtubeAutoSelected } = usePreferenceStore();
+  // 선택된 태그 ID 로컬 상태 — YouTube 분석 결과가 있으면 초기값으로 세팅
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
+    youtubeAutoSelected ? youtubeTagIds : [],
+  );
   const submitResult = useSubmitPreference();
   const updateResult = useUpdatePreference();
   const { mutate, isPending } = isEdit ? updateResult : submitResult;
@@ -221,6 +225,20 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
   // 선택 완료 → 서버에 tagIds 전송
   const handleSubmit = () => {
     mutate(selectedTagIds);
+  };
+
+  // YouTube 추천 태그 업데이트
+  const handleYoutubeUpdate = async () => {
+    setIsUpdating(true);
+    try {
+      await youtubeApi.sync();
+      await youtubeApi.analyze();
+      const tagIds = await youtubeApi.getInterestTags();
+      setYoutubeTagIds(tagIds);
+      setSelectedTagIds(tagIds);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   // categoryName 기준으로 태그 그룹화
@@ -354,8 +372,18 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
                     <p className="text-sm font-medium text-white">
                       YouTube 활동을 바탕으로 일부 태그가 자동 선택되었습니다.
                     </p>
-                    <button type="button" className="flex items-center gap-1 text-xs text-white/50 hover:text-white/80 transition-colors shrink-0">
-                      <RefreshCw className="size-3" /> 업데이트하기
+                    <button
+                      type="button"
+                      onClick={handleYoutubeUpdate}
+                      disabled={isUpdating}
+                      className="flex items-center gap-1 text-xs text-white/50 hover:text-white/80 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <RefreshCw className="size-3" />
+                      )}
+                      {isUpdating ? "업데이트 중..." : "업데이트하기"}
                     </button>
                   </div>
                   <p className="text-xs text-white/50 mt-0.5">

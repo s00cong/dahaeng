@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { usePreferenceStore } from "@/stores/preferenceStore";
 import { useAuthStore } from "@/stores/authStore";
-import { authApi } from "@/api/auth.api";
+import { youtubeApi } from "@/api/youtube.api";
 import { useSearch } from "@tanstack/react-router";
 import PreferencePage from "./PreferencePage";
 
@@ -126,7 +126,7 @@ function YoutubeConsentStep({
   onAgree,
   onCancel,
 }: {
-  onAgree: () => void;
+  onAgree: () => Promise<void>;
   onCancel: () => void;
 }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -134,12 +134,7 @@ function YoutubeConsentStep({
   const handleAgree = async () => {
     setIsLoading(true);
     try {
-      const { loginUrl } = await authApi.getYoutubeConsentUrl();
-      // YouTube OAuth 리다이렉트
-      window.location.href = loginUrl;
-    } catch {
-      // API 실패 시 (이미 연결된 경우 등) 바로 select 단계로 이동
-      onAgree();
+      await onAgree();
     } finally {
       setIsLoading(false);
     }
@@ -272,7 +267,7 @@ function YoutubeIcon({
 
 const PreferenceFlowPage = () => {
   const { hasCompletedPreference } = useAuthStore();
-  const { setYoutubeAutoSelected } = usePreferenceStore();
+  const { setYoutubeAutoSelected, setYoutubeTagIds } = usePreferenceStore();
   const { preview } = useSearch({ from: "/preference" });
 
   // 마이페이지에서 "태그 수정"으로 진입한 경우만 edit 모드
@@ -281,8 +276,17 @@ const PreferenceFlowPage = () => {
 
   const [step, setStep] = useState<Step>(isEditMode ? "select" : "onboarding");
 
-  const handleYoutubeAgree = () => {
-    setYoutubeAutoSelected(true);
+  const handleYoutubeAgree = async () => {
+    try {
+      await youtubeApi.sync();
+      await youtubeApi.analyze();
+      const tagIds = await youtubeApi.getInterestTags();
+      setYoutubeTagIds(tagIds);
+      setYoutubeAutoSelected(true);
+    } catch {
+      // 실패 시에도 select 단계로 진행 (자동 선택 없이)
+      setYoutubeAutoSelected(false);
+    }
     setStep("select");
   };
 
