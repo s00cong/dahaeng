@@ -42,3 +42,45 @@ def test_run_plan_with_retry_retries_only_failed_step_and_following_steps():
         "local_flight_summary_etl": 1,
         "local_calendar_etl": 1,
     }
+
+
+def test_build_execution_plan_sets_ignore_checkpoint_for_google_flight_crawl():
+    plan = MODULE.build_execution_plan(
+        due_sources={"google_flight"},
+        python_executable="python",
+        repo_root=Path.cwd(),
+        runtime_config={
+            "db_url": "jdbc:mysql://localhost:3307/dahang",
+            "db_username": "root",
+            "db_password": "ssafy",
+            "mongo_uri": "mongodb://localhost:27017",
+        },
+    )
+
+    crawl_step = next(step for step in plan if step.name == "google_flight_crawl")
+
+    assert crawl_step.env_overrides == {"IGNORE_CHECKPOINT": "1"}
+
+
+def test_build_execution_plan_creates_google_flight_normalize_step():
+    plan = MODULE.build_execution_plan(
+        due_sources={"google_flight"},
+        python_executable="python",
+        repo_root=Path.cwd(),
+        runtime_config={
+            "db_url": "jdbc:mysql://localhost:3307/dahang",
+            "db_username": "root",
+            "db_password": "ssafy",
+            "mongo_uri": "mongodb://localhost:27017",
+        },
+    )
+
+    normalize_step = next(step for step in plan if step.name == "google_flight_normalize")
+
+    assert "convert_bronze_to_jsonl.py" in normalize_step.command[1]
+    assert normalize_step.command[2:] == [
+        "--source",
+        "google_flight",
+        "--outdir",
+        str(Path.cwd() / "data" / "normalized"),
+    ]

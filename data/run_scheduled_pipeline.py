@@ -26,6 +26,7 @@ class Step:
     name: str
     command: list[str]
     sources: set[str] = field(default_factory=set)
+    env_overrides: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -163,6 +164,7 @@ def build_execution_plan(
                 name="google_flight_crawl",
                 command=[python_executable, str(data_dir / "google_flight" / "google_flight_scraper.py")],
                 sources={"google_flight"},
+                env_overrides={"IGNORE_CHECKPOINT": "1"},
             )
         )
 
@@ -326,13 +328,17 @@ def apply_success_times(state: dict, succeeded_sources: set[str], now: datetime)
 def run_step(step: Step) -> bool:
     print(f"[RUN] {step.name}")
     print("      " + " ".join(step.command))
-    completed = subprocess.run(step.command, check=False)
+    env = os.environ.copy()
+    env.update(step.env_overrides)
+    completed = subprocess.run(step.command, check=False, env=env)
     return completed.returncode == 0
 
 
 def dry_run_step(step: Step) -> bool:
     print(f"[DRY-RUN] {step.name}")
     print("          " + " ".join(step.command))
+    if step.env_overrides:
+        print("          env: " + " ".join(f"{key}={value}" for key, value in step.env_overrides.items()))
     return True
 
 
