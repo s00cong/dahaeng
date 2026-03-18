@@ -3,10 +3,8 @@ package com.example.dahaeng.domain.member.service;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +56,8 @@ public class MemberTagService {
 			.stream()
 			.collect(Collectors.toMap(
 				(memberTag) -> memberTag.getTag().getId(),
-				Function.identity()
+				Function.identity(),
+				this::selectPreferredTag
 			));
 
 		List<MemberTag> memberTags = tags.stream().map((tag) -> {
@@ -92,5 +91,22 @@ public class MemberTagService {
 		return memberRepository
 			.findById(memberId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "사용자 정보를 찾을 수 없습니다."));
+	}
+
+	private MemberTag selectPreferredTag(MemberTag left, MemberTag right) {
+		if (!left.isFromYoutube() && right.isFromYoutube()) {
+			return left;
+		}
+		if (left.isFromYoutube() && !right.isFromYoutube()) {
+			return right;
+		}
+
+		if (left.getUpdatedAt() == null) {
+			return right;
+		}
+		if (right.getUpdatedAt() == null) {
+			return left;
+		}
+		return left.getUpdatedAt().isAfter(right.getUpdatedAt()) ? left : right;
 	}
 }
