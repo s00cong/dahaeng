@@ -2,6 +2,11 @@
   application:
     name: dahaeng
 
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:8MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:45MB}
+
   ai:
     openai:
       base-url: ${OPENAI_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com}
@@ -42,15 +47,27 @@
             authorization-grant-type: authorization_code
             redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
 
-jwt:
-  secret: ${JWT_SECRET:your-jwt-secret-for-local}
-  access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+  jwt:
+    secret: ${JWT_SECRET}
+    access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
 app:
-  front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:8080/}
-  demo-data:
-    enabled: ${DEMO_DATA_ENABLED:false}
+  front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:3000/}
+  internal-image-upload:
+    enabled: ${INTERNAL_IMAGE_UPLOAD_ENABLED:false}
+    max-files: ${INTERNAL_IMAGE_UPLOAD_MAX_FILES:5}
+
+cloud:
+  aws:
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID}
+      secret-key: ${AWS_SECRET_ACCESS_KEY}
+    s3:
+      bucket: ${AWS_S3_BUCKET:dahaeng}
+      arn: ${AWS_S3_ARN:arn:aws:s3:::dahaeng}
 
 external:
   newsapi:

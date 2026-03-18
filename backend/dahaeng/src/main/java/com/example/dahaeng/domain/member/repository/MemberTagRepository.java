@@ -2,6 +2,7 @@ package com.example.dahaeng.domain.member.repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -48,6 +49,21 @@ public interface MemberTagRepository extends JpaRepository<MemberTag, Long> {
 
 	@Modifying
 	void deleteByMemberAndIsFromYoutubeTrue(Member member);
+
+	@Query(
+		"""
+		select mt.tag.id
+		from MemberTag mt
+		where mt.member = :member
+				and mt.tag.id in (:tagIds)
+				and mt.isFromYoutube = false
+				and mt.isDeleted = false
+		"""
+	)
+	List<Long> findManualTagIdsByMemberAndTagIds(
+		@Param("member") Member member,
+		@Param("tagIds") Set<Long> tagIds
+	);
 
 	Optional<MemberTag> findByIdAndMemberAndIsDeletedFalse(
 		@Param("id") Long id,

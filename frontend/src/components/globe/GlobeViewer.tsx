@@ -367,11 +367,11 @@ function getMarkerColor(score: number | undefined): string {
 // ── 지도 색상 중앙 관리 ──────────────────────────────────────────────────────
 const MAP_COLORS = {
   countryDefault: "#F1F5F9",
-  countryHover: "#d4d4d4",
-  countrySelected: "#d4d4d4", // 나라 상면
-  countrySelectedSide1: "#b0b0b0", // 옆면 상단 레이어 (밝은 회색)
-  countrySelectedSide2: "#808080", // 옆면 하단 레이어 (어두운 회색)
-  countrySelectedShadow: "rgba(0,0,0,0.28)", // 바닥 그림자
+  countryHover: "#e2e8ef",
+  countrySelected: "#e2e8ef", // 나라 상면
+  countrySelectedSide1: "#c8d2db", // 옆면 상단 레이어
+  countrySelectedSide2: "#a8b6c2", // 옆면 하단 레이어
+  countrySelectedShadow: "rgba(0,0,0,0.18)", // 바닥 그림자
 } as const;
 
 const COUNTRY_STYLE_DEFAULT = {
@@ -467,9 +467,9 @@ const BaseLayer = React.memo(
                       const curX = xOffset * ratio;
                       const curY = yOffset * ratio;
 
-                      // 색상 보간: 어두운 회색(#909090) -> 상면 색상(#D4D4D4)
-                      const startRGB = [144, 144, 144];
-                      const endRGB = [212, 212, 212];
+                      // 색상 보간: #a8b6c2 -> 상면 색상(#e2e8ef)
+                      const startRGB = [168, 182, 194];
+                      const endRGB = [226, 232, 239];
                       const r = Math.round(
                         startRGB[0] + (endRGB[0] - startRGB[0]) * ratio,
                       );
@@ -596,7 +596,7 @@ const AdminLayer = React.memo(
                   geography={geo}
                   fill={
                     isHovered
-                      ? "rgba(127, 239, 123, 0.35)"
+                      ? "rgba(99, 179, 237, 0.3)"
                       : "rgba(0,0,0,0.001)"
                   }
                   stroke="none"
@@ -613,7 +613,7 @@ const AdminLayer = React.memo(
               <Geography
                 geography={outline as never}
                 fill="none"
-                stroke="#94a3b8"
+                stroke="#b0bfcc"
                 strokeWidth={0.1}
                 style={ADMIN_BORDER_STYLE}
               />
@@ -623,7 +623,7 @@ const AdminLayer = React.memo(
               <Geography
                 geography={borders as never}
                 fill="none"
-                stroke="#94a3b8"
+                stroke="#b0bfcc"
                 strokeWidth={0.1}
                 style={ADMIN_BORDER_STYLE}
               />
@@ -956,8 +956,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           minZoom={0.8}
           maxZoom={80}
           translateExtent={[
-            [-1e10, -1e10],
-            [1e10, 1e10],
+            [-1e10, -(height * 0.6)],
+            [1e10, height * 1.6],
           ]}
           onMoveEnd={({ coordinates, zoom: z }) => {
             // 경도를 [-180, 180]으로 정규화 (트레드밀 스냅백)
@@ -999,7 +999,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                         key={geo.rsmKey}
                         geography={geo}
                         fill="none"
-                        stroke="#94a3b8"
+                        stroke="#b0bfcc"
                         strokeWidth={0.5}
                         style={{
                           default: { outline: "none", pointerEvents: "none" },
@@ -1081,13 +1081,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                     }
                   >
                     <g transform={markerTransform}>
+                      {/* 터치/클릭 타겟 확장 (투명) */}
                       <circle
-                        r={r}
-                        fill={
-                          isMatched ? getMarkerColor(matchScore) : "#CBD5E1"
-                        }
-                        stroke="#fff"
-                        strokeWidth={1 / zoom}
+                        r={Math.max(r * 2.5, 12 / zoom)}
+                        fill="transparent"
                         style={{ cursor: "pointer" }}
                         onMouseEnter={(e) =>
                           setTooltip({
@@ -1098,6 +1095,15 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                         }
                         onMouseMove={(e) => handleTooltipMove(city.cityName, e)}
                         onMouseLeave={() => setTooltip(null)}
+                      />
+                      <circle
+                        r={r}
+                        fill={
+                          isMatched ? getMarkerColor(matchScore) : "#CBD5E1"
+                        }
+                        stroke="#fff"
+                        strokeWidth={1 / zoom}
+                        style={{ cursor: "pointer", pointerEvents: "none" }}
                       />
                       {medalRank && (
                         <image
@@ -1156,24 +1162,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             {label}
           </button>
         ))}
-      </div>
-
-      {/* 디버그: 현재 줌 레벨 표시 — 확인 후 제거 가능 */}
-      <div
-        style={{
-          position: "absolute",
-          top: 8,
-          left: 8,
-          background: "rgba(0,0,0,0.6)",
-          color: "#fff",
-          padding: "2px 8px",
-          borderRadius: 4,
-          fontSize: 11,
-          pointerEvents: "none",
-          zIndex: 50,
-        }}
-      >
-        zoom: {zoom.toFixed(2)}
       </div>
 
       {tooltip && (

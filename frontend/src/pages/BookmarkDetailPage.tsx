@@ -10,6 +10,7 @@ import { SavedFlightPriceCard } from '@/components/bookmark/SavedFlightPriceCard
 import { ExchangeRateCard } from '@/components/bookmark/ExchangeRateCard';
 import { SavedNewsCard } from '@/components/bookmark/SavedNewsCard';
 import { CostSummaryCard } from '@/components/bookmark/CostSummaryCard';
+import { RecommendReasonCard } from '@/components/bookmark/RecommendReasonCard';
 
 const BookmarkDetailPage = () => {
   const { id } = useParams({ from: '/_authenticated/bookmarks/$id' });
@@ -77,10 +78,15 @@ const BookmarkDetailPage = () => {
 
               {/* 2열 대시보드 그리드 */}
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[55fr_45fr]">
-                {/* 좌측 열: 항공권 + 주요 이슈 */}
+                {/* 좌측 열: AI 추천 이유 + 항공권 + 주요 이슈 */}
                 <div className="flex flex-col gap-5">
-                  <SavedFlightPriceCard flight={data.flightAtSaved} />
-                  <SavedNewsCard news={data.newsAtSaved} />
+                  <RecommendReasonCard data={data} />
+                  <SavedFlightPriceCard
+                    flight={data.flightAtSaved}
+                    savedAirTicket={data.savedAirTicket}
+                    savedHotel={data.savedHotel}
+                  />
+                  <SavedNewsCard news={data.newsAtSaved} summation={data.newsSummation} />
                 </div>
 
                 {/* 우측 열: 환율 + 해외 물가 */}
