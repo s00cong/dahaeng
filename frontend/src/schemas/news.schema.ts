@@ -10,3 +10,6 @@ export const NewsItemSchema = z.object({
   sentiment: z.enum(['positive', 'neutral', 'negative']).optional(),
 });
 export type NewsItem = z.infer<typeof NewsItemSchema>;
+
+export const CountryNewsSchema = z.array(NewsItemSchema);
+export type CountryNews = z.infer<typeof CountryNewsSchema>;
