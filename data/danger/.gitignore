@@ -18,3 +18,7 @@ venv/
 *.log
 country_items.json
 special_travel_alert_items.json
+
+run-local.ps1
+
+tests/
