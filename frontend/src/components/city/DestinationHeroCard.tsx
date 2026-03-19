@@ -123,8 +123,13 @@ export function DestinationHeroCard({
   const [imgError, setImgError] = useState(false);
   const { closeCityModal } = useUiStore();
 
-  // API의 tags(객체 배열)를 우선 사용하고, 없으면 keywords(문자열 배열) 사용
-  const displayKeywords = city.tags ? city.tags.map((t) => t.name) : [];
+  // tagScore 내림차순 정렬 후 상위 10개
+  const displayKeywords = city.tags
+    ? [...city.tags]
+        .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
+        .slice(0, 10)
+        .map((t) => t.name)
+    : [];
 
   return (
     <div
@@ -192,16 +197,14 @@ export function DestinationHeroCard({
           <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md">
             {city.cityName}
           </h2>
-          <p className="text-sm text-white/70 mt-1">{city.countryName}</p>
+          <p className="text-sm text-white/70 mt-1">
+            {city.danger?.countryName ?? city.countryName}
+          </p>
         </div>
 
-        {/* 매칭 스코어 + 하트 버튼 */}
-        {city.score?.finalScore !== undefined && city.score.finalScore !== null ? (
+        {/* 매칭 스코어 + 하트 버튼 (추천 도시만) */}
+        {city.score?.finalScore !== undefined && city.score.finalScore !== null && (
           <MatchCard score={city.score.finalScore} city={city} />
-        ) : (
-          <div className="flex justify-end">
-            <BookmarkButton city={city} />
-          </div>
         )}
 
         {/* Glassmorphism keyword tags */}
