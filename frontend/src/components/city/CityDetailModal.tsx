@@ -94,7 +94,10 @@ export function CityDetailModal() {
   });
 
   // AI 데이터 우선, 없으면 기본 데이터 사용
-  const city = (aiCity ?? basicCity) ?? null;
+  // detail API는 imgUrl을 반환하지 않으므로 city list에서 병합
+  const listImgUrl = cities?.find((c) => c.cityId === selectedCityId)?.imgUrl ?? "";
+  const rawCity = (aiCity ?? basicCity) ?? null;
+  const city = rawCity ? { ...rawCity, imgUrl: rawCity.imgUrl || listImgUrl } : null;
   const isLoading = isBasicLoading;
   const showError = isError && !city;
 
