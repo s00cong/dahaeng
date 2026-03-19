@@ -1,7 +1,11 @@
 package com.example.dahaeng.domain.recommend.service;
 
 import com.example.dahaeng.domain.city.entity.CityTag;
+import com.example.dahaeng.domain.city.entity.CityClimateTag;
+import com.example.dahaeng.domain.city.repository.CityClimateTagRepository;
 import com.example.dahaeng.domain.city.repository.CityTagRepository;
+import com.example.dahaeng.domain.interest.constant.TravelTagCatalog;
+import com.example.dahaeng.domain.interest.enums.TravelTagCategory;
 import com.example.dahaeng.domain.country.enums.CountryEnum;
 import com.example.dahaeng.domain.country.service.DangerService;
 import com.example.dahaeng.domain.exchange.entity.Exchange;
@@ -30,6 +34,7 @@ public class RecommendFacade {
 
     private final RecommendQueryRepository recommendQueryRepository;
     private final CityTagRepository cityTagRepository;
+    private final CityClimateTagRepository cityClimateTagRepository;
     private final DangerService dangerService;
     private final ExchangeRepository exchangeRepository;
 
@@ -38,14 +43,28 @@ public class RecommendFacade {
         List<String> selectedTags = RecommendTagNormalizer.normalize(request.selectedTags());
         Exchange usdExchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(Currency.USD).orElse(null);
         Double usdToKrwRate = usdExchange != null ? usdExchange.getKrwPer1cur() : null;
+        List<String> climateTags = extractClimateTags(selectedTags);
+        List<String> regularTags = selectedTags.stream()
+                .filter(tag -> !climateTags.contains(tag))
+                .toList();
 
-        Map<Long, List<CityTag>> tagMap = selectedTags.isEmpty()
+        Map<Long, List<CityTag>> tagMap = regularTags.isEmpty()
                 ? Map.of()
-                : cityTagRepository.findAllByTagNames(selectedTags).stream()
+                : cityTagRepository.findAllByTagNames(regularTags).stream()
                 .collect(Collectors.groupingBy(cityTag -> cityTag.getCity().getId()));
+        Map<Long, List<CityClimateTag>> climateTagMap = climateTags.isEmpty()
+                ? Map.of()
+                : cityClimateTagRepository.findAllByMonthAndTagNames(Long.valueOf(request.month()), climateTags).stream()
+                .collect(Collectors.groupingBy(cityClimateTag -> cityClimateTag.getCity().getId()));
 
         var recommendations = recommendQueryRepository.findCityCandidates(yearMonth).stream()
-                .map(city -> score(city, tagMap.get(city.getCityId()), request, usdToKrwRate))
+                .map(city -> score(
+                        city,
+                        tagMap.get(city.getCityId()),
+                        climateTagMap.get(city.getCityId()),
+                        request,
+                        usdToKrwRate
+                ))
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(CityRankResult::totalScore).reversed())
                 .limit(3)
@@ -73,6 +92,7 @@ public class RecommendFacade {
     private CityRankResult score(
             CityCandidateProjection city,
             List<CityTag> cityTags,
+            List<CityClimateTag> climateTags,
             RecommendCitiesRequest request,
             Double usdToKrwRate
     ) {
@@ -97,7 +117,7 @@ public class RecommendFacade {
             return null;
         }
 
-        double tagRaw = averageTagScore(cityTags);
+        double tagRaw = averageTagScore(cityTags, climateTags);
         RecommendationScoreCalculator.ScoreBreakdown scoreBreakdown = RecommendationScoreCalculator.calculate(
                 tagRaw,
                 request,
@@ -157,6 +177,42 @@ public class RecommendFacade {
                 .mapToDouble(Double::doubleValue)
                 .average()
                 .orElse(0.0);
+    }
+
+    private double averageTagScore(List<CityTag> cityTags, List<CityClimateTag> climateTags) {
+        boolean hasRegularTags = cityTags != null && !cityTags.isEmpty();
+        boolean hasClimateTags = climateTags != null && !climateTags.isEmpty();
+
+        if (!hasRegularTags && !hasClimateTags) {
+            return 0.0;
+        }
+        if (!hasClimateTags) {
+            return averageTagScore(cityTags);
+        }
+        if (!hasRegularTags) {
+            return climateTags.stream()
+                    .map(CityClimateTag::getScore)
+                    .filter(Objects::nonNull)
+                    .mapToDouble(Double::doubleValue)
+                    .average()
+                    .orElse(0.0);
+        }
+
+        double regularAverage = averageTagScore(cityTags);
+        double climateAverage = climateTags.stream()
+                .map(CityClimateTag::getScore)
+                .filter(Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0.0);
+        return (regularAverage + climateAverage) / 2.0;
+    }
+
+    private List<String> extractClimateTags(List<String> selectedTags) {
+        List<String> climateCatalog = TravelTagCatalog.ALLOWED_TAGS.getOrDefault(TravelTagCategory.CLIMATE, List.of());
+        return selectedTags.stream()
+                .filter(climateCatalog::contains)
+                .toList();
     }
 
     private double round(double value) {

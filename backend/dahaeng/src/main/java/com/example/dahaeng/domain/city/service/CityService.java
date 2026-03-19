@@ -5,8 +5,10 @@ import com.example.dahaeng.domain.city.dto.response.CityResponse;
 import com.example.dahaeng.domain.city.dto.response.NotRecommendCityDetailResponse;
 import com.example.dahaeng.domain.city.dto.response.RecommendCityDetailResponse;
 import com.example.dahaeng.domain.city.entity.City;
+import com.example.dahaeng.domain.city.entity.CityClimateTag;
 import com.example.dahaeng.domain.city.entity.CityTag;
 import com.example.dahaeng.domain.city.enums.CityEnum;
+import com.example.dahaeng.domain.city.repository.CityClimateTagRepository;
 import com.example.dahaeng.domain.city.repository.CityRepository;
 import com.example.dahaeng.domain.city.repository.CityTagRepository;
 import com.example.dahaeng.domain.country.entity.Danger;
@@ -17,6 +19,8 @@ import com.example.dahaeng.domain.exchange.enums.Currency;
 import com.example.dahaeng.domain.exchange.repository.ExchangeRepository;
 import com.example.dahaeng.domain.flight.entity.FlightSummary;
 import com.example.dahaeng.domain.flight.repository.FlightSummaryRepository;
+import com.example.dahaeng.domain.interest.constant.TravelTagCatalog;
+import com.example.dahaeng.domain.interest.enums.TravelTagCategory;
 import com.example.dahaeng.domain.livingcost.entity.LivingCostOfCity;
 import com.example.dahaeng.domain.livingcost.repository.LivingCostOfCityRepository;
 import com.example.dahaeng.domain.livingcost.util.DailyLivingCostCalculator;
@@ -55,6 +59,7 @@ public class CityService {
     private final CityRepository cityRepository;
     private final FlightSummaryRepository flightSummaryRepository;
     private final LivingCostOfCityRepository livingCostOfCityRepository;
+    private final CityClimateTagRepository cityClimateTagRepository;
     private final DangerRepository dangerRepository;
     private final CityTagRepository cityTagRepository;
     private final DangerService dangerService;
@@ -128,8 +133,9 @@ public class CityService {
 
         List<CityTag> cityTags = cityTagRepository.findCityTagsByCityId(id);
         List<String> selectedTags = normalizeSelectedTags(request, cityTags);
+        List<String> climateTags = extractClimateTags(selectedTags);
 
-        double tagRaw = calculateTagRaw(id, selectedTags);
+        double tagRaw = calculateTagRaw(id, selectedTags, climateTags, request.month());
         Danger danger = dangerRepository.findByCountryId(city.getCountry().getId()).orElse(null);
         RecommendationScoreCalculator.ScoreBreakdown scoreBreakdown = RecommendationScoreCalculator.calculate(
                 tagRaw,
@@ -423,22 +429,55 @@ public class CityService {
                 .toList();
     }
 
-    private double calculateTagRaw(Long cityId, List<String> selectedTags) {
+    private double calculateTagRaw(Long cityId, List<String> selectedTags, List<String> climateTags, Integer month) {
         if (selectedTags.isEmpty()) {
             return 0.0;
         }
 
-        List<CityTag> matchedTags = cityTagRepository.findCityTagsByCityIdAndTagNames(cityId, selectedTags);
-        if (matchedTags.isEmpty()) {
+        List<String> regularTags = selectedTags.stream()
+                .filter(tag -> !climateTags.contains(tag))
+                .toList();
+
+        List<CityTag> matchedTags = regularTags.isEmpty()
+                ? List.of()
+                : cityTagRepository.findCityTagsByCityIdAndTagNames(cityId, regularTags);
+        List<CityClimateTag> matchedClimateTags = (climateTags.isEmpty() || month == null)
+                ? List.of()
+                : cityClimateTagRepository.findByCityIdAndMonthAndTagNames(cityId, Long.valueOf(month), climateTags);
+
+        boolean hasRegularTags = !matchedTags.isEmpty();
+        boolean hasClimateTags = !matchedClimateTags.isEmpty();
+        if (!hasRegularTags && !hasClimateTags) {
             return 0.0;
         }
 
-        return matchedTags.stream()
+        double regularAverage = matchedTags.stream()
                 .map(CityTag::getTagScore)
                 .filter(java.util.Objects::nonNull)
                 .mapToDouble(Double::doubleValue)
                 .average()
                 .orElse(0.0);
+        double climateAverage = matchedClimateTags.stream()
+                .map(CityClimateTag::getScore)
+                .filter(java.util.Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0.0);
+
+        if (!hasClimateTags) {
+            return regularAverage;
+        }
+        if (!hasRegularTags) {
+            return climateAverage;
+        }
+        return (regularAverage + climateAverage) / 2.0;
+    }
+
+    private List<String> extractClimateTags(List<String> selectedTags) {
+        List<String> climateCatalog = TravelTagCatalog.ALLOWED_TAGS.getOrDefault(TravelTagCategory.CLIMATE, List.of());
+        return selectedTags.stream()
+                .filter(climateCatalog::contains)
+                .toList();
     }
 
     private void validateRecommendDetailRequest(RecommendCitiesRequest request) {
