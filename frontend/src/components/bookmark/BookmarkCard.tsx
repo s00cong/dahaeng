@@ -1,10 +1,12 @@
 import { useState, type MouseEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { X, Landmark } from "lucide-react";
+import { X } from "lucide-react";
+import defaultCityImg from "@/assets/no-picture.png";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import dayjs from "@/utils/dayjs";
+import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
 import type { BookmarkListItem } from "@/schemas/bookmark.schema";
 
 const CONTINENT_LABEL_MAP: Record<string, string> = {
@@ -37,6 +39,8 @@ interface BookmarkCardProps {
 export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
   const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
+  const { data: flagMap } = useCountryFlagMap();
+  const flagUrl = flagMap?.get(item.countryName);
 
   const handleCardClick = () => {
     void navigate({ to: "/bookmarks/$id", params: { id: item.id } });
@@ -65,18 +69,12 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
     >
       {/* 이미지 영역 */}
       <div className="relative h-56 w-full overflow-hidden bg-slate-100">
-        {item.imgUrl && !imgError ? (
-          <img
-            src={item.imgUrl}
-            alt={item.cityName}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-slate-100">
-            <Landmark className="size-12 text-slate-400" aria-hidden="true" />
-          </div>
-        )}
+        <img
+          src={imgError || !item.imgUrl ? defaultCityImg : item.imgUrl}
+          alt={item.cityName}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={() => setImgError(true)}
+        />
 
         {/* 삭제 버튼 — hover 시 표시 */}
         <button
@@ -96,10 +94,13 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
       <div className="flex flex-col gap-1.5 p-4">
         <Badge
           className={cn(
-            "w-fit border text-[10px] font-semibold uppercase tracking-wide",
+            "w-fit border text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1",
             badgeClass,
           )}
         >
+          {flagUrl && (
+            <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
+          )}
           {continentLabel}
         </Badge>
         <h3 className="text-base font-bold text-slate-900 leading-tight">

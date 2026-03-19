@@ -9,8 +9,7 @@ export function MatchScoreBadge({ score }: MatchScoreBadgeProps) {
       role="status"
       aria-label={`매칭 점수 ${score}점`}
     >
-      <span className="text-xl font-bold text-white leading-none">{score}</span>
-      <span className="text-xs font-semibold text-white/90 leading-none mt-0.5">점</span>
+      <span className="text-xl font-bold text-white leading-none">{score}점</span>
     </div>
   );
 }

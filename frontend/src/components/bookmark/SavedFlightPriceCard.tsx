@@ -1,4 +1,4 @@
-import { Plane } from 'lucide-react';
+import { Plane, Hotel } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import dayjs from '@/utils/dayjs';
 import type { BookmarkDetail } from '@/schemas/bookmark.schema';
@@ -39,7 +39,9 @@ export function SavedFlightPriceCard({ flight, savedAirTicket, savedHotel }: Sav
         ) : savedAirTicket ? (
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-slate-400 mb-0.5">왕복 항공권 (저장 당시)</p>
+              <p className="text-xs text-slate-400 mb-0.5 flex items-center gap-1">
+                <Plane className="size-3" /> 왕복 항공권 (저장 당시)
+              </p>
               <p className="text-3xl font-bold text-slate-900">
                 {savedAirTicket.toLocaleString()}
                 <span className="ml-1 text-lg font-semibold text-slate-600">원~</span>
@@ -47,7 +49,9 @@ export function SavedFlightPriceCard({ flight, savedAirTicket, savedHotel }: Sav
             </div>
             {savedHotel && (
               <div>
-                <p className="text-xs text-slate-400 mb-0.5">월 평균 숙박</p>
+                <p className="text-xs text-slate-400 mb-0.5 flex items-center gap-1">
+                  <Hotel className="size-3" /> 월 평균 숙박
+                </p>
                 <p className="text-lg font-semibold text-slate-700">
                   {savedHotel.toLocaleString()}
                   <span className="ml-1 text-sm font-medium text-slate-500">원/월</span>

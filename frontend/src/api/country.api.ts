@@ -7,15 +7,22 @@ const CountryListItemSchema = z.object({
   imgUrl: z.string().nullable(),
 });
 
+export interface CountryMaps {
+  flagMap: Map<string, string>;
+  idMap: Map<string, number>;
+}
+
 export const countryApi = {
-  // GET /api/country → Map<countryName, imgUrl>
-  getFlagMap: async (): Promise<Map<string, string>> => {
+  // GET /api/country/list → { flagMap, idMap }
+  getCountryMaps: async (): Promise<CountryMaps> => {
     const { data } = await axiosInstance.get("/api/country/list");
     const parsed = z.array(CountryListItemSchema).parse(data);
-    return new Map(
+    const flagMap = new Map(
       parsed
         .filter((c) => c.imgUrl)
         .map((c) => [c.countryName, c.imgUrl!]),
     );
+    const idMap = new Map(parsed.map((c) => [c.countryName, c.id]));
+    return { flagMap, idMap };
   },
 };
