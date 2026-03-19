@@ -15,10 +15,6 @@ from urllib.parse import urlparse
 
 SUPPORTED_SOURCES = ("trip_com", "google_flight")
 DEFAULT_STATE = {source: {} for source in SUPPORTED_SOURCES}
-DEFAULT_DB_URL = "jdbc:mysql://localhost:3307/dahang"
-DEFAULT_DB_USERNAME = "root"
-DEFAULT_DB_PASSWORD = "ssafy"
-DEFAULT_MONGO_URI = "mongodb://localhost:27017"
 
 
 @dataclass(frozen=True)
@@ -86,11 +82,22 @@ def parse_mysql_jdbc_url(db_url: str) -> dict[str, int | str]:
 
 
 def build_runtime_config() -> dict[str, str]:
+    required = {
+        "DB_URL": os.getenv("DB_URL"),
+        "DB_USERNAME": os.getenv("DB_USERNAME"),
+        "DB_PASSWORD": os.getenv("DB_PASSWORD"),
+        "MONGODB_URI": os.getenv("MONGODB_URI"),
+    }
+    missing = [key for key, value in required.items() if not value]
+    if missing:
+        joined = ", ".join(missing)
+        raise RuntimeError(f"Missing required environment variables for scheduled pipeline: {joined}")
+
     return {
-        "db_url": os.getenv("DB_URL", DEFAULT_DB_URL),
-        "db_username": os.getenv("DB_USERNAME", DEFAULT_DB_USERNAME),
-        "db_password": os.getenv("DB_PASSWORD", DEFAULT_DB_PASSWORD),
-        "mongo_uri": os.getenv("MONGODB_URI", DEFAULT_MONGO_URI),
+        "db_url": required["DB_URL"],
+        "db_username": required["DB_USERNAME"],
+        "db_password": required["DB_PASSWORD"],
+        "mongo_uri": required["MONGODB_URI"],
     }
 
 
