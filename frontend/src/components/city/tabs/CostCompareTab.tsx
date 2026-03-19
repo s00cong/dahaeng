@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { ExchangeRateCombinedSection } from '@/components/cost/ExchangeRateCombinedSection';
 import { CostDetailTable } from '@/components/cost/CostDetailTable';
@@ -14,10 +15,10 @@ interface CostCompareTabProps {
   city: CityDetail;
 }
 
-const tabVariants = {
+const tabVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
-  exit: { opacity: 0, y: -12, transition: { duration: 0.2, ease: 'easeIn' } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' as const } },
+  exit: { opacity: 0, y: -12, transition: { duration: 0.2, ease: 'easeIn' as const } },
 };
 
 export function CostCompareTab({ city }: CostCompareTabProps) {

@@ -43,6 +43,7 @@ export const LivingCostFor1DaySchema = z.object({
   food: z.number(),
   transportation: z.number(),
   accommodation: z.number().nullable().optional(),
+  total: z.number().nullable().optional(),
 });
 
 // ── AirTicketAndHotel: 백엔드 { airTicket, hotel } ───────────────────────

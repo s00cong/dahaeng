@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeftRight, TrendingUp, TrendingDown, Minus, ChevronDown, Search } from 'lucide-react';
+import { ArrowLeftRight, TrendingUp, TrendingDown, ChevronDown, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { costApi, SEOUL_CITY_ID } from '@/api/cost.api';

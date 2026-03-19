@@ -9,6 +9,6 @@ WORKDIR /workspace
 COPY . /workspace
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir pymysql pymongo
+    && python -m pip install --no-cache-dir playwright pymysql pymongo
 
-CMD ["python", "data/run_scheduled_pipeline.py", "--dry-run"]
+CMD ["python", "data/flight/run_scheduled_pipeline.py", "--dry-run"]

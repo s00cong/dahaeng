@@ -71,40 +71,31 @@ export function CityDetailModal() {
     setActiveCityTab,
   } = useUiStore();
 
-
   const { data: cities } = useCityList();
-  const selectedCityName = cities?.find((c) => c.cityId === selectedCityId)?.cityName;
+  const selectedCityName = cities?.find(
+    (c) => c.cityId === selectedCityId,
+  )?.cityName;
   const isRecommendedCity =
     isRecommendActive &&
     recommendResults.some((r) => r.city === selectedCityName);
 
-  // 빠른 호출: 기본 정보 즉시 표시
   const {
     data: basicCity,
-    isLoading: isBasicLoading,
+    isLoading,
     isError,
   } = useCityDetail(selectedCityId, isRecommendedCity, {
     enabled: isCityModalOpen,
-    recommendParams: isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+    recommendParams:
+      isRecommendedCity && recommendRequest ? recommendRequest : undefined,
   });
 
-  // 느린 호출: 추천 도시만 recommend API 호출 (비추천 도시는 호출 안 함)
-  const { data: aiCity, isLoading: isAiLoading } = useCityDetail(selectedCityId, true, {
-    enabled: isCityModalOpen && isRecommendedCity,
-  });
-
-  // AI 데이터 우선, 없으면 기본 데이터 사용
-  // detail API는 imgUrl을 반환하지 않으므로 city list에서 병합
-  const listImgUrl = cities?.find((c) => c.cityId === selectedCityId)?.imgUrl ?? "";
-  const rawCity = (aiCity ?? basicCity) ?? null;
-  const city = rawCity ? { ...rawCity, imgUrl: rawCity.imgUrl || listImgUrl } : null;
-  const isLoading = isBasicLoading;
+  const city = basicCity ?? null;
   const showError = isError && !city;
 
   // 비추천 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
   useEffect(() => {
-    if (!isRecommendedCity && activeCityTab === 'recommend') {
-      setActiveCityTab('cost');
+    if (!isRecommendedCity && activeCityTab === "recommend") {
+      setActiveCityTab("cost");
     }
   }, [isRecommendedCity, activeCityTab, setActiveCityTab]);
 
@@ -203,12 +194,14 @@ export function CityDetailModal() {
                       <RecommendTab
                         city={city}
                         onTabChange={setActiveCityTab}
-                        isAiLoading={isRecommendActive && isAiLoading}
+                        isAiLoading={false}
                       />
                     )}
                     {activeCityTab === "cost" && <CostCompareTab city={city} />}
                     {activeCityTab === "flight" && <FlightTab city={city} />}
-                    {activeCityTab === "spots" && <SpotTab city={city} isRecommended={isRecommendedCity} />}
+                    {activeCityTab === "spots" && (
+                      <SpotTab city={city} isRecommended={isRecommendedCity} />
+                    )}
                   </motion.div>
                 )}
               </div>

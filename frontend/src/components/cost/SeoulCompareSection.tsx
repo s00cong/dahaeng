@@ -202,7 +202,7 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
                     iconSize={10}
                     iconType="circle"
                     wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-                    formatter={(value, entry) => {
+                    formatter={(value, _entry) => {
                       const item = pieData.find((d) => d.name === value);
                       const pct = item
                         ? ((item.value / data.expectedTargetDailyBudget.total) * 100).toFixed(0)
