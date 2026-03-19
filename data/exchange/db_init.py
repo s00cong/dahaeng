@@ -41,7 +41,6 @@ def get_db_connection():
     )
 
 def create_tables_if_not_exists(conn=None):
-    """紐⑤뱺 CREATE TABLE IF NOT EXISTS 荑쇰━瑜??ㅽ뻾?쒕떎."""
     own_conn = conn is None
     if own_conn:
         conn = get_db_connection()
