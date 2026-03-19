@@ -14,6 +14,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { usePreferenceStore } from "@/stores/preferenceStore";
 import { useLogout } from "@/hooks/auth/useLogout";
+import { useMemberTags } from "@/hooks/auth/useMemberTags";
+import { useTagList } from "@/hooks/tag/useTagList";
 import { authApi } from "@/api/auth.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -250,9 +252,18 @@ function YoutubeModal({
 
 const MyPage = () => {
   const { user, hasCompletedPreference } = useAuthStore();
-  const { selectedTags, setYoutubeAutoSelected } = usePreferenceStore();
+  const { setYoutubeAutoSelected } = usePreferenceStore();
   const { mutate: logout, isPending: isLogoutPending } = useLogout();
   const navigate = useNavigate();
+
+  const { data: memberTags = [] } = useMemberTags();
+  const { data: tagList = [] } = useTagList();
+
+  // 저장된 tagId → 태그명 변환
+  const savedTagIds = memberTags.map((t) => t.tagId);
+  const savedTagNames = tagList
+    .filter((t) => savedTagIds.includes(t.tagId))
+    .map((t) => t.tagName);
 
   const [youtubeConnected, setYoutubeConnected] = useState(true);
   const [youtubeModalAction, setYoutubeModalAction] = useState<
@@ -269,7 +280,7 @@ const MyPage = () => {
   };
 
   const handleTagEdit = () => {
-    setYoutubeAutoSelected(youtubeConnected);
+    setYoutubeAutoSelected(false);
     navigate({ to: "/preference" });
   };
 
@@ -379,9 +390,9 @@ const MyPage = () => {
                 </button>
               </div>
 
-              {selectedTags.length > 0 ? (
+              {savedTagNames.length > 0 ? (
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {selectedTags.map((tag) => (
+                  {savedTagNames.map((tag) => (
                     <span
                       key={tag}
                       className="px-3 py-1 rounded-full text-sm text-blue-300 border border-blue-500/40"

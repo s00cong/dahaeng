@@ -72,6 +72,11 @@ export const authApi = {
     return data;
   },
 
+  // DELETE /api/member/tag/{id} — memberTag 레코드 id로 태그 삭제
+  deleteTag: async (memberTagId: number): Promise<void> => {
+    await axiosInstance.delete(`/api/member/tag/${memberTagId}`);
+  },
+
   // GET /api/members/youtube/status
   getYoutubeStatus: async () => {
     const { data } = await axiosInstance.get('/api/members/youtube/status');
