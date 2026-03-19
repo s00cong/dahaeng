@@ -227,6 +227,7 @@ export const cityApi = {
           food: typeof city.livingCostFor1Day.food === 'number' ? city.livingCostFor1Day.food : city.livingCostFor1Day.food.total,
           transportation: typeof city.livingCostFor1Day.transportation === 'number' ? city.livingCostFor1Day.transportation : city.livingCostFor1Day.transportation.total,
           accommodation: city.livingCostFor1Day.hotel ?? city.livingCostFor1Day.accommodation ?? undefined,
+          total: city.livingCostFor1Day.total ?? undefined,
         } : undefined,
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
         news: city.news?.top3?.length
@@ -255,6 +256,7 @@ export const cityApi = {
           food: typeof city.livingCostFor1Day.food === 'number' ? city.livingCostFor1Day.food : city.livingCostFor1Day.food.total,
           transportation: typeof city.livingCostFor1Day.transportation === 'number' ? city.livingCostFor1Day.transportation : city.livingCostFor1Day.transportation.total,
           accommodation: city.livingCostFor1Day.hotel ?? city.livingCostFor1Day.accommodation ?? undefined,
+          total: city.livingCostFor1Day.total ?? undefined,
         } : undefined,
         // not-recommend는 airTicket 키 사용
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
