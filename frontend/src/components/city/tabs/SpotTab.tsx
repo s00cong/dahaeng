@@ -10,13 +10,20 @@ import {
   BookOpen,
   Compass,
   Share2,
+  Wifi,
+  Dog,
+  Accessibility,
+  Clock,
+  Building2,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CityDetail } from "@/schemas/city.schema";
 import { useCityList } from "@/hooks/city/useCityList";
 import { usePlaces } from "@/hooks/spot/usePlaces";
 import { useOpenTripMapSpots } from "@/hooks/spot/useOpenTripMapSpots";
+import { useGeoapifySpots } from "@/hooks/spot/useGeoapifySpots";
 import { type OtmSpot, getKindLabel } from "@/api/opentripmap.api";
+import { type GeoapifySpot } from "@/api/geoapify.api";
 import type { Place } from "@/api/places.api";
 
 interface SpotTabProps {
@@ -268,6 +275,131 @@ function OtmSpotDetail({ spot, onBack }: { spot: OtmSpot; onBack: () => void }) 
   );
 }
 
+// ── 4. Geoapify 카드 ──────────────────────────────────────────────────────────
+
+function GeoapifySpotCard({ spot }: { spot: GeoapifySpot }) {
+  // 이름 표시 우선순위: 한국어 > 영어+현지어
+  const mainName = spot.nameKo ?? spot.nameEn ?? spot.name;
+  // 메인과 다른 보조 이름 (현지 원어)
+  const subName = spot.nameKo
+    ? (spot.name !== spot.nameKo ? spot.name : undefined)
+    : (spot.nameEn && spot.name !== spot.nameEn ? spot.name : undefined);
+
+  return (
+    <div className="flex flex-col rounded-xl border border-border bg-white overflow-hidden hover:border-violet-200 hover:shadow-sm transition-all">
+      {/* 이미지 */}
+      {spot.imageUrl && (
+        <div className="relative h-28 bg-slate-200 shrink-0">
+          <img
+            src={spot.imageUrl || undefined}
+            alt={mainName}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const wrapper = e.currentTarget.parentElement as HTMLElement;
+              if (wrapper) wrapper.style.display = 'none';
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <span className="absolute bottom-1.5 left-2 text-[9px] font-medium text-white bg-violet-500/80 rounded-full px-1.5 py-0.5">
+            {spot.categoryLabel}
+          </span>
+        </div>
+      )}
+
+      <div className="p-3 flex flex-col gap-2">
+        {/* 이미지 없을 때 카테고리 뱃지 */}
+        {!spot.imageUrl && (
+          <span className="self-start text-[9px] font-medium text-violet-600 bg-violet-50 border border-violet-100 rounded-full px-1.5 py-0.5">
+            {spot.categoryLabel}
+          </span>
+        )}
+
+        {/* 이름: 메인(한국어 or 영어) + 보조(현지어) */}
+        <div>
+          <p className="text-xs font-semibold text-foreground leading-snug">{mainName}</p>
+          {subName && (
+            <p className="text-[10px] text-muted-foreground">{subName}</p>
+          )}
+        </div>
+
+        {/* 설명 */}
+        {spot.description && (
+          <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
+            {spot.description}
+          </p>
+        )}
+
+        {/* 운영시간 */}
+        {spot.openingHours && (
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Clock className="size-2.5 shrink-0" />
+            <span className="truncate">{spot.openingHours}</span>
+          </div>
+        )}
+
+        {/* 건물 정보 */}
+        {(spot.building?.architecture || spot.historic?.startDate) && (
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Building2 className="size-2.5 shrink-0" />
+            <span>
+              {[
+                spot.building?.architecture,
+                spot.historic?.startDate ? `${spot.historic.startDate}년` : undefined,
+              ].filter(Boolean).join(' · ')}
+            </span>
+          </div>
+        )}
+
+        {/* 편의시설 아이콘 */}
+        {spot.facilities && (
+          <div className="flex items-center gap-2">
+            {spot.facilities.wheelchair && (
+              <span title="휠체어 접근 가능">
+                <Accessibility className="size-3 text-blue-400" />
+              </span>
+            )}
+            {spot.facilities.internetAccess && (
+              <span title="와이파이 제공">
+                <Wifi className="size-3 text-green-400" />
+              </span>
+            )}
+            {spot.facilities.dogs === false && (
+              <span title="반려동물 불가">
+                <Dog className="size-3 text-red-300" />
+              </span>
+            )}
+            {spot.isFree && (
+              <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-full px-1.5 py-0.5">
+                무료
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* 링크 */}
+        {(spot.website || spot.wikipedia) && (
+          <div className="flex gap-1.5 mt-1">
+            {spot.website && (
+              <a href={spot.website} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
+                <Globe className="size-2.5" />웹사이트
+              </a>
+            )}
+            {spot.wikipedia && (
+              <a href={spot.wikipedia} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
+                <BookOpen className="size-2.5" />위키
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── 스켈레톤 ─────────────────────────────────────────────────────────────────
 
 function CardSkeleton({ count = 3 }: { count?: number }) {
@@ -304,6 +436,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
 
   const { data: places, isLoading: isPlacesLoading } = usePlaces(city.cityId);
   const { data: otmSpots, isLoading: isOtmLoading } = useOpenTripMapSpots(lat, lon);
+  const { data: geoapifySpots, isLoading: isGeoapifyLoading } = useGeoapifySpots(lat, lon);
 
   // 이미지 로드 실패한 spot 제거
   const visibleOtmSpots = otmSpots?.filter((s) => !failedXids.has(s.xid)) ?? [];
@@ -398,6 +531,34 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground py-4 text-center">주변 명소 데이터를 불러올 수 없습니다.</p>
+              )}
+            </section>
+
+            {/* ── Section 4: 관광지 (Geoapify) ── */}
+            <section>
+              <SectionHeader
+                icon={<Building2 className="size-4 text-violet-500" />}
+                title="관광 명소"
+                sub="Geoapify"
+              />
+              {isGeoapifyLoading ? (
+                <div className="flex flex-col gap-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-xl border border-border p-3 flex flex-col gap-2">
+                      <Skeleton className="h-3.5 w-2/3" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-4/5" />
+                    </div>
+                  ))}
+                </div>
+              ) : geoapifySpots && geoapifySpots.length > 0 ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {geoapifySpots.map((spot) => (
+                    <GeoapifySpotCard key={spot.placeId} spot={spot} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground py-4 text-center">관광지 데이터를 불러올 수 없습니다.</p>
               )}
             </section>
 
