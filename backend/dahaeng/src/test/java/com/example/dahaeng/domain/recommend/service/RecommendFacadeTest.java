@@ -1,6 +1,7 @@
 package com.example.dahaeng.domain.recommend.service;
 
 import com.example.dahaeng.domain.city.repository.CityTagRepository;
+import com.example.dahaeng.domain.city.repository.CityClimateTagRepository;
 import com.example.dahaeng.domain.country.dto.response.CountryDanger;
 import com.example.dahaeng.domain.country.dto.response.CountryDangerResponse;
 import com.example.dahaeng.domain.country.service.DangerService;
@@ -28,16 +29,19 @@ class RecommendFacadeTest {
     void recommend_excludesSouthKoreaAndIncludesScoreBreakdown() {
         RecommendQueryRepository recommendQueryRepository = mock(RecommendQueryRepository.class);
         CityTagRepository cityTagRepository = mock(CityTagRepository.class);
+        CityClimateTagRepository cityClimateTagRepository = mock(CityClimateTagRepository.class);
         DangerService dangerService = mock(DangerService.class);
         ExchangeRepository exchangeRepository = mock(ExchangeRepository.class);
         RecommendFacade recommendFacade = new RecommendFacade(
                 recommendQueryRepository,
                 cityTagRepository,
+                cityClimateTagRepository,
                 dangerService,
                 exchangeRepository
         );
 
         when(cityTagRepository.findAllByTagNames(List.of("food"))).thenReturn(List.of());
+        when(cityClimateTagRepository.findAllByMonthAndTagNames(4L, List.of())).thenReturn(List.of());
         when(exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(Currency.USD))
                 .thenReturn(Optional.of(Exchange.builder()
                         .currency(Currency.USD)
