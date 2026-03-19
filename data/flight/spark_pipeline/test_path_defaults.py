@@ -19,6 +19,15 @@ def test_local_flight_summary_default_paths_point_to_flight_directory():
 def test_bronze_to_silver_flight_defaults_use_flight_silver_directory():
     source = (MODULE_DIR / "bronze_to_silver_flight.py").read_text(encoding="utf-8")
 
-    assert 'default="/workspace/data/flight/google_flight/bronze_airticket"' in source
-    assert 'default="/workspace/data/flight/trip_com/bronze_airticket"' in source
-    assert re.search(r'default="/workspace/data/flight/silver/flight_summary"', source)
+    assert 'default="/workspace/data/flight/normalized/google_flight.jsonl"' in source
+    assert 'default="hdfs://namenode:9000/data/bronze/flight/trip_com"' in source
+    assert re.search(r'default="hdfs://namenode:9000/data/silver/flight/flight_summary"', source)
+    assert '.partitionBy("city_id", "year_month")' in source
+
+
+def test_bronze_to_silver_calendar_defaults_use_hdfs_trip_paths():
+    source = (MODULE_DIR / "bronze_to_silver_calendar.py").read_text(encoding="utf-8")
+
+    assert 'default="hdfs://namenode:9000/data/bronze/flight/trip_com"' in source
+    assert 'default="hdfs://namenode:9000/data/silver/flight/trip_com_daily_prices"' in source
+    assert '.partitionBy("city_id", "year_month")' in source
