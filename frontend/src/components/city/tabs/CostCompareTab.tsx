@@ -76,7 +76,6 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
         <SalaryPopulationSection
           livingCost={costDetail.data?.living_cost}
           isLoading={costDetail.isLoading}
-          currency={currency}
         />
 
         {/* C. 서울 vs 도시 물가 요약 및 비교 지표 (항목별 차이 차트 포함) */}
