@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { feature } from "topojson-client";
 import { animate } from "framer-motion";
 import {
   ComposableMap,
@@ -357,8 +358,8 @@ function calcCountryView(
   return { center, zoom };
 }
 
-function getMarkerColor(score: number | undefined): string {
-  if (score === undefined) return "#3b82f6";
+function getMarkerColor(score: number | null | undefined): string {
+  if (score == null) return "#3b82f6";
   if (score >= 80) return "#10b981";
   if (score >= 50) return "#3b82f6";
   return "#f59e0b";
@@ -595,9 +596,7 @@ const AdminLayer = React.memo(
                   key={geo.rsmKey}
                   geography={geo}
                   fill={
-                    isHovered
-                      ? "rgba(99, 179, 237, 0.3)"
-                      : "rgba(0,0,0,0.001)"
+                    isHovered ? "rgba(99, 179, 237, 0.3)" : "rgba(0,0,0,0.001)"
                   }
                   stroke="none"
                   style={ADMIN_AREA_STYLE}
@@ -641,8 +640,12 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     globeBudgetFilter,
     globeDuration,
     selectedCityCoords,
+    selectedCityId,
+    selectedCityScore,
     isRecommendActive,
     recommendResults,
+    globeCountryTarget,
+    setGlobeCountryTarget,
   } = useUiStore();
 
   // ── 지도 데이터 캐시 state ─────────────────────────────
@@ -882,6 +885,75 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     return () => controls.stop();
   }, [selectedCityCoords]);
 
+  // 나라 검색 → 글로브 카메라 이동
+  useEffect(() => {
+    if (!globeCountryTarget || !geoData) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const topology = geoData as any;
+    const objectKey = Object.keys(topology.objects ?? {})[0];
+    if (!objectKey) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const collection = feature(topology, topology.objects[objectKey] as any);
+    const matched = collection.features.find(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (f: any) => (f.properties?.name ?? "") === globeCountryTarget,
+    );
+
+    setGlobeCountryTarget(null);
+    if (!matched) return;
+
+    const geo = matched as unknown as GeoFeature;
+    const rawName = globeCountryTarget;
+    const bounds = COUNTRY_MAIN_BBOX[rawName] ?? getGeoBounds(geo);
+    if (!bounds) return;
+
+    const iso = COUNTRY_NAME_ISO3[rawName];
+    if (iso) setClickedIso(iso);
+    setClickedName(rawName);
+    setClickedGeo(geo);
+    setHoveredAdminKey(null);
+    setTooltip(null);
+    setIsZooming(true);
+
+    const { center: newCenter, zoom: newZoom } = calcCountryView(
+      bounds.minLng, bounds.maxLng, bounds.minLat, bounds.maxLat, width, height,
+    );
+    const currentLng = centerRef.current[0];
+    const diff = ((((newCenter[0] - currentLng + 180) % 360) + 360) % 360) - 180;
+    const targetCenter: [number, number] = [currentLng + diff, newCenter[1]];
+
+    if (animControlsRef.current) animControlsRef.current.stop();
+    const fromCenter: [number, number] = [...centerRef.current];
+    const fromZoom = zoomRef.current;
+
+    const controls = animate(0, 1, {
+      duration: 0.85,
+      ease: "easeInOut",
+      onUpdate: (t) => {
+        const animCenter: [number, number] = [
+          fromCenter[0] + (targetCenter[0] - fromCenter[0]) * t,
+          fromCenter[1] + (targetCenter[1] - fromCenter[1]) * t,
+        ];
+        const animZoom = fromZoom + (newZoom - fromZoom) * t;
+        centerRef.current = animCenter;
+        zoomRef.current = animZoom;
+        setCenter([...animCenter]);
+        setZoom(animZoom);
+      },
+      onComplete: () => {
+        centerRef.current = targetCenter;
+        zoomRef.current = newZoom;
+        setCenter(targetCenter);
+        setZoom(newZoom);
+        setIsZooming(false);
+      },
+    });
+    animControlsRef.current = controls;
+    return () => controls.stop();
+  }, [globeCountryTarget, geoData, width, height]);
+
   const { data: citiesFromApi } = useCityList();
   const cities = citiesFromApi ?? [];
 
@@ -895,7 +967,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     );
   }, [cities, recommendResults, isRecommendActive]);
 
-  // 추천 활성 시 도시명 → 점수 매핑 (마커 색상에 사용)
+  // 추천 활성 시 도시명 → totalScore 매핑 (마커 색상용)
   const recommendScoreMap = useMemo<Map<string, number>>(() => {
     if (!isRecommendActive || recommendResults.length === 0) return new Map();
     return new Map(recommendResults.map((r) => [r.city, r.totalScore]));
@@ -1042,12 +1114,11 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                 const isMatched =
                   !isRecommendActive || matchedCityIds.has(city.cityId);
                 const medalRank = medalRankMap.get(city.cityId);
-                const rawScore = isRecommendActive
-                  ? recommendScoreMap.get(city.cityName)
-                  : undefined;
-                // If backend doesn't return scores (totalScore=0), treat as undefined → blue marker
-                const matchScore =
-                  rawScore !== undefined && rawScore > 0 ? rawScore : undefined;
+                const isSelected = city.cityId === selectedCityId;
+                const markerScore =
+                  isSelected && selectedCityScore !== null
+                    ? selectedCityScore
+                    : recommendScoreMap.get(city.cityName);
                 const r = 5 / Math.pow(zoom, 0.8);
                 const medalSize = 30 / Math.pow(zoom, 0.8);
 
@@ -1081,29 +1152,54 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                     }
                   >
                     <g transform={markerTransform}>
-                      {/* 터치/클릭 타겟 확장 (투명) */}
-                      <circle
-                        r={Math.max(r * 2.5, 12 / zoom)}
-                        fill="transparent"
-                        style={{ cursor: "pointer" }}
-                        onMouseEnter={(e) =>
-                          setTooltip({
-                            name: city.cityName,
-                            x: e.clientX,
-                            y: e.clientY,
-                          })
-                        }
-                        onMouseMove={(e) => handleTooltipMove(city.cityName, e)}
-                        onMouseLeave={() => setTooltip(null)}
-                      />
+                      {/* 메달 포함 전체 클릭 타겟 (투명 rect) */}
+                      {medalRank ? (
+                        <rect
+                          x={-medalSize / 2}
+                          y={-(r + medalSize)}
+                          width={medalSize}
+                          height={medalSize + r * 2.5}
+                          fill="transparent"
+                          style={{ cursor: "pointer" }}
+                          onMouseEnter={(e) =>
+                            setTooltip({
+                              name: city.cityName,
+                              x: e.clientX,
+                              y: e.clientY,
+                            })
+                          }
+                          onMouseMove={(e) =>
+                            handleTooltipMove(city.cityName, e)
+                          }
+                          onMouseLeave={() => setTooltip(null)}
+                        />
+                      ) : (
+                        /* 메달 없을 때 포인트 도트 클릭 타겟 */
+                        <circle
+                          r={Math.max(r * 1.3, 6 / zoom)}
+                          fill="transparent"
+                          style={{ cursor: "pointer" }}
+                          onMouseEnter={(e) =>
+                            setTooltip({
+                              name: city.cityName,
+                              x: e.clientX,
+                              y: e.clientY,
+                            })
+                          }
+                          onMouseMove={(e) =>
+                            handleTooltipMove(city.cityName, e)
+                          }
+                          onMouseLeave={() => setTooltip(null)}
+                        />
+                      )}
                       <circle
                         r={r}
                         fill={
-                          isMatched ? getMarkerColor(matchScore) : "#CBD5E1"
+                          isMatched ? getMarkerColor(markerScore) : "#CBD5E1"
                         }
                         stroke="#fff"
                         strokeWidth={1 / zoom}
-                        style={{ cursor: "pointer", pointerEvents: "none" }}
+                        style={{ pointerEvents: "none" }}
                       />
                       {medalRank && (
                         <image

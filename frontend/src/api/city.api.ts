@@ -268,6 +268,13 @@ export const cityApi = {
           name: z.string(),
           imgUrl: z.string().nullable().optional(),
           expectedBudgetFor1day: z.number().nullable().optional(),
+          scores: z.object({
+            total: z.number().nullable().optional(),
+            tag: z.number().nullable().optional(),
+            budget: z.number().nullable().optional(),
+            safety: z.number().nullable().optional(),
+            newsPenalty: z.number().nullable().optional(),
+          }).nullable().optional(),
           danger: BackendCountryDangerSchema,
           lat: z.number().nullable().optional(),
           lon: z.number().nullable().optional(),
@@ -280,7 +287,7 @@ export const cityApi = {
       rank: index + 1,
       country: item.danger?.countryName ?? "",
       city: item.name,
-      totalScore: 0,
+      totalScore: item.scores?.total ?? 0,
       reason: null,
     }));
   },

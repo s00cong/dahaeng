@@ -1,12 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plane, Wallet, Shield, ChevronRight, MapPin } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
 import { useCityList } from "@/hooks/city/useCityList";
-import { useCostDetail } from "@/hooks/cost/useCostDetail";
+import { useEffect } from "react";
 function getMatchColor(score: number | undefined) {
   if (score === undefined) return "bg-slate-100 text-slate-600";
   if (score >= 80) return "bg-emerald-500 text-white";
@@ -35,6 +34,7 @@ export function RightPanel() {
     recommendRequest,
     closeRightPanel,
     openCityModal,
+    setSelectedCityScore,
   } = useUiStore();
 
   const { data: cities, isSuccess: citiesLoaded } = useCityList();
@@ -54,7 +54,19 @@ export function RightPanel() {
 
   const city = cityFromApi ?? null;
 
-  const { data: costDetail } = useCostDetail('city', selectedCityId ?? 0);
+  const recommendedResult = isRecommendedCity
+    ? recommendResults.find((r) => r.city === selectedCityName)
+    : undefined;
+  const matchingScore = recommendedResult?.totalScore ?? null;
+
+  useEffect(() => {
+    setSelectedCityScore(matchingScore);
+  }, [matchingScore]);
+
+  const lc = city?.livingCostFor1Day;
+  const dailyBudget = lc
+    ? Math.round(lc.food + lc.transportation + (city?.airTicketAndHotel?.hotel ?? 0))
+    : null;
 
   const handleOpenDetail = () => {
     openCityModal("recommend");
@@ -94,35 +106,34 @@ export function RightPanel() {
               <X className="size-3.5" />
             </button>
 
-            {/* 도시명 */}
+            {/* 도시명 + 매칭 점수 */}
             <div className="absolute bottom-3 left-4 right-10">
               {isLoading ? (
                 <Skeleton className="h-6 w-32 bg-white/30" />
               ) : (
                 <>
-                  <h2 className="text-lg font-bold text-white leading-tight truncate">
-                    {city?.cityName ?? "도시 정보"}
-                  </h2>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <MapPin className="size-3 text-white/70" />
-                    <span className="text-xs text-white/80">
-                      {city?.danger?.countryName ?? "나라 정보"}
-                    </span>
+                  <div className="flex items-stretch gap-2 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-lg font-bold text-white leading-tight truncate">
+                        {city?.cityName ?? "도시 정보"}
+                      </h2>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <MapPin className="size-3 text-white/70" />
+                        <span className="text-xs text-white/80">
+                          {city?.danger?.countryName ?? "나라 정보"}
+                        </span>
+                      </div>
+                    </div>
+                    {matchingScore !== null && (
+                      <div className={`flex flex-col items-center justify-center w-10 rounded-lg shrink-0 ${getMatchColor(matchingScore)}`}>
+                        <span className="text-xs font-black leading-none">{matchingScore}%</span>
+                        <span className="text-[9px] font-semibold leading-none mt-0.5">매칭</span>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
             </div>
-
-            {/* 매칭 점수 배지 */}
-            {!isLoading &&
-              city?.score?.finalScore !== undefined &&
-              city.score.finalScore !== null && (
-                <Badge
-                  className={`absolute top-2.5 left-3 text-xs font-bold border-none ${getMatchColor(city.score.finalScore)}`}
-                >
-                  {city.score.finalScore}% 매칭
-                </Badge>
-              )}
           </div>
 
           {/* ── 스크롤 콘텐츠 영역 ── */}
@@ -136,14 +147,17 @@ export function RightPanel() {
               </div>
             ) : city?.tags && city.tags.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
-                {city.tags.map((tag) => (
-                  <span
-                    key={tag.name}
-                    className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"
-                  >
-                    #{tag.name}
-                  </span>
-                ))}
+                {[...city.tags]
+                  .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
+                  .slice(0, 10)
+                  .map((tag) => (
+                    <span
+                      key={tag.name}
+                      className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"
+                    >
+                      #{tag.name}
+                    </span>
+                  ))}
               </div>
             ) : null}
 
@@ -159,11 +173,7 @@ export function RightPanel() {
                   <Skeleton className="h-4 w-12" />
                 ) : (
                   <span className="text-xs font-bold text-slate-800 text-center">
-                    {(() => {
-                      const dailyBudget = costDetail?.living_cost?.daily_budget;
-                      if (!dailyBudget) return "-";
-                      return `₩${((dailyBudget + 30000) / 10000).toFixed(0)}만`;
-                    })()}
+                    {dailyBudget ? `₩${(dailyBudget / 10000).toFixed(0)}만` : "-"}
                   </span>
                 )}
               </div>
