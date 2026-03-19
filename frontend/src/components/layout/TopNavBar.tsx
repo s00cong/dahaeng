@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
+import type { Variants } from "framer-motion";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/auth/useLogout";
 import { Button } from "@/components/ui/button";
@@ -18,28 +19,28 @@ import {
 import { cn } from "@/lib/utils";
 
 // ─── 모바일 메뉴 애니메이션 variants ──────────────────────────────
-const overlayVariants = {
+const overlayVariants: Variants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { duration: 0.2 } },
   exit: { opacity: 0, transition: { duration: 0.15 } },
 };
 
-const drawerVariants = {
+const drawerVariants: Variants = {
   hidden: { opacity: 0, y: -8 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.25, ease: "easeOut" },
+    transition: { duration: 0.25, ease: "easeOut" as const },
   },
-  exit: { opacity: 0, y: -8, transition: { duration: 0.15, ease: "easeIn" } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.15, ease: "easeIn" as const } },
 };
 
-const menuItemVariants = {
+const menuItemVariants: Variants = {
   hidden: { opacity: 0, x: -12 },
   visible: (i: number) => ({
     opacity: 1,
     x: 0,
-    transition: { duration: 0.2, delay: i * 0.05, ease: "easeOut" },
+    transition: { duration: 0.2, delay: i * 0.05, ease: "easeOut" as const },
   }),
 };
 
