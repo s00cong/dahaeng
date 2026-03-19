@@ -20,8 +20,13 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Bronze -> MongoDB ETL for calendar data")
     parser.add_argument(
         "--bronze-path",
-        default="/workspace/data/flight/trip_com/bronze_airticket",
+        default="hdfs://namenode:9000/data/bronze/flight/trip_com",
         help="Trip.com Bronze base path",
+    )
+    parser.add_argument(
+        "--silver-path",
+        default="hdfs://namenode:9000/data/silver/flight/trip_com_daily_prices",
+        help="Trip.com Silver parquet output path",
     )
     parser.add_argument(
         "--mongo-uri",
@@ -64,7 +69,19 @@ def resolve_tripcom_direction_column():
 def main():
     args = parse_args()
 
-    spark = SparkSession.builder.appName("Bronze_to_Silver_Mongo_Calendar").getOrCreate()
+    spark = (
+        SparkSession.builder.appName("Bronze_to_Silver_Mongo_Calendar")
+        .config(
+            "spark.jars.packages",
+            ",".join(
+                [
+                    "org.mongodb.spark:mongo-spark-connector_2.12:10.3.0",
+                    "com.mysql:mysql-connector-j:8.4.0",
+                ]
+            ),
+        )
+        .getOrCreate()
+    )
     spark.sparkContext.setLogLevel("WARN")
 
     try:
@@ -121,6 +138,21 @@ def main():
             city_lookup.select("numeric_city_id", "city_join_key"),
             on="city_join_key",
             how="inner",
+        )
+
+        print(f"[INFO] Writing Trip.com silver parquet to: {args.silver_path}")
+        (
+            df_joined.select(
+                F.col("numeric_city_id").alias("city_id"),
+                F.col("year_month"),
+                F.col("target_date"),
+                F.col("direction"),
+                F.col("price").cast("integer").alias("price"),
+                F.col("collected_date"),
+            )
+            .write.mode("overwrite")
+            .partitionBy("city_id", "year_month")
+            .parquet(args.silver_path)
         )
 
         df_structured = df_joined.withColumn(

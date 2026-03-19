@@ -59,6 +59,10 @@ def test_build_runtime_config_reads_db_and_mongo_env(monkeypatch):
     monkeypatch.setenv("DB_USERNAME", "d206")
     monkeypatch.setenv("DB_PASSWORD", "secret")
     monkeypatch.setenv("MONGODB_URI", "mongodb://mongodb:27017/dahaeng")
+    monkeypatch.setenv("HDFS_NAMENODE_URI", "hdfs://namenode:9000")
+    monkeypatch.setenv("HDFS_TRIP_BRONZE_ROOT", "/data/bronze/flight/trip_com")
+    monkeypatch.setenv("HDFS_TRIP_SILVER_ROOT", "/data/silver/flight/trip_com_daily_prices")
+    monkeypatch.setenv("HDFS_FLIGHT_SUMMARY_SILVER_ROOT", "/data/silver/flight/flight_summary")
 
     config = run_scheduled_pipeline.build_runtime_config()
 
@@ -66,6 +70,10 @@ def test_build_runtime_config_reads_db_and_mongo_env(monkeypatch):
     assert config["db_username"] == "d206"
     assert config["db_password"] == "secret"
     assert config["mongo_uri"] == "mongodb://mongodb:27017/dahaeng"
+    assert config["hdfs_namenode_uri"] == "hdfs://namenode:9000"
+    assert config["hdfs_trip_bronze_root"] == "/data/bronze/flight/trip_com"
+    assert config["hdfs_trip_silver_root"] == "/data/silver/flight/trip_com_daily_prices"
+    assert config["hdfs_flight_summary_silver_root"] == "/data/silver/flight/flight_summary"
 
 
 def test_parse_mysql_connection_info_for_flight_summary_url():
@@ -74,7 +82,7 @@ def test_parse_mysql_connection_info_for_flight_summary_url():
     assert config == {"host": "mysql", "port": 3306, "database": "dahaeng"}
 
 
-def test_plan_steps_for_trip_com_only_run_trip_normalize_and_both_local_etls():
+def test_plan_steps_for_trip_com_only_run_hdfs_upload_and_spark_etls():
     plan = run_scheduled_pipeline.build_execution_plan(
         due_sources={"trip_com"},
         python_executable="python",
@@ -84,15 +92,18 @@ def test_plan_steps_for_trip_com_only_run_trip_normalize_and_both_local_etls():
             "db_username": "d206",
             "db_password": "secret",
             "mongo_uri": "mongodb://mongodb:27017/dahaeng",
+            "hdfs_namenode_uri": "hdfs://namenode:9000",
+            "hdfs_trip_bronze_root": "/data/bronze/flight/trip_com",
+            "hdfs_trip_silver_root": "/data/silver/flight/trip_com_daily_prices",
+            "hdfs_flight_summary_silver_root": "/data/silver/flight/flight_summary",
         },
     )
 
     assert [step.name for step in plan] == [
         "trip_com_crawl",
-        "trip_com_normalize",
-        "trip_com_normalize_city_codes",
-        "local_flight_summary_etl",
-        "local_calendar_etl",
+        "trip_com_hdfs_upload",
+        "trip_com_spark_calendar_etl",
+        "flight_summary_spark_etl",
     ]
 
 
@@ -102,6 +113,10 @@ def test_build_execution_plan_uses_runtime_config_values():
         "db_username": "d206",
         "db_password": "secret",
         "mongo_uri": "mongodb://mongodb:27017/dahaeng",
+        "hdfs_namenode_uri": "hdfs://namenode:9000",
+        "hdfs_trip_bronze_root": "/data/bronze/flight/trip_com",
+        "hdfs_trip_silver_root": "/data/silver/flight/trip_com_daily_prices",
+        "hdfs_flight_summary_silver_root": "/data/silver/flight/flight_summary",
     }
 
     plan = run_scheduled_pipeline.build_execution_plan(
@@ -111,8 +126,9 @@ def test_build_execution_plan_uses_runtime_config_values():
         runtime_config=runtime_config,
     )
 
-    summary_step = next(step for step in plan if step.name == "local_flight_summary_etl")
-    calendar_step = next(step for step in plan if step.name == "local_calendar_etl")
+    upload_step = next(step for step in plan if step.name == "trip_com_hdfs_upload")
+    summary_step = next(step for step in plan if step.name == "flight_summary_spark_etl")
+    calendar_step = next(step for step in plan if step.name == "trip_com_spark_calendar_etl")
     crawl_step = next(step for step in plan if step.name == "trip_com_crawl")
 
     assert "--db-url" in summary_step.command
@@ -120,10 +136,13 @@ def test_build_execution_plan_uses_runtime_config_values():
     assert "d206" in summary_step.command
     assert "secret" in summary_step.command
     assert "mongodb://mongodb:27017/dahaeng" in calendar_step.command
-    assert "--clear" not in calendar_step.command
+    assert "--hdfs-root" in upload_step.command
+    assert "/data/bronze/flight/trip_com" in upload_step.command
+    assert "hdfs://namenode:9000" in upload_step.command
     assert Path(crawl_step.command[1]) == Path("C:/repo/data/flight/trip_com/trip_scraper.py")
-    assert Path(summary_step.command[1]) == Path("C:/repo/data/flight/spark_pipeline/local_flight_summary_etl.py")
-    assert Path(calendar_step.command[1]) == Path("C:/repo/data/flight/spark_pipeline/local_calendar_etl.py")
+    assert Path(upload_step.command[1]) == Path("C:/repo/data/flight/hdfs/upload_trip_bronze.py")
+    assert Path(summary_step.command[1]) == Path("C:/repo/data/flight/spark_pipeline/bronze_to_silver_flight.py")
+    assert Path(calendar_step.command[1]) == Path("C:/repo/data/flight/spark_pipeline/bronze_to_silver_calendar.py")
 
 
 def test_plan_steps_for_google_only_skip_calendar_etl():
@@ -136,13 +155,17 @@ def test_plan_steps_for_google_only_skip_calendar_etl():
             "db_username": "d206",
             "db_password": "secret",
             "mongo_uri": "mongodb://mongodb:27017/dahaeng",
+            "hdfs_namenode_uri": "hdfs://namenode:9000",
+            "hdfs_trip_bronze_root": "/data/bronze/flight/trip_com",
+            "hdfs_trip_silver_root": "/data/silver/flight/trip_com_daily_prices",
+            "hdfs_flight_summary_silver_root": "/data/silver/flight/flight_summary",
         },
     )
 
     assert [step.name for step in plan] == [
         "google_flight_crawl",
         "google_flight_normalize",
-        "local_flight_summary_etl",
+        "flight_summary_spark_etl",
     ]
 
 
@@ -156,17 +179,20 @@ def test_plan_steps_for_both_sources_deduplicate_shared_etl():
             "db_username": "d206",
             "db_password": "secret",
             "mongo_uri": "mongodb://mongodb:27017/dahaeng",
+            "hdfs_namenode_uri": "hdfs://namenode:9000",
+            "hdfs_trip_bronze_root": "/data/bronze/flight/trip_com",
+            "hdfs_trip_silver_root": "/data/silver/flight/trip_com_daily_prices",
+            "hdfs_flight_summary_silver_root": "/data/silver/flight/flight_summary",
         },
     )
 
     assert [step.name for step in plan] == [
         "trip_com_crawl",
         "google_flight_crawl",
-        "trip_com_normalize",
+        "trip_com_hdfs_upload",
         "google_flight_normalize",
-        "trip_com_normalize_city_codes",
-        "local_flight_summary_etl",
-        "local_calendar_etl",
+        "trip_com_spark_calendar_etl",
+        "flight_summary_spark_etl",
     ]
 
 
@@ -190,12 +216,13 @@ def test_run_plan_marks_all_sources_successful_when_every_step_passes():
     plan = [
         run_scheduled_pipeline.Step(name="trip_com_crawl", command=["python"], sources={"trip_com"}),
         run_scheduled_pipeline.Step(name="google_flight_crawl", command=["python"], sources={"google_flight"}),
+        run_scheduled_pipeline.Step(name="trip_com_hdfs_upload", command=["python"], sources={"trip_com"}),
+        run_scheduled_pipeline.Step(name="trip_com_spark_calendar_etl", command=["python"], sources={"trip_com"}),
         run_scheduled_pipeline.Step(
-            name="local_flight_summary_etl",
+            name="flight_summary_spark_etl",
             command=["python"],
             sources={"trip_com", "google_flight"},
         ),
-        run_scheduled_pipeline.Step(name="local_calendar_etl", command=["python"], sources={"trip_com"}),
     ]
 
     result = run_scheduled_pipeline.run_plan(plan, lambda current_step: True)
@@ -208,22 +235,18 @@ def test_run_plan_marks_all_sources_successful_when_every_step_passes():
 def test_run_plan_preserves_completed_source_success_when_later_source_specific_step_fails():
     plan = [
         run_scheduled_pipeline.Step(name="google_flight_crawl", command=["python"], sources={"google_flight"}),
-        run_scheduled_pipeline.Step(
-            name="local_flight_summary_etl",
-            command=["python"],
-            sources={"trip_com", "google_flight"},
-        ),
-        run_scheduled_pipeline.Step(name="local_calendar_etl", command=["python"], sources={"trip_com"}),
+        run_scheduled_pipeline.Step(name="flight_summary_spark_etl", command=["python"], sources={"google_flight"}),
+        run_scheduled_pipeline.Step(name="trip_com_hdfs_upload", command=["python"], sources={"trip_com"}),
     ]
 
     def fake_runner(current_step):
-        return current_step.name != "local_calendar_etl"
+        return current_step.name != "trip_com_hdfs_upload"
 
     result = run_scheduled_pipeline.run_plan(plan, fake_runner)
 
     assert result.success is False
     assert result.succeeded_sources == {"google_flight"}
-    assert result.failed_step == "local_calendar_etl"
+    assert result.failed_step == "trip_com_hdfs_upload"
 
 
 def test_parse_args_accepts_dry_run_state_file_force_source_and_now(monkeypatch):

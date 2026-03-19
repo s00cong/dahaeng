@@ -11,6 +11,7 @@ interface PreferenceState {
   setBudget: (v: number) => void;
   setDuration: (v: number) => void;
   toggleTag: (tag: string) => void;
+  setSelectedTags: (tags: string[]) => void;
   setRiskSensitivity: (v: number) => void;
   setYoutubeAutoSelected: (v: boolean) => void;
   setYoutubeTagIds: (ids: number[]) => void;
@@ -36,6 +37,7 @@ export const usePreferenceStore = create<PreferenceState>((set, get) => ({
       selectedTags: tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag],
     });
   },
+  setSelectedTags: (tags) => set({ selectedTags: tags }),
   setRiskSensitivity: (v) => set({ riskSensitivity: v }),
   setYoutubeAutoSelected: (v) => set({ youtubeAutoSelected: v }),
   setYoutubeTagIds: (ids) => set({ youtubeTagIds: ids }),

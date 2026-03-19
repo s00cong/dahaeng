@@ -233,9 +233,10 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
     try {
       await youtubeApi.sync();
       await youtubeApi.analyze();
-      const tagIds = await youtubeApi.getInterestTags();
+      const { tagIds, tagNames } = await youtubeApi.getInterestTags();
       setYoutubeTagIds(tagIds);
       setSelectedTagIds(tagIds);
+      usePreferenceStore.getState().setSelectedTags(tagNames);
     } finally {
       setIsUpdating(false);
     }

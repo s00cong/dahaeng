@@ -11,6 +11,10 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/dahaeng}
+      HDFS_NAMENODE_URI: ${HDFS_NAMENODE_URI:-hdfs://namenode:9000}
+      HDFS_TRIP_BRONZE_ROOT: ${HDFS_TRIP_BRONZE_ROOT:-/data/bronze/flight/trip_com}
+      HDFS_TRIP_SILVER_ROOT: ${HDFS_TRIP_SILVER_ROOT:-/data/silver/flight/trip_com_daily_prices}
+      HDFS_FLIGHT_SUMMARY_SILVER_ROOT: ${HDFS_FLIGHT_SUMMARY_SILVER_ROOT:-/data/silver/flight/flight_summary}
       TRIP_HEADLESS: ${TRIP_HEADLESS:-1}
       HEADLESS: ${HEADLESS:-1}
     restart: "no"

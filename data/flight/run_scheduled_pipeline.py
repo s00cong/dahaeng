@@ -87,6 +87,10 @@ def build_runtime_config() -> dict[str, str]:
         "DB_USERNAME": os.getenv("DB_USERNAME"),
         "DB_PASSWORD": os.getenv("DB_PASSWORD"),
         "MONGODB_URI": os.getenv("MONGODB_URI"),
+        "HDFS_NAMENODE_URI": os.getenv("HDFS_NAMENODE_URI"),
+        "HDFS_TRIP_BRONZE_ROOT": os.getenv("HDFS_TRIP_BRONZE_ROOT"),
+        "HDFS_TRIP_SILVER_ROOT": os.getenv("HDFS_TRIP_SILVER_ROOT"),
+        "HDFS_FLIGHT_SUMMARY_SILVER_ROOT": os.getenv("HDFS_FLIGHT_SUMMARY_SILVER_ROOT"),
     }
     missing = [key for key, value in required.items() if not value]
     if missing:
@@ -98,7 +102,15 @@ def build_runtime_config() -> dict[str, str]:
         "db_username": required["DB_USERNAME"],
         "db_password": required["DB_PASSWORD"],
         "mongo_uri": required["MONGODB_URI"],
+        "hdfs_namenode_uri": required["HDFS_NAMENODE_URI"],
+        "hdfs_trip_bronze_root": required["HDFS_TRIP_BRONZE_ROOT"],
+        "hdfs_trip_silver_root": required["HDFS_TRIP_SILVER_ROOT"],
+        "hdfs_flight_summary_silver_root": required["HDFS_FLIGHT_SUMMARY_SILVER_ROOT"],
     }
+
+
+def build_hdfs_uri(hdfs_namenode_uri: str, hdfs_root: str) -> str:
+    return f"{hdfs_namenode_uri.rstrip('/')}/{hdfs_root.lstrip('/')}"
 
 
 def should_run_source(source: str, now: datetime, last_success: datetime | None) -> bool:
@@ -155,6 +167,12 @@ def build_execution_plan(
     data_dir = repo_root
     normalized_dir = data_dir / "normalized"
     plan: list[Step] = []
+    trip_hdfs_bronze_uri = build_hdfs_uri(config["hdfs_namenode_uri"], config["hdfs_trip_bronze_root"])
+    trip_hdfs_silver_uri = build_hdfs_uri(config["hdfs_namenode_uri"], config["hdfs_trip_silver_root"])
+    flight_summary_silver_uri = build_hdfs_uri(
+        config["hdfs_namenode_uri"],
+        config["hdfs_flight_summary_silver_root"],
+    )
 
     if "trip_com" in due_sources:
         plan.append(
@@ -178,14 +196,16 @@ def build_execution_plan(
     if "trip_com" in due_sources:
         plan.append(
             Step(
-                name="trip_com_normalize",
+                name="trip_com_hdfs_upload",
                 command=[
                     python_executable,
-                    str(data_dir / "spark_pipeline" / "convert_bronze_to_jsonl.py"),
-                    "--source",
-                    "trip_com",
-                    "--outdir",
-                    str(normalized_dir),
+                    str(data_dir / "hdfs" / "upload_trip_bronze.py"),
+                    "--local-bronze-root",
+                    str(data_dir / "trip_com" / "bronze_airticket"),
+                    "--hdfs-root",
+                    config["hdfs_trip_bronze_root"],
+                    "--hdfs-uri",
+                    config["hdfs_namenode_uri"],
                 ],
                 sources={"trip_com"},
             )
@@ -210,41 +230,14 @@ def build_execution_plan(
     if "trip_com" in due_sources:
         plan.append(
             Step(
-                name="trip_com_normalize_city_codes",
+                name="trip_com_spark_calendar_etl",
                 command=[
                     python_executable,
-                    str(data_dir / "trip_com" / "normalize_trip_city_codes.py"),
-                    "--skip-bronze",
-                ],
-                sources={"trip_com"},
-            )
-        )
-
-    if due_sources:
-        plan.append(
-            Step(
-                name="local_flight_summary_etl",
-                command=[
-                    python_executable,
-                    str(data_dir / "spark_pipeline" / "local_flight_summary_etl.py"),
-                    "--db-url",
-                    config["db_url"],
-                    "--db-user",
-                    config["db_username"],
-                    "--db-password",
-                    config["db_password"],
-                ],
-                sources=set(due_sources),
-            )
-        )
-
-    if "trip_com" in due_sources:
-        plan.append(
-            Step(
-                name="local_calendar_etl",
-                command=[
-                    python_executable,
-                    str(data_dir / "spark_pipeline" / "local_calendar_etl.py"),
+                    str(data_dir / "spark_pipeline" / "bronze_to_silver_calendar.py"),
+                    "--bronze-path",
+                    trip_hdfs_bronze_uri,
+                    "--silver-path",
+                    trip_hdfs_silver_uri,
                     "--db-url",
                     config["db_url"],
                     "--db-user",
@@ -255,6 +248,30 @@ def build_execution_plan(
                     config["mongo_uri"],
                 ],
                 sources={"trip_com"},
+            )
+        )
+
+    if due_sources:
+        plan.append(
+            Step(
+                name="flight_summary_spark_etl",
+                command=[
+                    python_executable,
+                    str(data_dir / "spark_pipeline" / "bronze_to_silver_flight.py"),
+                    "--google-path",
+                    str(normalized_dir / "google_flight.jsonl"),
+                    "--tripcom-path",
+                    trip_hdfs_bronze_uri,
+                    "--silver-path",
+                    flight_summary_silver_uri,
+                    "--db-url",
+                    config["db_url"],
+                    "--db-user",
+                    config["db_username"],
+                    "--db-password",
+                    config["db_password"],
+                ],
+                sources=set(due_sources),
             )
         )
 
