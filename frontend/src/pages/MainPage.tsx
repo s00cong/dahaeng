@@ -2,8 +2,6 @@ import { useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { CityDetailModal } from "@/components/city/CityDetailModal";
 import { LeftSidebar } from "@/components/main/LeftSidebar";
-import { HeroTextBlock } from "@/components/main/HeroTextBlock";
-import { StatBar } from "@/components/main/StatBar";
 import { GlobeContainer } from "@/components/globe/GlobeContainer";
 import { RightPanel } from "@/components/main/RightPanel";
 
@@ -39,12 +37,6 @@ const MainPage = () => {
       <LeftSidebar />
 
       {globeReady && <GlobeContainer className="absolute inset-0" />}
-
-      {/* Hero Text — overlaid on globe area, pointer-events-none */}
-      <HeroTextBlock />
-
-      {/* Stat Bar — bottom center */}
-      <StatBar />
 
       {/* Right Summary Panel — 마커/카드 클릭 시 슬라이드 인 */}
       <RightPanel />
