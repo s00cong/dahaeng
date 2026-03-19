@@ -11,4 +11,4 @@ COPY . /workspace
 RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir pymysql pymongo
 
-CMD ["python", "data/run_scheduled_pipeline.py", "--dry-run"]
+CMD ["python", "data/flight/run_scheduled_pipeline.py", "--dry-run"]
