@@ -27,7 +27,8 @@ const BackendCitySchema = z.object({
   id: z.number(),
   name: z.string(),
   imgUrl: z.string().nullable(),
-  expectedBudgetFor1day: z.number().nullable(),
+  expectedBudgetFor1day: z.number().nullable().optional(),
+  livingCostFor1Day: z.number().nullable().optional(),
   danger: BackendCountryDangerSchema,
   lat: z.number().nullable(),
   lon: z.number().nullable(),
@@ -36,7 +37,7 @@ const BackendCitySchema = z.object({
 // danger 문자열에서 riskLevel 파생
 const dangerToRiskLevel = (
   danger:
-    | { countryName: string; items: { level: string; description: string }[] }
+    | { countryName: string; items: { level: string; description: string | null }[] }
     | null
     | undefined,
 ): number => {
@@ -48,10 +49,27 @@ const dangerToRiskLevel = (
   return 1;
 };
 
+const BackendFoodDetailSchema = z.object({
+  total: z.number(),
+  breakfast: z.number().nullable().optional(),
+  lunch: z.number().nullable().optional(),
+  dinner: z.number().nullable().optional(),
+  cappuccino: z.number().nullable().optional(),
+  cokePepsi: z.number().nullable().optional(),
+});
+
+const BackendTransportDetailSchema = z.object({
+  total: z.number(),
+  localTransportTicket: z.number().nullable().optional(),
+  ticketCount: z.number().nullable().optional(),
+});
+
 const BackendLivingCostSchema = z.object({
-  food: z.number(),
-  transportation: z.number(),
+  food: z.union([z.number(), BackendFoodDetailSchema]),
+  transportation: z.union([z.number(), BackendTransportDetailSchema]),
   accommodation: z.number().nullable().optional(),
+  hotel: z.number().nullable().optional(),
+  total: z.number().nullable().optional(),
 });
 
 // recommend=true 응답의 airTicketAndHotel
@@ -170,7 +188,7 @@ export const cityApi = {
         cityName: city.name,
         countryName: city.danger?.countryName ?? "",
         imgUrl: city.imgUrl ?? "",
-        estimatedBudget: (city.expectedBudgetFor1day ?? 0) * 7,
+        estimatedBudget: ((city.livingCostFor1Day ?? city.expectedBudgetFor1day ?? 0)) * 7,
         riskLevel: dangerToRiskLevel(city.danger),
         latitude: city.lat ?? 0,
         longitude: city.lon ?? 0,
@@ -209,7 +227,11 @@ export const cityApi = {
         longitude: 0,
         score: city.score ?? undefined,
         recommendationReason: city.recommendationReason ?? undefined,
-        livingCostFor1Day: city.livingCostFor1Day ?? undefined,
+        livingCostFor1Day: city.livingCostFor1Day ? {
+          food: typeof city.livingCostFor1Day.food === 'number' ? city.livingCostFor1Day.food : city.livingCostFor1Day.food.total,
+          transportation: typeof city.livingCostFor1Day.transportation === 'number' ? city.livingCostFor1Day.transportation : city.livingCostFor1Day.transportation.total,
+          accommodation: city.livingCostFor1Day.hotel ?? city.livingCostFor1Day.accommodation ?? undefined,
+        } : undefined,
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
         news: city.news?.top3?.length
           ? city.news
@@ -233,7 +255,11 @@ export const cityApi = {
         imgUrl: "",
         latitude: 0,
         longitude: 0,
-        livingCostFor1Day: city.livingCostFor1Day ?? undefined,
+        livingCostFor1Day: city.livingCostFor1Day ? {
+          food: typeof city.livingCostFor1Day.food === 'number' ? city.livingCostFor1Day.food : city.livingCostFor1Day.food.total,
+          transportation: typeof city.livingCostFor1Day.transportation === 'number' ? city.livingCostFor1Day.transportation : city.livingCostFor1Day.transportation.total,
+          accommodation: city.livingCostFor1Day.hotel ?? city.livingCostFor1Day.accommodation ?? undefined,
+        } : undefined,
         // not-recommend는 airTicket 키 사용
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
         danger: city.danger ?? undefined,

@@ -19,16 +19,18 @@ const TABS: TabConfig[] = [
 interface CityDetailTabNavProps {
   activeTab: CityDetailTab;
   onTabChange: (tab: CityDetailTab) => void;
+  showRecommendTab?: boolean;
 }
 
-export function CityDetailTabNav({ activeTab, onTabChange }: CityDetailTabNavProps) {
+export function CityDetailTabNav({ activeTab, onTabChange, showRecommendTab = true }: CityDetailTabNavProps) {
+  const visibleTabs = showRecommendTab ? TABS : TABS.filter((t) => t.id !== 'recommend');
   return (
     <nav
       role="tablist"
       aria-label="도시 상세 탭"
       className="flex gap-2 px-5 py-3 shrink-0 overflow-x-auto"
     >
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
 

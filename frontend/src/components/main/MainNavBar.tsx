@@ -78,7 +78,6 @@ export function MainNavBar() {
         className="hidden md:flex flex-col flex-1 max-w-sm mx-6 relative"
       >
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={query}
@@ -95,6 +94,7 @@ export function MainNavBar() {
               "transition-all",
             )}
           />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-gray-600 pointer-events-none" />
         </div>
 
         {/* 자동완성 드롭다운 */}

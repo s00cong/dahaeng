@@ -5,8 +5,10 @@ import com.example.dahaeng.domain.city.dto.response.CityResponse;
 import com.example.dahaeng.domain.city.dto.response.NotRecommendCityDetailResponse;
 import com.example.dahaeng.domain.city.dto.response.RecommendCityDetailResponse;
 import com.example.dahaeng.domain.city.entity.City;
+import com.example.dahaeng.domain.city.entity.CityClimateTag;
 import com.example.dahaeng.domain.city.entity.CityTag;
 import com.example.dahaeng.domain.city.enums.CityEnum;
+import com.example.dahaeng.domain.city.repository.CityClimateTagRepository;
 import com.example.dahaeng.domain.city.repository.CityRepository;
 import com.example.dahaeng.domain.city.repository.CityTagRepository;
 import com.example.dahaeng.domain.country.entity.Danger;
@@ -17,21 +19,25 @@ import com.example.dahaeng.domain.exchange.enums.Currency;
 import com.example.dahaeng.domain.exchange.repository.ExchangeRepository;
 import com.example.dahaeng.domain.flight.entity.FlightSummary;
 import com.example.dahaeng.domain.flight.repository.FlightSummaryRepository;
+import com.example.dahaeng.domain.interest.constant.TravelTagCatalog;
+import com.example.dahaeng.domain.interest.enums.TravelTagCategory;
 import com.example.dahaeng.domain.livingcost.entity.LivingCostOfCity;
 import com.example.dahaeng.domain.livingcost.repository.LivingCostOfCityRepository;
+import com.example.dahaeng.domain.livingcost.util.DailyLivingCostCalculator;
 import com.example.dahaeng.domain.place.entity.TouristSpot;
 import com.example.dahaeng.domain.place.repository.SpotTagRepository;
 import com.example.dahaeng.domain.place.repository.TouristSpotRepository;
-import com.example.dahaeng.domain.recommend.service.CityRankResult;
-import com.example.dahaeng.domain.recommend.service.NewsSearchService;
-import com.example.dahaeng.domain.recommend.service.PlaceEnrichmentService;
-import com.example.dahaeng.domain.recommend.service.RecommendTagNormalizer;
-import com.example.dahaeng.domain.recommend.service.RecommendationNarrationService;
 import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 import com.example.dahaeng.domain.recommend.dto.response.RecommendCitiesResponse;
 import com.example.dahaeng.domain.recommend.repository.SpotRecommendationProjection;
 import com.example.dahaeng.domain.recommend.repository.SpotTagScoreProjection;
 import com.example.dahaeng.domain.recommend.repository.TouristSpotRecommendRepository;
+import com.example.dahaeng.domain.recommend.service.CityRankResult;
+import com.example.dahaeng.domain.recommend.service.NewsSearchService;
+import com.example.dahaeng.domain.recommend.service.PlaceEnrichmentService;
+import com.example.dahaeng.domain.recommend.service.RecommendTagNormalizer;
+import com.example.dahaeng.domain.recommend.service.RecommendationNarrationService;
+import com.example.dahaeng.domain.recommend.service.RecommendationScoreCalculator;
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +59,7 @@ public class CityService {
     private final CityRepository cityRepository;
     private final FlightSummaryRepository flightSummaryRepository;
     private final LivingCostOfCityRepository livingCostOfCityRepository;
+    private final CityClimateTagRepository cityClimateTagRepository;
     private final DangerRepository dangerRepository;
     private final CityTagRepository cityTagRepository;
     private final DangerService dangerService;
@@ -71,33 +78,30 @@ public class CityService {
         List<AllCitiesResponse> result = new ArrayList<>();
 
         for (City city : cities) {
-            double flightAndHotel = 0.0;
+            double hotelPerDay = 0.0;
             FlightSummary summary = flightSummaryRepository.findByCityIdAndYearMonthWithCity(city.getId(), targetYearMonth)
                     .orElse(null);
 
             if (summary != null) {
-                double avgFlightPrice = summary.getAvgFlightPrice() != null ? summary.getAvgFlightPrice() : 0.0;
-                double avgHotelPrice = summary.getAvgHotelPrice() != null ? summary.getAvgHotelPrice() : 0.0;
-                flightAndHotel = avgFlightPrice + avgHotelPrice;
+                hotelPerDay = summary.getAvgHotelPrice() != null ? summary.getAvgHotelPrice() : 0.0;
             }
 
-            double localLivingCost = 0.0;
             LivingCostOfCity cost = livingCostOfCityRepository.findOneByCityId(city.getId()).orElse(null);
-            if (cost != null) {
-                double transport = cost.getTransport() != null ? cost.getTransport() : 0.0;
-                double food = cost.getFood() != null ? cost.getFood() : 0.0;
-                localLivingCost = transport + food;
-            }
-
             if (cost != null && cost.getCity().getCityName().toLowerCase().equals(CityEnum.SEOUL.getCityName())) {
                 continue;
             }
+
+            DailyLivingCostCalculator.DailyLivingCost dailyLivingCost = DailyLivingCostCalculator.calculate(
+                    cost,
+                    usdExchange != null ? usdExchange.getKrwPer1cur() : null,
+                    hotelPerDay
+            );
 
             result.add(new AllCitiesResponse(
                     city.getId(),
                     city.getCityName(),
                     city.getImgUrl(),
-                    flightAndHotel + localLivingCost,
+                    dailyLivingCost.total(),
                     dangerService.dangers(city.getCountry().getId()),
                     city.getLat(),
                     city.getLon()
@@ -108,6 +112,8 @@ public class CityService {
     }
 
     public RecommendCityDetailResponse getRecommendCityDetail(Long id, RecommendCitiesRequest request) {
+        validateRecommendDetailRequest(request);
+
         City city = cityRepository.findById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "도시 정보를 찾을 수 없습니다."));
         String targetYearMonth = resolveYearMonth(request);
@@ -119,24 +125,34 @@ public class CityService {
         Exchange exchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(city.getCountry().getCurrency()).orElse(null);
 
         LivingCostOfCity cost = livingCostOfCityRepository.findOneByCityId(id).orElse(null);
-        double estimatedFood = estimateDailyFood(cost);
-        double estimatedTransport = estimateDailyTransport(cost);
-        double foodKrw = convertUsdCostToKrw(estimatedFood, usdExchange);
-        double transportKrw = convertUsdCostToKrw(estimatedTransport, usdExchange);
+        DailyLivingCostCalculator.DailyLivingCost dailyLivingCost = DailyLivingCostCalculator.calculate(
+                cost,
+                usdExchange != null ? usdExchange.getKrwPer1cur() : null,
+                avgHotelPrice
+        );
 
         List<CityTag> cityTags = cityTagRepository.findCityTagsByCityId(id);
         List<String> selectedTags = normalizeSelectedTags(request, cityTags);
+        List<String> climateTags = extractClimateTags(selectedTags);
 
-        double tagScore = calculateTagScore(id, selectedTags);
+        double tagRaw = calculateTagRaw(id, selectedTags, climateTags, request.month());
         Danger danger = dangerRepository.findByCountryId(city.getCountry().getId()).orElse(null);
-        double safetyScore = calculateSafetyScore(danger);
-        double budgetScore = calculateBudgetScore(request, avgFlightPrice, avgHotelPrice, foodKrw, transportKrw);
-        double newsPenaltyScore = -Math.min(15.0, Math.max(0.0, nz(city.getNews_penalty_score())));
-        double finalScore = clamp(tagScore + safetyScore + budgetScore + newsPenaltyScore, 0.0, 100.0);
+        RecommendationScoreCalculator.ScoreBreakdown scoreBreakdown = RecommendationScoreCalculator.calculate(
+                tagRaw,
+                request,
+                avgFlightPrice,
+                dailyLivingCost.total(),
+                danger != null ? danger.getAttention() : null,
+                danger != null ? danger.getAttentionPartial() : null,
+                city.getNews_penalty_score()
+        );
 
         List<RecommendCitiesResponse.RecommendedPlace> places = buildRecommendedPlaces(id, selectedTags);
-        RecommendCitiesResponse.NewsInsight newsInsight =
-                newsSearchService.searchAndSummarize(city.getCityName(), city.getCountry().getCountryName(), newsPenaltyScore);
+        RecommendCitiesResponse.NewsInsight newsInsight = newsSearchService.searchAndSummarize(
+                city.getCityName(),
+                city.getCountry().getCountryName(),
+                scoreBreakdown.newsPenaltyScore()
+        );
 
         String recommendationReason = narrationService.generateReason(
                 new CityRankResult(
@@ -145,14 +161,14 @@ public class CityService {
                         city.getCountry().getCountryName(),
                         city.getCityName(),
                         city.getImgUrl(),
-                        round(finalScore),
-                        round(budgetScore),
-                        round(safetyScore),
-                        round(tagScore),
-                        round(newsPenaltyScore),
+                        round(scoreBreakdown.finalScore()),
+                        round(scoreBreakdown.budgetScore()),
+                        round(scoreBreakdown.safetyScore()),
+                        round(scoreBreakdown.tagScore()),
+                        round(scoreBreakdown.newsPenaltyScore()),
                         city.getCountry().getCurrency().name(),
-                        avgHotelPrice,
-                        foodKrw + transportKrw,
+                        dailyLivingCost.hotel(),
+                        dailyLivingCost.total(),
                         summary != null ? summary.getOriginAirport() : null,
                         (int) avgFlightPrice,
                         city.getDescription(),
@@ -205,15 +221,31 @@ public class CityService {
         return new RecommendCityDetailResponse(
                 city.getCityName(),
                 new RecommendCityDetailResponse.Score(
-                        round(finalScore),
-                        round(budgetScore),
-                        round(safetyScore),
-                        round(tagScore),
-                        round(newsPenaltyScore)
+                        round(scoreBreakdown.finalScore()),
+                        round(scoreBreakdown.budgetScore()),
+                        round(scoreBreakdown.safetyScore()),
+                        round(scoreBreakdown.tagScore()),
+                        round(scoreBreakdown.newsPenaltyScore())
                 ),
                 recommendationReason,
-                new RecommendCityDetailResponse.LivingCostFor1Day(foodKrw, transportKrw),
-                new RecommendCityDetailResponse.AirTicketAndHotel(avgFlightPrice, avgHotelPrice),
+                new RecommendCityDetailResponse.LivingCostFor1Day(
+                        new RecommendCityDetailResponse.Food(
+                                dailyLivingCost.food().total(),
+                                dailyLivingCost.food().breakfast(),
+                                dailyLivingCost.food().lunch(),
+                                dailyLivingCost.food().dinner(),
+                                dailyLivingCost.food().cappuccino(),
+                                dailyLivingCost.food().cokePepsi()
+                        ),
+                        new RecommendCityDetailResponse.Transportation(
+                                dailyLivingCost.transportation().total(),
+                                dailyLivingCost.transportation().localTransportTicket(),
+                                dailyLivingCost.transportation().ticketCount()
+                        ),
+                        dailyLivingCost.hotel(),
+                        dailyLivingCost.total()
+                ),
+                new RecommendCityDetailResponse.AirTicketAndHotel(avgFlightPrice, dailyLivingCost.hotel()),
                 new RecommendCityDetailResponse.ExchangeRate(
                         city.getCountry().getCurrency().name(),
                         exchange != null ? exchange.getKrwPerDisplayUnit() : null,
@@ -238,10 +270,11 @@ public class CityService {
         Exchange exchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(city.getCountry().getCurrency()).orElse(null);
 
         LivingCostOfCity cost = livingCostOfCityRepository.findOneByCityId(id).orElse(null);
-        double estimatedFood = estimateDailyFood(cost);
-        double estimatedTransport = estimateDailyTransport(cost);
-        double foodKrw = convertUsdCostToKrw(estimatedFood, usdExchange);
-        double transportKrw = convertUsdCostToKrw(estimatedTransport, usdExchange);
+        DailyLivingCostCalculator.DailyLivingCost dailyLivingCost = DailyLivingCostCalculator.calculate(
+                cost,
+                usdExchange != null ? usdExchange.getKrwPer1cur() : null,
+                avgHotelPrice
+        );
 
         List<NotRecommendCityDetailResponse.TagResponse> tags = cityTagRepository.findCityTagsByCityId(id).stream()
                 .map(cityTag -> new NotRecommendCityDetailResponse.TagResponse(
@@ -253,8 +286,24 @@ public class CityService {
         return new NotRecommendCityDetailResponse(
                 city.getId(),
                 city.getCityName(),
-                new NotRecommendCityDetailResponse.LivingCostFor1Day(foodKrw, transportKrw),
-                new NotRecommendCityDetailResponse.AirTicketAndHotel(avgFlightPrice, avgHotelPrice),
+                new NotRecommendCityDetailResponse.LivingCostFor1Day(
+                        new NotRecommendCityDetailResponse.Food(
+                                dailyLivingCost.food().total(),
+                                dailyLivingCost.food().breakfast(),
+                                dailyLivingCost.food().lunch(),
+                                dailyLivingCost.food().dinner(),
+                                dailyLivingCost.food().cappuccino(),
+                                dailyLivingCost.food().cokePepsi()
+                        ),
+                        new NotRecommendCityDetailResponse.Transportation(
+                                dailyLivingCost.transportation().total(),
+                                dailyLivingCost.transportation().localTransportTicket(),
+                                dailyLivingCost.transportation().ticketCount()
+                        ),
+                        dailyLivingCost.hotel(),
+                        dailyLivingCost.total()
+                ),
+                new NotRecommendCityDetailResponse.AirTicketAndHotel(avgFlightPrice, dailyLivingCost.hotel()),
                 new NotRecommendCityDetailResponse.ExchangeRate(
                         city.getCountry().getCurrency().name(),
                         exchange != null ? exchange.getKrwPerDisplayUnit() : null,
@@ -369,74 +418,79 @@ public class CityService {
     }
 
     private List<String> normalizeSelectedTags(RecommendCitiesRequest request, List<CityTag> cityTags) {
-        if (request != null && request.selectedTags() != null && !request.selectedTags().isEmpty()) {
+        if (request != null && request.selectedTags() != null) {
             return RecommendTagNormalizer.normalize(request.selectedTags());
+        }
+        if (request != null) {
+            return List.of();
         }
         return cityTags.stream()
                 .map(cityTag -> cityTag.getTag().getName())
                 .toList();
     }
 
-    private double calculateTagScore(Long cityId, List<String> selectedTags) {
+    private double calculateTagRaw(Long cityId, List<String> selectedTags, List<String> climateTags, Integer month) {
         if (selectedTags.isEmpty()) {
             return 0.0;
         }
 
-        List<CityTag> matchedTags = cityTagRepository.findCityTagsByCityIdAndTagNames(cityId, selectedTags);
-        if (matchedTags.isEmpty()) {
+        List<String> regularTags = selectedTags.stream()
+                .filter(tag -> !climateTags.contains(tag))
+                .toList();
+
+        List<CityTag> matchedTags = regularTags.isEmpty()
+                ? List.of()
+                : cityTagRepository.findCityTagsByCityIdAndTagNames(cityId, regularTags);
+        List<CityClimateTag> matchedClimateTags = (climateTags.isEmpty() || month == null)
+                ? List.of()
+                : cityClimateTagRepository.findByCityIdAndMonthAndTagNames(cityId, Long.valueOf(month), climateTags);
+
+        boolean hasRegularTags = !matchedTags.isEmpty();
+        boolean hasClimateTags = !matchedClimateTags.isEmpty();
+        if (!hasRegularTags && !hasClimateTags) {
             return 0.0;
         }
 
-        double tagRaw = matchedTags.stream()
+        double regularAverage = matchedTags.stream()
                 .map(CityTag::getTagScore)
                 .filter(java.util.Objects::nonNull)
                 .mapToDouble(Double::doubleValue)
                 .average()
                 .orElse(0.0);
-        return Math.min(55.0, tagRaw * 55.0);
-    }
+        double climateAverage = matchedClimateTags.stream()
+                .map(CityClimateTag::getScore)
+                .filter(java.util.Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0.0);
 
-    private double calculateSafetyScore(Danger danger) {
-        if (danger == null) {
-            return 15.0;
+        if (!hasClimateTags) {
+            return regularAverage;
         }
-        return hasText(danger.getAttention()) || hasText(danger.getAttentionPartial()) ? 7.5 : 15.0;
-    }
-
-    private double calculateBudgetScore(
-            RecommendCitiesRequest request,
-            double avgFlightPrice,
-            double avgHotelPrice,
-            double food,
-            double transport
-    ) {
-        if (request == null || request.userDailyBudget() == null || request.travelDays() == null || request.travelDays() <= 0) {
-            return 0.0;
+        if (!hasRegularTags) {
+            return climateAverage;
         }
+        return (regularAverage + climateAverage) / 2.0;
+    }
 
-        double totalBudget = request.userDailyBudget() * request.travelDays();
-        if (totalBudget <= 0) {
-            return 0.0;
+    private List<String> extractClimateTags(List<String> selectedTags) {
+        List<String> climateCatalog = TravelTagCatalog.ALLOWED_TAGS.getOrDefault(TravelTagCategory.CLIMATE, List.of());
+        return selectedTags.stream()
+                .filter(climateCatalog::contains)
+                .toList();
+    }
+
+    private void validateRecommendDetailRequest(RecommendCitiesRequest request) {
+        if (request == null
+                || request.userDailyBudget() == null
+                || request.travelDays() == null
+                || request.travelDays() <= 0
+                || request.month() == null) {
+            throw new CustomException(
+                    ErrorCode.INVALID_REQUEST,
+                    "recommend=true 상세 조회에는 userDailyBudget, travelDays, month가 필요합니다."
+            );
         }
-
-        double expectedTotalCost = avgFlightPrice + ((avgHotelPrice + food + transport) * request.travelDays());
-        double ratio = (totalBudget - expectedTotalCost) / totalBudget;
-
-        return ratio >= 0
-                ? Math.min(25.0, ratio * 25.0)
-                : Math.max(-25.0, (ratio / 0.3) * 25.0);
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
-    }
-
-    private double nz(Number value) {
-        return value == null ? 0.0 : value.doubleValue();
-    }
-
-    private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
     }
 
     private double round(double value) {
@@ -445,33 +499,6 @@ public class CityService {
 
     private double round4(double value) {
         return Math.round(value * 10000.0) / 10000.0;
-    }
-
-    private double convertUsdCostToKrw(double usdCost, Exchange usdExchange) {
-        if (usdCost <= 0) {
-            return 0.0;
-        }
-        if (usdExchange == null || usdExchange.getKrwPer1cur() == null || usdExchange.getKrwPer1cur() <= 0) {
-            return round(usdCost);
-        }
-        return Math.round(usdCost * usdExchange.getKrwPer1cur());
-    }
-
-    private double estimateDailyFood(LivingCostOfCity cost) {
-        if (cost == null) {
-            return 0.0;
-        }
-        return nz(cost.getLunchMenu()) * 1.5
-                + nz(cost.getCappuccino())
-                + nz(cost.getCokePepsi())
-                + (nz(cost.getDinnerInAResturantFor2()) / 2.0);
-    }
-
-    private double estimateDailyTransport(LivingCostOfCity cost) {
-        if (cost == null) {
-            return 0.0;
-        }
-        return nz(cost.getLocalTransportTicket()) * 2.0;
     }
 
     private Exchange getLatestUsdExchange() {

@@ -152,6 +152,13 @@ public class InterestResultSaver {
             return;
         }
 
+        List<Long> manualTagIds = memberTagRepository.findManualTagIdsByMemberAndTagIds(member, desiredTagIds);
+        desiredTagIds.removeAll(manualTagIds);
+
+        if (desiredTagIds.isEmpty()) {
+            return;
+        }
+
         List<Tag> desiredTags = tagRepository.findAllByTagIds(desiredTagIds);
         List<MemberTag> memberTags = desiredTags.stream()
                 .map(tag -> MemberTag.builder()

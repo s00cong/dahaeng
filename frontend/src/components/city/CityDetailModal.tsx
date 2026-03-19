@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { Loader2, AlertCircle, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,9 +71,10 @@ export function CityDetailModal() {
     setActiveCityTab,
   } = useUiStore();
 
-
   const { data: cities } = useCityList();
-  const selectedCityName = cities?.find((c) => c.cityId === selectedCityId)?.cityName;
+  const selectedCityName = cities?.find(
+    (c) => c.cityId === selectedCityId,
+  )?.cityName;
   const isRecommendedCity =
     isRecommendActive &&
     recommendResults.some((r) => r.city === selectedCityName);
@@ -83,11 +85,19 @@ export function CityDetailModal() {
     isError,
   } = useCityDetail(selectedCityId, isRecommendedCity, {
     enabled: isCityModalOpen,
-    recommendParams: isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+    recommendParams:
+      isRecommendedCity && recommendRequest ? recommendRequest : undefined,
   });
 
   const city = basicCity ?? null;
   const showError = isError && !city;
+
+  // 비추천 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
+  useEffect(() => {
+    if (!isRecommendedCity && activeCityTab === "recommend") {
+      setActiveCityTab("cost");
+    }
+  }, [isRecommendedCity, activeCityTab, setActiveCityTab]);
 
   return (
     // 모달 열림/닫힘 시 AnimatePresence가 exit 애니메이션을 실행한 후 DOM에서 제거
@@ -143,6 +153,7 @@ export function CityDetailModal() {
               <CityDetailTabNav
                 activeTab={activeCityTab}
                 onTabChange={setActiveCityTab}
+                showRecommendTab={isRecommendedCity}
               />
 
               {/* 스크롤 가능한 탭 콘텐츠 패널 */}
@@ -188,7 +199,9 @@ export function CityDetailModal() {
                     )}
                     {activeCityTab === "cost" && <CostCompareTab city={city} />}
                     {activeCityTab === "flight" && <FlightTab city={city} />}
-                    {activeCityTab === "spots" && <SpotTab city={city} />}
+                    {activeCityTab === "spots" && (
+                      <SpotTab city={city} isRecommended={isRecommendedCity} />
+                    )}
                   </motion.div>
                 )}
               </div>

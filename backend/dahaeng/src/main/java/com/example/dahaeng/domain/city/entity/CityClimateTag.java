@@ -26,5 +26,8 @@ public class CityClimateTag extends BaseEntity {
     private Tag tag;
 
     @Column(nullable = false)
+    private Double score;
+
+    @Column(nullable = false)
     private Long month;
 }

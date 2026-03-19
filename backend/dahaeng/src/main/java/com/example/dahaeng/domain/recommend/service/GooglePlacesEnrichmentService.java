@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 import java.util.Map;
@@ -20,7 +21,6 @@ import java.util.Map;
 public class GooglePlacesEnrichmentService implements PlaceEnrichmentService {
 
     private final ExternalApiProperties externalApiProperties;
-    private final RestClient.Builder restClientBuilder;
 
     @Override
     public RecommendCitiesResponse.RecommendedPlace enrich(
@@ -32,6 +32,8 @@ public class GooglePlacesEnrichmentService implements PlaceEnrichmentService {
         String imageUrl = null;
         Double lat = spot.getLat();
         Double lon = spot.getLon();
+        String textQuery = spot.getPlaceName();
+        String photoName = null;
 
         if (externalApiProperties.googlePlaces() != null
                 && StringUtils.hasText(externalApiProperties.googlePlaces().key())) {
@@ -39,12 +41,21 @@ public class GooglePlacesEnrichmentService implements PlaceEnrichmentService {
                 String maskedKey = maskKey(externalApiProperties.googlePlaces().key());
                 log.info("Google Places request configured with key={} baseUrl={}",
                         maskedKey, externalApiProperties.googlePlaces().baseUrl());
-                RestClient restClient = restClientBuilder.baseUrl(externalApiProperties.googlePlaces().baseUrl()).build();
+                RestClient restClient = RestClient.builder()
+                        .baseUrl(externalApiProperties.googlePlaces().baseUrl())
+                        .build();
+                String requestBody = """
+                        {
+                          "textQuery": "%s",
+                          "languageCode": "ko"
+                        }
+                        """.formatted(escapeJson(textQuery));
                 TextSearchResponse searchResponse = restClient.post()
                         .uri("/v1/places:searchText")
+                        .header("Content-Type", "application/json")
                         .header("X-Goog-Api-Key", externalApiProperties.googlePlaces().key())
                         .header("X-Goog-FieldMask", "places.id,places.displayName,places.location,places.photos,places.editorialSummary")
-                        .body(new TextSearchRequest(spot.getPlaceName(), "ko"))
+                        .body(requestBody)
                         .retrieve()
                         .body(TextSearchResponse.class);
 
@@ -61,25 +72,42 @@ public class GooglePlacesEnrichmentService implements PlaceEnrichmentService {
                     }
 
                     if (place.photos() != null && !place.photos().isEmpty()) {
-                        String photoName = place.photos().get(0).name();
-                        PhotoMediaResponse photoResponse = restClient.get()
-                                .uri(uriBuilder -> uriBuilder
-                                        .path("/v1/{photoName}/media")
-                                        .queryParam("maxWidthPx", 800)
-                                        .queryParam("skipHttpRedirect", true)
-                                        .build(photoName))
-                                .header("X-Goog-Api-Key", externalApiProperties.googlePlaces().key())
-                                .retrieve()
-                                .body(PhotoMediaResponse.class);
+                        photoName = place.photos().get(0).name();
+                        try {
+                            PhotoMediaResponse photoResponse = restClient.get()
+                                    .uri("/v1/" + photoName + "/media?maxWidthPx=800&skipHttpRedirect=true")
+                                    .header("X-Goog-Api-Key", externalApiProperties.googlePlaces().key())
+                                    .retrieve()
+                                    .body(PhotoMediaResponse.class);
 
-                        if (photoResponse != null && StringUtils.hasText(photoResponse.photoUri())) {
-                            imageUrl = photoResponse.photoUri();
+                            if (photoResponse != null && StringUtils.hasText(photoResponse.photoUri())) {
+                                imageUrl = photoResponse.photoUri();
+                            }
+                        } catch (Exception e) {
+                            log.warn("Google Places photo fetch failed for spot={} photoName={}: {}",
+                                    spot.getPlaceName(),
+                                    photoName,
+                                    e.getMessage());
                         }
                     }
                 }
-            } catch (Exception e) {
-                log.warn("Google Places enrichment failed for spot={} key={} baseUrl={}: {}",
+            } catch (RestClientResponseException e) {
+                log.warn(
+                        "Google Places enrichment failed for spot={} query={} photoName={} key={} baseUrl={} status={} responseBody={}",
                         spot.getPlaceName(),
+                        textQuery,
+                        photoName,
+                        maskKey(externalApiProperties.googlePlaces().key()),
+                        externalApiProperties.googlePlaces().baseUrl(),
+                        e.getStatusCode(),
+                        e.getResponseBodyAsString(),
+                        e);
+            } catch (Exception e) {
+                log.warn(
+                        "Google Places enrichment failed for spot={} query={} photoName={} key={} baseUrl={}: {}",
+                        spot.getPlaceName(),
+                        textQuery,
+                        photoName,
                         maskKey(externalApiProperties.googlePlaces().key()),
                         externalApiProperties.googlePlaces().baseUrl(),
                         e.getMessage(),
@@ -96,8 +124,6 @@ public class GooglePlacesEnrichmentService implements PlaceEnrichmentService {
                 new RecommendCitiesResponse.Location(lat, lon)
         );
     }
-
-    public record TextSearchRequest(String textQuery, String languageCode) {}
 
     public record TextSearchResponse(List<PlaceItem> places) {}
 
@@ -118,6 +144,15 @@ public class GooglePlacesEnrichmentService implements PlaceEnrichmentService {
     public record Photo(String name) {}
 
     public record PhotoMediaResponse(String name, String photoUri) {}
+
+    private String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
+    }
 
     private String maskKey(String key) {
         if (!StringUtils.hasText(key)) {

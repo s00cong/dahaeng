@@ -34,4 +34,8 @@ public class Country extends BaseEntity {
 
 	private Double lat;
 	private Double lon;
+
+	public void updateImgUrl(String imgUrl) {
+		this.imgUrl = imgUrl;
+	}
 }

@@ -12,9 +12,13 @@ public interface CityCandidateProjection {
     Double getNewsPenaltyScore();
     Integer getAvgFlightPrice();
     Integer getAvgHotelPrice();
-    Double getFoodCost();
-    Double getTransportCost();
+    Double getLunchMenu();
+    Double getDinnerInAResturantFor2();
+    Double getCappuccino();
+    Double getCokePepsi();
+    Double getLocalTransportTicket();
     String getDangerAttention();
+    String getDangerAttentionPartial();
     String getDangerControl();
     String getDangerLimita();
 
