@@ -244,11 +244,20 @@ export function RightPanel() {
                       <Skeleton className="h-3 w-4/5" />
                     </div>
                   ) : city?.danger?.items && city.danger.items.length > 0 ? (
-                    <ul className="flex flex-col gap-1">
+                    <ul className="flex flex-col divide-y divide-slate-100">
                       {city.danger.items.map((item, i) => (
-                        <li key={i} className="text-xs text-slate-500 leading-relaxed">
-                          <span className="font-medium text-slate-600">[{item.level}]</span>{" "}
-                          {item.description}
+                        <li key={i} className="flex flex-col gap-1 py-1.5 first:pt-0 last:pb-0">
+                          <span className={`self-start text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            item.level === "여행금지" ? "bg-red-100 text-red-600" :
+                            item.level === "출국권고" ? "bg-orange-100 text-orange-600" :
+                            item.level === "여행자제" ? "bg-amber-100 text-amber-600" :
+                            "bg-yellow-100 text-yellow-600"
+                          }`}>
+                            {item.level}
+                          </span>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            {item.description}
+                          </p>
                         </li>
                       ))}
                     </ul>

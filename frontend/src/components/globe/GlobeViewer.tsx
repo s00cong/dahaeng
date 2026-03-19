@@ -1109,10 +1109,79 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                 return null;
               })()}
 
-              {/* 도시 마커 */}
+              {/* ── 레이어 3 (bottom): 메달 이미지 ── */}
               {cities.map((city) => {
-                const isMatched =
-                  !isRecommendActive || matchedCityIds.has(city.cityId);
+                const medalRank = medalRankMap.get(city.cityId);
+                if (!medalRank) return null;
+                const r = 5 / Math.pow(zoom, 0.8);
+                const medalSize = 30 / Math.pow(zoom, 0.8);
+                const isCityInClickedCountry =
+                  clickedName &&
+                  (COUNTRY_NAME_KO[clickedName] === city.countryName ||
+                    (clickedName === "South Korea" && city.countryName === "한국") ||
+                    (clickedName === "United Kingdom" && city.countryName === "영국"));
+                let markerTransform = "";
+                if (isCityInClickedCountry) {
+                  const visualHeight = 8 / Math.pow(zoom, 0.4);
+                  const totalH = visualHeight / zoom;
+                  markerTransform = `translate(${totalH * 0.4}, ${-totalH})`;
+                }
+                return (
+                  <Marker key={`medal-${city.cityId}-${slotIndex}`} coordinates={[city.longitude, city.latitude]}>
+                    <g transform={markerTransform} style={{ pointerEvents: "none" }}>
+                      <image
+                        href={MEDAL_IMGS[medalRank]}
+                        x={-medalSize / 2}
+                        y={-(r + medalSize)}
+                        width={medalSize}
+                        height={medalSize}
+                      />
+                    </g>
+                  </Marker>
+                );
+              })}
+
+              {/* ── 레이어 2 (middle): 비추천 도시 포인트 ── */}
+              {cities.map((city) => {
+                const isMatched = !isRecommendActive || matchedCityIds.has(city.cityId);
+                if (isMatched) return null;
+                const r = 5 / Math.pow(zoom, 0.8);
+                const isCityInClickedCountry =
+                  clickedName &&
+                  (COUNTRY_NAME_KO[clickedName] === city.countryName ||
+                    (clickedName === "South Korea" && city.countryName === "한국") ||
+                    (clickedName === "United Kingdom" && city.countryName === "영국"));
+                let markerTransform = "";
+                if (isCityInClickedCountry) {
+                  const visualHeight = 8 / Math.pow(zoom, 0.4);
+                  const totalH = visualHeight / zoom;
+                  markerTransform = `translate(${totalH * 0.4}, ${-totalH})`;
+                }
+                return (
+                  <Marker
+                    key={`dot-${city.cityId}-${slotIndex}`}
+                    coordinates={[city.longitude, city.latitude]}
+                    onClick={() => openRightPanel(city.cityId, city.imgUrl, { lat: city.latitude, lng: city.longitude })}
+                  >
+                    <g transform={markerTransform}>
+                      <circle
+                        r={Math.max(r * 1.3, 6 / zoom)}
+                        fill="transparent"
+                        style={{ cursor: "pointer" }}
+                        onMouseEnter={(e) => setTooltip({ name: city.cityName, x: e.clientX, y: e.clientY })}
+                        onMouseMove={(e) => handleTooltipMove(city.cityName, e)}
+                        onMouseLeave={() => setTooltip(null)}
+                      />
+                      <circle r={r} fill="#CBD5E1" stroke="#fff" strokeWidth={1 / zoom} style={{ pointerEvents: "none" }} />
+                    </g>
+                  </Marker>
+                );
+              })}
+
+              {/* ── 레이어 1 (top): 추천 도시 포인트 ── */}
+              {cities.map((city) => {
+                const isMatched = !isRecommendActive || matchedCityIds.has(city.cityId);
+                if (!isMatched) return null;
                 const medalRank = medalRankMap.get(city.cityId);
                 const isSelected = city.cityId === selectedCityId;
                 const markerScore =
@@ -1120,39 +1189,25 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                     ? selectedCityScore
                     : recommendScoreMap.get(city.cityName);
                 const r = 5 / Math.pow(zoom, 0.8);
-                const medalSize = 30 / Math.pow(zoom, 0.8);
-
-                // 클릭된 국가에 속한 도시라면 3D 상면으로 이동
                 const isCityInClickedCountry =
                   clickedName &&
                   (COUNTRY_NAME_KO[clickedName] === city.countryName ||
-                    (clickedName === "South Korea" &&
-                      city.countryName === "한국") ||
-                    (clickedName === "United Kingdom" &&
-                      city.countryName === "영국"));
-
+                    (clickedName === "South Korea" && city.countryName === "한국") ||
+                    (clickedName === "United Kingdom" && city.countryName === "영국"));
                 let markerTransform = "";
                 if (isCityInClickedCountry) {
                   const visualHeight = 8 / Math.pow(zoom, 0.4);
                   const totalH = visualHeight / zoom;
-                  const xOffset = totalH * 0.4;
-                  const yOffset = -totalH;
-                  markerTransform = `translate(${xOffset}, ${yOffset})`;
+                  markerTransform = `translate(${totalH * 0.4}, ${-totalH})`;
                 }
-
+                const medalSize = 30 / Math.pow(zoom, 0.8);
                 return (
                   <Marker
-                    key={`${city.cityId}-${slotIndex}`}
+                    key={`dot-${city.cityId}-${slotIndex}`}
                     coordinates={[city.longitude, city.latitude]}
-                    onClick={() =>
-                      openRightPanel(city.cityId, city.imgUrl, {
-                        lat: city.latitude,
-                        lng: city.longitude,
-                      })
-                    }
+                    onClick={() => openRightPanel(city.cityId, city.imgUrl, { lat: city.latitude, lng: city.longitude })}
                   >
                     <g transform={markerTransform}>
-                      {/* 메달 포함 전체 클릭 타겟 (투명 rect) */}
                       {medalRank ? (
                         <rect
                           x={-medalSize / 2}
@@ -1161,56 +1216,27 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                           height={medalSize + r * 2.5}
                           fill="transparent"
                           style={{ cursor: "pointer" }}
-                          onMouseEnter={(e) =>
-                            setTooltip({
-                              name: city.cityName,
-                              x: e.clientX,
-                              y: e.clientY,
-                            })
-                          }
-                          onMouseMove={(e) =>
-                            handleTooltipMove(city.cityName, e)
-                          }
+                          onMouseEnter={(e) => setTooltip({ name: city.cityName, x: e.clientX, y: e.clientY })}
+                          onMouseMove={(e) => handleTooltipMove(city.cityName, e)}
                           onMouseLeave={() => setTooltip(null)}
                         />
                       ) : (
-                        /* 메달 없을 때 포인트 도트 클릭 타겟 */
                         <circle
                           r={Math.max(r * 1.3, 6 / zoom)}
                           fill="transparent"
                           style={{ cursor: "pointer" }}
-                          onMouseEnter={(e) =>
-                            setTooltip({
-                              name: city.cityName,
-                              x: e.clientX,
-                              y: e.clientY,
-                            })
-                          }
-                          onMouseMove={(e) =>
-                            handleTooltipMove(city.cityName, e)
-                          }
+                          onMouseEnter={(e) => setTooltip({ name: city.cityName, x: e.clientX, y: e.clientY })}
+                          onMouseMove={(e) => handleTooltipMove(city.cityName, e)}
                           onMouseLeave={() => setTooltip(null)}
                         />
                       )}
                       <circle
                         r={r}
-                        fill={
-                          isMatched ? getMarkerColor(markerScore) : "#CBD5E1"
-                        }
+                        fill={getMarkerColor(markerScore)}
                         stroke="#fff"
                         strokeWidth={1 / zoom}
                         style={{ pointerEvents: "none" }}
                       />
-                      {medalRank && (
-                        <image
-                          href={MEDAL_IMGS[medalRank]}
-                          x={-medalSize / 2}
-                          y={-(r + medalSize)}
-                          width={medalSize}
-                          height={medalSize}
-                          style={{ pointerEvents: "none" }}
-                        />
-                      )}
                     </g>
                   </Marker>
                 );
