@@ -15,6 +15,22 @@ SPEC.loader.exec_module(MODULE)
 
 
 class GoogleFlightScraperHelpersTest(unittest.TestCase):
+    def test_get_browser_slow_mo_defaults_to_zero(self):
+        with patch.dict(MODULE.os.environ, {}, clear=False):
+            self.assertEqual(MODULE.get_browser_slow_mo(headless=False), 0)
+
+    def test_get_browser_slow_mo_uses_env_override(self):
+        with patch.dict(MODULE.os.environ, {"GOOGLE_FLIGHT_SLOW_MO_MS": "15"}, clear=False):
+            self.assertEqual(MODULE.get_browser_slow_mo(headless=False), 15)
+
+    def test_get_result_refresh_timeout_ms_defaults_to_2500(self):
+        with patch.dict(MODULE.os.environ, {}, clear=False):
+            self.assertEqual(MODULE.get_result_refresh_timeout_ms(), 2500)
+
+    def test_get_result_refresh_timeout_ms_uses_env_override(self):
+        with patch.dict(MODULE.os.environ, {"GOOGLE_FLIGHT_RESULT_REFRESH_TIMEOUT_MS": "1200"}, clear=False):
+            self.assertEqual(MODULE.get_result_refresh_timeout_ms(), 1200)
+
     def test_build_browser_launch_kwargs_uses_playwright_chromium_by_default(self):
         with patch.dict(MODULE.os.environ, {}, clear=False):
             kwargs = MODULE.build_browser_launch_kwargs(headless=True, slow_mo=0)
@@ -227,6 +243,65 @@ class GoogleFlightScraperHelpersTest(unittest.TestCase):
             [{"year_month": "2026-04"}, {"year_month": "2026-05"}],
         )
 
+    def test_load_checkpoint_returns_done_when_scope_date_matches(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            checkpoint_path = Path(tmp_dir) / "checkpoint.json"
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "date": "2026-03-19",
+                        "done": ["TOKYO:2026-03", "OSAKA:2026-04"],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            with (
+                patch.object(MODULE, "CHECKPOINT_PATH", checkpoint_path),
+                patch.object(MODULE, "get_checkpoint_scope_date", return_value="2026-03-19"),
+            ):
+                loaded = MODULE.load_checkpoint()
+
+        self.assertEqual(loaded, {"TOKYO:2026-03", "OSAKA:2026-04"})
+
+    def test_load_checkpoint_ignores_done_when_scope_date_is_stale(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            checkpoint_path = Path(tmp_dir) / "checkpoint.json"
+            checkpoint_path.write_text(
+                json.dumps(
+                    {
+                        "date": "2026-03-12",
+                        "done": ["TOKYO:2026-03"],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            with (
+                patch.object(MODULE, "CHECKPOINT_PATH", checkpoint_path),
+                patch.object(MODULE, "get_checkpoint_scope_date", return_value="2026-03-19"),
+            ):
+                loaded = MODULE.load_checkpoint()
+
+        self.assertEqual(loaded, set())
+
+    def test_save_checkpoint_persists_scope_date(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            checkpoint_path = Path(tmp_dir) / "checkpoint.json"
+
+            with (
+                patch.object(MODULE, "CHECKPOINT_PATH", checkpoint_path),
+                patch.object(MODULE, "get_checkpoint_scope_date", return_value="2026-03-19"),
+            ):
+                MODULE.save_checkpoint({"TOKYO:2026-03"})
+
+            saved = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(saved["date"], "2026-03-19")
+        self.assertEqual(saved["done"], ["TOKYO:2026-03"])
+
 
 class FakeLocator:
     def __init__(
@@ -340,6 +415,43 @@ class FakeSetupPage:
 
 
 class GoogleFlightScraperAsyncBehaviorTest(unittest.IsolatedAsyncioTestCase):
+    async def test_return_to_explore_ready_skips_back_when_session_is_already_ready(self):
+        with (
+            patch.object(MODULE, "explore_session_ready", return_value=True),
+            patch.object(MODULE, "go_back_to_explore", side_effect=AssertionError("go_back should not run")),
+        ):
+            result = await MODULE.return_to_explore_ready(object(), "3월")
+
+        self.assertTrue(result)
+
+    async def test_wait_for_async_condition_returns_true_when_predicate_flips(self):
+        state = {"calls": 0}
+
+        async def predicate():
+            state["calls"] += 1
+            return state["calls"] >= 3
+
+        result = await MODULE.wait_for_async_condition(
+            predicate,
+            timeout_ms=60,
+            interval_ms=1,
+        )
+
+        self.assertTrue(result)
+        self.assertEqual(state["calls"], 3)
+
+    async def test_wait_for_async_condition_times_out_when_predicate_never_true(self):
+        async def predicate():
+            return False
+
+        result = await MODULE.wait_for_async_condition(
+            predicate,
+            timeout_ms=5,
+            interval_ms=1,
+        )
+
+        self.assertFalse(result)
+
     async def test_run_month_with_retry_retries_only_failed_city_months(self):
         month = {
             "month_name": "3M",
@@ -376,6 +488,53 @@ class GoogleFlightScraperAsyncBehaviorTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(calls, [["TOKYO", "OSAKA", "FUKUOKA"], ["OSAKA", "FUKUOKA"]])
         self.assertEqual(failures, [])
+
+    async def test_run_deferred_retry_pass_retries_failed_months_after_main_pass(self):
+        months = [
+            {"month_name": "3M", "year_month": "2026-03", "event_time": "2026-03-01"},
+            {"month_name": "4M", "year_month": "2026-04", "event_time": "2026-04-01"},
+        ]
+        cities = [
+            {"city_id": "TOKYO", "city_name_kr": "TOKYO"},
+            {"city_id": "OSAKA", "city_name_kr": "OSAKA"},
+            {"city_id": "BULGAN", "city_name_kr": "BULGAN"},
+        ]
+        failed_entries = [
+            {"city_id": "OSAKA", "year_month": "2026-03", "reason": "destination_select_failed"},
+            {"city_id": "BULGAN", "year_month": "2026-04", "reason": "destination_select_failed"},
+            {"city_id": "TOKYO", "year_month": "2026-04", "reason": "no_flights"},
+        ]
+        calls = []
+
+        async def fake_run_month_session(**kwargs):
+            calls.append(
+                (
+                    kwargs["month"]["year_month"],
+                    [city["city_id"] for city in kwargs["cities"]],
+                )
+            )
+            return []
+
+        with patch.object(MODULE, "run_month_session", side_effect=fake_run_month_session):
+            remaining = await MODULE.run_deferred_retry_pass(
+                context=object(),
+                months=months,
+                cities=cities,
+                failed_entries=failed_entries,
+                done_keys=set(),
+                jsonl_path=Path("dummy.jsonl"),
+                failed_path=Path("dummy_failed.json"),
+                ingest_time="2026-03-18T10:00:00",
+            )
+
+        self.assertEqual(
+            calls,
+            [
+                ("2026-03", ["OSAKA"]),
+                ("2026-04", ["TOKYO", "BULGAN"]),
+            ],
+        )
+        self.assertEqual(remaining, [])
 
     async def test_capture_setup_state_reads_origin_and_date_controls(self):
         page = FakeSetupPage()
@@ -698,6 +857,78 @@ class GoogleFlightScraperAsyncBehaviorTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(result)
         self.assertIn("ULN", typed_terms)
+
+    async def test_set_destination_bails_out_after_valid_option_click_never_refreshes(self):
+        async def no_sleep(_seconds):
+            return None
+
+        city = {
+            "city_id": "AGRA",
+            "city_name_kr": "아그라",
+            "country_kr": "인도",
+            "primary_airport": "AGR",
+            "routes": [
+                {"trip_city": "agra", "airport": "AGR", "trip_airport": "agr"},
+                {"trip_city": "delhi", "airport": "DEL", "trip_airport": "del"},
+            ],
+        }
+        page = FakeDestinationPage()
+        page.keyboard = FakeKeyboard()
+        typed_terms = []
+
+        async def dismiss_origin_dialog(_page):
+            return None
+
+        async def fake_set_input_text(_locator, text):
+            typed_terms.append(text)
+            return True
+
+        with (
+            patch.object(MODULE.asyncio, "sleep", new=no_sleep),
+            patch.object(MODULE, "dismiss_origin_dialog", new=dismiss_origin_dialog),
+            patch.object(
+                MODULE,
+                "wait_for_any",
+                return_value='input[aria-label="목적지가 어디인가요?"][aria-expanded="true"]',
+            ),
+            patch.object(MODULE, "focus_and_clear", return_value=True),
+            patch.object(MODULE, "get_result_signature", return_value="before"),
+            patch.object(MODULE, "set_input_text", new=fake_set_input_text),
+            patch.object(MODULE, "get_input_value", return_value=""),
+            patch.object(
+                MODULE,
+                "collect_destination_option_texts",
+                return_value=["Agra Airport AGR"],
+            ),
+            patch.object(MODULE, "click_owned_option_by_text", return_value=False),
+            patch.object(MODULE, "click_option_by_text", return_value=True),
+            patch.object(MODULE, "wait_for_result_refresh", return_value=False),
+            patch.object(MODULE, "actual_destination_input_matches", return_value=False),
+        ):
+            result = await MODULE.set_destination(page, city)
+
+        self.assertFalse(result)
+        self.assertEqual(typed_terms, ["아그라 인도"])
+
+    async def test_extract_hotel_price_returns_half_of_detected_price(self):
+        async def no_sleep(_seconds):
+            return None
+
+        class FakeMouse:
+            async def wheel(self, _x, _y):
+                return None
+
+        class FakeHotelPage:
+            def __init__(self):
+                self.mouse = FakeMouse()
+
+            async def inner_text(self, _selector):
+                return "숙박 정보\n₩ 260,000"
+
+        with patch.object(MODULE.asyncio, "sleep", new=no_sleep):
+            hotel_price = await MODULE.extract_hotel_price(FakeHotelPage())
+
+        self.assertEqual(hotel_price, 130000)
 
 
 if __name__ == "__main__":

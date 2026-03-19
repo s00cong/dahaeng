@@ -57,7 +57,8 @@ public class SecurityConfig {
             "/api/cities/**",
             "/api/*/places",
             "/api/places/**",
-            "/api/internal/image/**"
+            "/api/internal/image/**",
+            "/api/*/nearby-attractions"
     };
 
     private final CustomOAuth2UserService customOAuth2UserService;

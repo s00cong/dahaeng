@@ -4,7 +4,8 @@ import lombok.Getter;
 
 @Getter
 public enum CityEnum {
-	SEOUL("seoul");
+	SEOUL("seoul"),
+	SINGAPORE("singapore");
 
 	private final String cityName;
 
