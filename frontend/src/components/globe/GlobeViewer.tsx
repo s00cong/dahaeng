@@ -904,7 +904,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     const iso = COUNTRY_NAME_ISO3[rawName];
     if (iso) setClickedIso(iso);
     setClickedName(rawName);
-    setClickedGeo(geo);
     setHoveredAdminKey(null);
     setTooltip(null);
     setIsZooming(true);

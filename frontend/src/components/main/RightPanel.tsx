@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Plane, Wallet, Shield, ChevronRight, ChevronLeft, MapPin } from "lucide-react";
+import { X, Plane, Wallet, Shield, ChevronRight, ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
 import { useCityList } from "@/hooks/city/useCityList";
+import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
+import defaultCityImg from "@/assets/no-picture.png";
 
 // 패널 폭 300px, 탭 24px, 간격 8px
 const PANEL_W = 300;
@@ -60,6 +62,8 @@ export function RightPanel() {
   );
 
   const city = cityFromApi ?? null;
+  const { data: flagMap } = useCountryFlagMap();
+  const flagUrl = flagMap?.get(city?.danger?.countryName ?? "");
 
   const handleOpenDetail = () => {
     openCityModal("recommend");
@@ -112,13 +116,11 @@ export function RightPanel() {
           >
             {/* ── 헤더 영역 ── */}
             <div className="relative h-36 shrink-0 overflow-hidden rounded-t-2xl bg-slate-200">
-              {(city?.imgUrl || selectedCityImgUrl) && (
-                <img
-                  src={city?.imgUrl || selectedCityImgUrl!}
-                  alt={city?.cityName}
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              )}
+              <img
+                src={city?.imgUrl || selectedCityImgUrl || defaultCityImg}
+                alt={city?.cityName}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
               {/* 닫기 버튼 */}
@@ -140,7 +142,9 @@ export function RightPanel() {
                       {city?.cityName ?? "도시 정보"}
                     </h2>
                     <div className="flex items-center gap-1 mt-0.5">
-                      <MapPin className="size-3 text-white/70" />
+                      {flagUrl && (
+                        <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
+                      )}
                       <span className="text-xs text-white/80">
                         {city?.danger?.countryName ?? "나라 정보"}
                       </span>
