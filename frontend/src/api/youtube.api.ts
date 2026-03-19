@@ -19,9 +19,12 @@ export const youtubeApi = {
   },
 
   // GET /api/interest/analyze — 저장된 여행 태그 목록 조회
-  getInterestTags: async (): Promise<number[]> => {
+  getInterestTags: async (): Promise<{ tagIds: number[]; tagNames: string[] }> => {
     const { data } = await axiosInstance.get('/api/interest/analyze');
     const tags = z.array(InterestTagSchema).parse(data);
-    return tags.map((t) => t.tagId);
+    return {
+      tagIds: tags.map((t) => t.tagId),
+      tagNames: tags.map((t) => t.tagName),
+    };
   },
 };

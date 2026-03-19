@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
-import { useCostDetail } from "@/hooks/cost/useCostDetail";
+
 import dayjs from "dayjs";
 
 interface RecommendTabProps {
@@ -87,9 +87,7 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
   const foodKRW = lc?.food ?? 0;
   const transKRW = lc?.transportation ?? 0;
 
-  // 숙박: living_cost_of_city.without_rent(월) ÷ 30 → 하루치
-  const { data: costDetail } = useCostDetail('city', city.cityId);
-  const hotelDaily = Math.round((costDetail?.living_cost?.without_rent ?? (city.airTicketAndHotel?.hotel ?? 0)) / 30);
+  const hotelDaily = lc?.accommodation ?? 0;
 
   const at = city.airTicketAndHotel;
   const totalDaily = lc ? (foodKRW + transKRW + hotelDaily) : undefined;
@@ -251,16 +249,46 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
                 ))
               ) : (
                 <>
-                  {city.news?.top3?.map((news, idx) => (
+                  {city.news?.top3?.map((news, idx) => {
+                    const domain = news.url ? new URL(news.url).hostname : null;
+                    const faviconSrc = domain
+                      ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
+                      : null;
+                    return (
                     <a
                       key={idx}
                       href={news.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-white hover:border-blue-200 hover:shadow-sm transition-all"
+                      className="group flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100 bg-white hover:border-blue-200 hover:shadow-sm transition-all"
                     >
-                      <div className="min-w-0 pr-2">
-                        <p className="text-[13px] font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors">
+                      <div className="w-14 h-10 rounded-lg shrink-0 bg-slate-100 overflow-hidden flex items-center justify-center">
+                        {news.urlToImage ? (
+                          <img
+                            src={news.urlToImage}
+                            alt={news.title}
+                            referrerPolicy="no-referrer"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const img = e.currentTarget;
+                              if (faviconSrc) {
+                                img.src = faviconSrc;
+                                img.className = "w-8 h-8 object-contain";
+                              } else {
+                                img.style.display = 'none';
+                              }
+                            }}
+                          />
+                        ) : faviconSrc ? (
+                          <img
+                            src={faviconSrc}
+                            alt={domain ?? ""}
+                            className="w-8 h-8 object-contain"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-bold text-slate-800 line-clamp-2 group-hover:text-blue-600 transition-colors leading-snug">
                           {news.title}
                         </p>
                         <p className="text-[9px] text-slate-400 mt-0.5">
@@ -269,7 +297,8 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
                       </div>
                       <ExternalLink className="size-3 text-slate-300 group-hover:text-blue-400 transition-colors shrink-0" />
                     </a>
-                  ))}
+                    );
+                  })}
                   {(!city.news?.top3 || city.news.top3.length === 0) && (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2 py-8">
                       <Newspaper className="size-8 opacity-20" />

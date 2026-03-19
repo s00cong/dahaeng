@@ -163,7 +163,7 @@ export function DestinationHeroCard({
   className,
 }: DestinationHeroCardProps) {
   const [imgError, setImgError] = useState(false);
-  const { closeCityModal } = useUiStore();
+  const { closeCityModal, selectedCityImgUrl } = useUiStore();
 
   // tagScore 내림차순 정렬 후 상위 10개
   const displayKeywords = city.tags
@@ -181,9 +181,9 @@ export function DestinationHeroCard({
       )}
     >
       {/* Background image */}
-      {!imgError ? (
+      {!imgError && (city.imgUrl || selectedCityImgUrl) ? (
         <img
-          src={city.imgUrl}
+          src={city.imgUrl || selectedCityImgUrl!}
           alt={city.cityName}
           className="absolute inset-0 w-full h-full object-cover"
           onError={() => setImgError(true)}
