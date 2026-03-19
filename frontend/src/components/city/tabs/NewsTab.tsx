@@ -197,7 +197,7 @@ export function NewsTab({ city }: NewsTabProps) {
           </div>
         ) : (
           <div className="flex flex-col gap-2 overflow-y-auto">
-            {displayItems.slice(0, 3).map((item, idx) => (
+            {displayItems.slice(0, 3).map((item: NewsItem, idx: number) => (
               <ArticleCard key={item.id ?? idx} item={item} />
             ))}
           </div>

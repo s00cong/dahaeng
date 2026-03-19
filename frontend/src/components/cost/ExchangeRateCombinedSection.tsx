@@ -171,7 +171,7 @@ export function ExchangeRateCombinedSection({
                 />
                 <Tooltip
                   contentStyle={{ fontSize: 13, borderRadius: 8 }}
-                  formatter={(value: number) => [`${value.toFixed(2)} KRW`, '환율']}
+                  formatter={(value: number | undefined) => [`${(value ?? 0).toFixed(2)} KRW`, '환율']}
                 />
                 {currentChartAvg !== null && (
                   <ReferenceLine

@@ -13,7 +13,7 @@ export function BookmarkHeroSection({ data }: BookmarkHeroSectionProps) {
     >
       {/* 배경 이미지 */}
       <img
-        src={data.imgUrl}
+        src={data.imgUrl ?? undefined}
         alt={`${data.cityName} 도시 전경`}
         className="absolute inset-0 h-full w-full object-cover"
       />
