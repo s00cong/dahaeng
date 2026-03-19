@@ -15,9 +15,14 @@ interface UiState {
   selectedCityId: number | null;
   selectedCityImgUrl: string | null;
   selectedCityCoords: { lat: number; lng: number } | null;
+  selectedCityScore: number | null;
 
-  // 우측 요약 패널
+  // 패널 열림/닫힘 (도시 선택 여부)
   isRightPanelOpen: boolean;
+
+  // 패널 접힘 (탭만 보이는 상태)
+  isLeftSidebarCollapsed: boolean;
+  isRightPanelCollapsed: boolean;
 
   // 추천 상태
   isRecommendActive: boolean;
@@ -48,6 +53,8 @@ interface UiState {
     coords?: { lat: number; lng: number },
   ) => void;
   closeRightPanel: () => void;
+  toggleLeftSidebar: () => void;
+  toggleRightPanelCollapse: () => void;
   openCityModal: (tab?: CityDetailTab) => void;
   closeCityModal: () => void;
   setActiveCityTab: (tab: CityDetailTab) => void;
@@ -57,14 +64,27 @@ interface UiState {
   setRecommendActive: (v: boolean) => void;
   setRecommendLoading: (v: boolean) => void;
   setRecommendResults: (results: RecommendResultItem[]) => void;
-  setRecommendRequest: (req: { selectedTags: string[]; userDailyBudget: number; travelDays: number; month: number }) => void;
+  setRecommendRequest: (req: {
+    selectedTags: string[];
+    userDailyBudget: number;
+    travelDays: number;
+    month: number;
+  }) => void;
+  setSelectedCityScore: (score: number | null) => void;
+
+  // 나라 검색 → 글로브 카메라 이동 트리거 (영어 나라명)
+  globeCountryTarget: string | null;
+  setGlobeCountryTarget: (name: string | null) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
   selectedCityId: null,
   selectedCityImgUrl: null,
   selectedCityCoords: null,
+  selectedCityScore: null,
   isRightPanelOpen: false,
+  isLeftSidebarCollapsed: false,
+  isRightPanelCollapsed: false,
   isCityModalOpen: false,
   activeCityTab: "recommend",
   globeBudgetFilter: [0, 5_000_000],
@@ -74,10 +94,17 @@ export const useUiStore = create<UiState>((set) => ({
       selectedCityId: cityId,
       selectedCityImgUrl: imgUrl ?? null,
       selectedCityCoords: coords ?? null,
+      selectedCityScore: null,
       isRightPanelOpen: true,
+      isRightPanelCollapsed: false, // 도시 선택 시 자동 확장
       isCityModalOpen: false,
     }),
-  closeRightPanel: () => set({ isRightPanelOpen: false }),
+  closeRightPanel: () => set({ isRightPanelOpen: false, selectedCityScore: null }),
+  setSelectedCityScore: (score) => set({ selectedCityScore: score }),
+  toggleLeftSidebar: () =>
+    set((s) => ({ isLeftSidebarCollapsed: !s.isLeftSidebarCollapsed })),
+  toggleRightPanelCollapse: () =>
+    set((s) => ({ isRightPanelCollapsed: !s.isRightPanelCollapsed })),
   openCityModal: (tab = "recommend") =>
     set({ isCityModalOpen: true, activeCityTab: tab }),
   closeCityModal: () =>
@@ -98,4 +125,6 @@ export const useUiStore = create<UiState>((set) => ({
   setRecommendLoading: (v) => set({ isRecommendLoading: v }),
   setRecommendResults: (results) => set({ recommendResults: results }),
   setRecommendRequest: (req) => set({ recommendRequest: req }),
+  globeCountryTarget: null,
+  setGlobeCountryTarget: (name) => set({ globeCountryTarget: name }),
 }));

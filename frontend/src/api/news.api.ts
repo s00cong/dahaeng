@@ -10,9 +10,9 @@ const USE_MOCK_NEWS_API = true;
 export const newsApi = {
   // GET /api/news/{countryId}
   // cityId를 임시 키로 사용 (백엔드 연동 시 countryId로 교체)
-  getNewsByCityId: async (cityId: number): Promise<CountryNews> => {
-    if (USE_MOCK_NEWS_API) return getMockCountryNews(cityId);
-    const { data } = await axiosInstance.get(`/api/news/${cityId}`);
+  getNewsByCountry: async (countryId: number): Promise<CountryNews> => {
+    if (USE_MOCK_NEWS_API) return getMockCountryNews(countryId);
+    const { data } = await axiosInstance.get(`/api/news/${countryId}`);
     return CountryNewsSchema.parse(data);
   },
 };
