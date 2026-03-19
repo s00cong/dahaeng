@@ -10,6 +10,11 @@ export const axiosInstance = axios.create({
 // 요청 interceptor — accessToken 주입
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    const base = (config.baseURL ?? axiosInstance.defaults.baseURL ?? '').replace(/\/+$/, '');
+    if (typeof config.url === 'string' && base.endsWith('/api') && config.url.startsWith('/api/')) {
+      config.url = config.url.replace(/^\/api/, '');
+    }
+
     const token = useAuthStore.getState().accessToken;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
