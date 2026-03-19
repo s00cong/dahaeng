@@ -1,11 +1,7 @@
 import { axiosInstance } from "./axiosInstance";
 import type { CityDetail } from "@/schemas/city.schema";
 import { z } from "zod";
-import {
-  DUMMY_CITY_DETAIL_RECOMMEND,
-  DUMMY_CITY_DETAIL_NOT_RECOMMEND,
-  DUMMY_NEWS_ARTICLES,
-} from "@/data/city.dummy";
+import { DUMMY_NEWS_ARTICLES } from "@/data/city.dummy";
 
 // 백엔드 CountryDanger { level, description }
 const BackendCountryDangerItemSchema = z.object({
@@ -160,8 +156,8 @@ const BackendRecommendDetailSchema = z.object({
     .nullable()
     .optional(),
   danger: BackendCountryDangerSchema,
-  tags: z.array(BackendTagResponseSchema).optional(),
-  touristSpot: z.array(BackendTouristSpotSchema).optional(),
+  tags: z.array(BackendTagResponseSchema).optional().catch([]),
+  touristSpot: z.array(BackendTouristSpotSchema).optional().catch([]),
   exchangeRate: BackendExchangeRateSchema,
 });
 
@@ -172,7 +168,7 @@ const BackendNotRecommendDetailSchema = z.object({
   livingCostFor1Day: BackendLivingCostSchema.nullable().optional(),
   airTicketAndHotel: BackendAirTicketSchema.nullable().optional(),  // 백엔드 키: airTicketAndHotel
   danger: BackendCountryDangerSchema,
-  tags: z.array(BackendTagResponseSchema).optional(),
+  tags: z.array(BackendTagResponseSchema).optional().catch([]),
   exchangeRate: BackendExchangeRateSchema,
 });
 
@@ -267,10 +263,10 @@ export const cityApi = {
         exchangeRate: city.exchangeRate ?? undefined,
       };
     }
-    } catch {
-      // 외부 API(News API, OpenAI, Google Places) 장애 또는 개발 환경에서 더미 데이터 반환
-      const dummy = recommend ? DUMMY_CITY_DETAIL_RECOMMEND : DUMMY_CITY_DETAIL_NOT_RECOMMEND;
-      return { ...dummy, cityId };
+    } catch (e) {
+      // recommend=true 실패 시 throw → aiCity=undefined → basicCity(실제 데이터) 사용
+      // recommend=false 실패 시에도 throw → TanStack Query isError 처리
+      throw e;
     }
   },
 
