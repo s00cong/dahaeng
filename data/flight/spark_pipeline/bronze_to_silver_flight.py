@@ -26,13 +26,13 @@ def parse_args():
         description="Bronze -> Silver -> MariaDB ETL for flight data"
     )
     parser.add_argument(
-        "--bronze-path",
-        default="/workspace/data/flight/google_flight/bronze_airticket",
-        help="Google Flights Bronze base path",
+        "--google-path",
+        default="/workspace/data/flight/normalized/google_flight.jsonl",
+        help="Google Flights normalized JSONL path",
     )
     parser.add_argument(
         "--silver-path",
-        default="/workspace/data/flight/silver/flight_summary",
+        default="hdfs://namenode:9000/data/silver/flight/flight_summary",
         help="Silver parquet output path",
     )
     parser.add_argument(
@@ -51,14 +51,8 @@ def parse_args():
         help="MariaDB password",
     )
     parser.add_argument(
-        "--mode",
-        default="all",
-        choices=["all", "today"],
-        help="Read all snapshots or only today's snapshot",
-    )
-    parser.add_argument(
         "--tripcom-path",
-        default="/workspace/data/flight/trip_com/bronze_airticket",
+        default="hdfs://namenode:9000/data/bronze/flight/trip_com",
         help="Trip.com Bronze base path",
     )
     return parser.parse_args()
@@ -68,17 +62,9 @@ def normalize_city_key(column_name: str):
     return F.upper(F.trim(F.col(column_name)))
 
 
-def read_bronze(spark: SparkSession, bronze_path: str, mode: str) -> DataFrame:
-    if mode == "today":
-        from datetime import date
-
-        today = date.today().strftime("dt=%Y-%m-%d")
-        pattern = f"{bronze_path}/google_flights/{today}/hour=*/*.jsonl"
-    else:
-        pattern = f"{bronze_path}/google_flights/dt=*/hour=*/*.jsonl"
-
-    print(f"[INFO] Reading Google Flights Bronze from: {pattern}")
-    df_raw = spark.read.json(pattern)
+def read_google_normalized(spark: SparkSession, google_path: str) -> DataFrame:
+    print(f"[INFO] Reading Google Flights normalized JSONL from: {google_path}")
+    df_raw = spark.read.json(google_path)
 
     return df_raw.filter(
         (F.col("dataset") == "airticket")
@@ -221,7 +207,7 @@ def write_silver(df: DataFrame, silver_path: str) -> None:
     print(f"[INFO] Writing Silver parquet to: {silver_path}")
     (
         df.write.mode("overwrite")
-        .partitionBy("ingest_date")
+        .partitionBy("city_id", "year_month")
         .parquet(silver_path)
     )
 
@@ -318,12 +304,21 @@ def main():
     spark = (
         SparkSession.builder.appName("Bronze_to_Silver_flight_summary")
         .config("spark.sql.legacy.timeParserPolicy", "LEGACY")
+        .config(
+            "spark.jars.packages",
+            ",".join(
+                [
+                    "org.mongodb.spark:mongo-spark-connector_2.12:10.3.0",
+                    "com.mysql:mysql-connector-j:8.4.0",
+                ]
+            ),
+        )
         .getOrCreate()
     )
     spark.sparkContext.setLogLevel("WARN")
 
     try:
-        df_raw = read_bronze(spark, args.bronze_path, args.mode)
+        df_raw = read_google_normalized(spark, args.google_path)
         df_tripcom_avg = read_and_agg_tripcom_price(spark, args.tripcom_path)
         df_silver = transform_to_silver(df_raw, df_tripcom_avg)
         city_lookup = read_city_lookup(spark, args.db_url, args.db_user, args.db_password)
