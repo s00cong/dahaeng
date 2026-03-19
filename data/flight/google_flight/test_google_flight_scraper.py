@@ -200,6 +200,34 @@ class GoogleFlightScraperHelpersTest(unittest.TestCase):
         )
 
 
+    def test_filter_cities_by_env_keeps_requested_city_ids_only(self):
+        cities = [
+            {"city_id": "BULGAN"},
+            {"city_id": "IPOH"},
+            {"city_id": "TOKYO"},
+        ]
+
+        with patch.dict(MODULE.os.environ, {"CITY_IDS": "BULGAN, IPOH"}, clear=False):
+            filtered = MODULE.filter_cities_by_env(cities)
+
+        self.assertEqual(filtered, [{"city_id": "BULGAN"}, {"city_id": "IPOH"}])
+
+    def test_filter_months_by_env_keeps_requested_year_months_only(self):
+        months = [
+            {"year_month": "2026-03"},
+            {"year_month": "2026-04"},
+            {"year_month": "2026-05"},
+        ]
+
+        with patch.dict(MODULE.os.environ, {"YEAR_MONTHS": "2026-04,2026-05"}, clear=False):
+            filtered = MODULE.filter_months_by_env(months)
+
+        self.assertEqual(
+            filtered,
+            [{"year_month": "2026-04"}, {"year_month": "2026-05"}],
+        )
+
+
 class FakeLocator:
     def __init__(
         self,

@@ -1,15 +1,15 @@
 Jira/.env
 data/docs/.temp/*
-data/trip_com/bronze_airticket/*
-data/.runtime/
+data/flight/trip_com/bronze_airticket/*
+data/flight/.runtime/
 ### Spring Boot Config ###
 application.yml
 backend/dahaeng/.gradle-user-home/
 backend/dahaeng/.gradle-home/
 
-data/google_flight/*
+data/flight/google_flight/bronze_airticket/*
 .idea/*
-data/silver/*
+data/flight/silver/*
 
 # Global env files
 .env
@@ -20,6 +20,6 @@ data/silver/*
 deploy/app/.env
 deploy/app/.env.*
 !deploy/app/.env.example
-data/trip_com/__pycache__/*
+data/flight/trip_com/__pycache__/*
 
 docs/plans/*

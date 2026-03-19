@@ -2,13 +2,22 @@
 """Convert bronze crawler JSONL files into consolidated JSONL per source.
 
 Usage examples:
-  python convert_bronze_to_jsonl.py --source google_flight --outdir data/normalized --sample 50
-  python convert_bronze_to_jsonl.py --all --outdir data/normalized
+  python convert_bronze_to_jsonl.py --source google_flight --outdir data/flight/normalized --sample 50
+  python convert_bronze_to_jsonl.py --all --outdir data/flight/normalized
 """
 from pathlib import Path
 import argparse
 import json
 import sys
+
+
+BASE_DIR = Path(__file__).resolve().parent
+FLIGHT_ROOT = BASE_DIR.parent
+DEFAULT_OUTDIR = FLIGHT_ROOT / "normalized"
+SOURCE_ROOTS = {
+    "google_flight": FLIGHT_ROOT / "google_flight" / "bronze_airticket",
+    "trip_com": FLIGHT_ROOT / "trip_com" / "bronze_airticket",
+}
 
 
 def iter_jsonl(path: Path):
@@ -50,21 +59,16 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--source", choices=["google_flight", "trip_com"], help="Single source to process")
     group.add_argument("--all", action="store_true", help="Process all supported sources")
-    parser.add_argument("--outdir", default="data/normalized", help="Output directory for consolidated JSONL files")
+    parser.add_argument("--outdir", default=str(DEFAULT_OUTDIR), help="Output directory for consolidated JSONL files")
     parser.add_argument("--sample", type=int, default=0, help="If >0, stop after writing this many records per run (useful for testing)")
     args = parser.parse_args()
 
-    mapping = {
-        "google_flight": Path("data/google_flight/bronze_airticket"),
-        "trip_com": Path("data/trip_com/bronze_airticket"),
-    }
-
-    targets = [args.source] if args.source else list(mapping.keys())
+    targets = [args.source] if args.source else list(SOURCE_ROOTS.keys())
     outdir = Path(args.outdir)
 
     total = 0
     for s in targets:
-        in_root = mapping.get(s)
+        in_root = SOURCE_ROOTS.get(s)
         if in_root is None:
             print(f"Unknown source: {s}", file=sys.stderr)
             continue

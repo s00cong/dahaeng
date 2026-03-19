@@ -34,12 +34,12 @@ class RunResult:
 
 
 def repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parent
 
 
 def default_state_path(repo_root: Path | None = None) -> Path:
     root = repo_root or globals()["repo_root"]()
-    return root / "data" / ".runtime" / "pipeline_state.json"
+    return root / ".runtime" / "pipeline_state.json"
 
 
 def parse_args():
@@ -152,7 +152,7 @@ def build_execution_plan(
     runtime_config: dict[str, str] | None = None,
 ) -> list[Step]:
     config = runtime_config or build_runtime_config()
-    data_dir = repo_root / "data"
+    data_dir = repo_root
     normalized_dir = data_dir / "normalized"
     plan: list[Step] = []
 

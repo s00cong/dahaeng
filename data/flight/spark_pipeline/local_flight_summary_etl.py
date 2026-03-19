@@ -11,10 +11,10 @@ from city_id_mapping import parse_mysql_connection_info
 
 
 BASE_DIR = Path(__file__).resolve().parent
-REPO_ROOT = BASE_DIR.parents[1]
-DEFAULT_GOOGLE_PATH = REPO_ROOT / "data" / "normalized" / "google_flight.jsonl"
-DEFAULT_TRIP_PATH = REPO_ROOT / "data" / "normalized" / "trip_com.jsonl"
-DEFAULT_MAPPING_PATH = REPO_ROOT / "data" / "trip_com" / "city_airport_mapping.json"
+FLIGHT_ROOT = BASE_DIR.parent
+DEFAULT_GOOGLE_PATH = FLIGHT_ROOT / "normalized" / "google_flight.jsonl"
+DEFAULT_TRIP_PATH = FLIGHT_ROOT / "normalized" / "trip_com.jsonl"
+DEFAULT_MAPPING_PATH = FLIGHT_ROOT / "trip_com" / "city_airport_mapping.json"
 
 
 def parse_args():

@@ -108,6 +108,27 @@ def build_city_list(mapping_path: Path) -> list[dict]:
     return cities
 
 
+def parse_env_csv(name: str) -> list[str]:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return []
+    return [item.strip().upper() for item in raw.split(",") if item.strip()]
+
+
+def filter_cities_by_env(cities: list[dict]) -> list[dict]:
+    requested_city_ids = set(parse_env_csv("CITY_IDS"))
+    if not requested_city_ids:
+        return cities
+    return [city for city in cities if city.get("city_id", "").strip().upper() in requested_city_ids]
+
+
+def filter_months_by_env(months: list[dict]) -> list[dict]:
+    requested_year_months = set(parse_env_csv("YEAR_MONTHS"))
+    if not requested_year_months:
+        return months
+    return [month for month in months if month.get("year_month", "").strip().upper() in requested_year_months]
+
+
 def debug_log(message: str) -> None:
     if DEBUG_SEARCH:
         print(message)
@@ -1737,12 +1758,14 @@ async def main():
 
     # 도시 목록
     cities = build_city_list(MAPPING_PATH)
+    cities = filter_cities_by_env(cities)
     if max_cities:
         cities = cities[:max_cities]
     print(f"[Cities] {len(cities)} cities loaded.")
 
     # 수집 대상 월
     months = get_target_months(6)
+    months = filter_months_by_env(months)
     print(f"[Months] {[m['year_month'] for m in months]}")
 
     # 체크포인트
