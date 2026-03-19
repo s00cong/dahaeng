@@ -1,267 +1,276 @@
-﻿# App Compose Deployment Guide (EC2)
+﻿# App 배포 가이드 (EC2 + Docker Compose + Nginx + HTTPS)
 
-이 문서는 `deploy/app/docker-compose.yml` 기준으로 **backend + frontend 앱 스택**을 EC2에 배포/점검하는 절차를 정리합니다.
-DB(MySQL, MongoDB, Hadoop)는 별도 database compose에서 관리한다는 전제를 사용합니다.
+이 문서는 `deploy/app/docker-compose.yml` 기준으로 **백엔드(Spring Boot) + 프론트(Vite 정적 파일 + Nginx)** 를 EC2에 배포하는 방법을 설명합니다.
 
----
+핵심 목표는 다음 3가지입니다.
 
-## 0. 문서 범위
-
-* 대상: `backend`, `frontend`
-* 비대상: `ai`, `database compose` 자체 설정 변경
-* 원칙: 실제 비밀값은 Git에 올리지 않고, EC2의 `deploy/app/.env`로만 주입
+1. `backend`와 `frontend`를 Docker Compose로 안정적으로 실행
+2. 프론트에서 `/api` 요청을 nginx가 backend로 프록시
+3. certbot으로 Let's Encrypt 인증서를 발급받아 HTTPS 적용
 
 ---
 
-## 1. EC2 사전 준비 사항
+## 1. 이 배포가 실제로 하는 일
 
-### 1-1. Docker / Docker Compose 확인
+구조를 먼저 이해하면 명령어가 쉬워집니다.
+
+- 브라우저 -> `https://도메인`
+- EC2의 `frontend` 컨테이너(nginx)가 443(HTTPS)로 요청 수신
+- 정적 파일(`/`, `/assets/*`)은 nginx가 직접 응답
+- API 요청(`/api/*`)은 nginx가 `backend:8080`으로 전달(reverse proxy)
+- 인증서 발급/갱신은 `certbot` 컨테이너가 수행
+
+즉, 외부에서는 프론트만 보이고, 백엔드는 내부 네트워크로만 통신합니다.
+
+---
+
+## 2. 준비물
+
+### 2-1. EC2 서버 준비
+
+- Docker 설치
+- Docker Compose v2 설치 (`docker compose` 명령)
+- 80/443 포트 오픈
+  - EC2 Security Group 인바운드: TCP 80, 443 허용
+  - 서버 방화벽 사용 시(`ufw`, `firewalld`) 80/443 허용
+
+확인 명령:
 
 ```bash
 docker --version
 docker compose version
 ```
 
-### 1-2. External Network 준비
+### 2-2. 도메인 준비
 
-앱 compose와 DB compose를 분리 유지하면서 컨테이너 간 통신을 하려면 공통 external network가 필요합니다.
+- A 레코드가 EC2 Public IP를 가리켜야 함
+  - `dahaeng.site`
+  - `j14d206.p.ssafy.io`
 
-`deploy/app/docker-compose.yml` 기본값
+DNS 전파 전에는 인증서 발급이 실패할 수 있습니다.
 
-* `DB_EXTERNAL_NETWORK=dahaeng-db-net`
+### 2-3. 프로젝트 위치(예시)
 
-네트워크가 없다면 생성합니다.
+```text
+/home/ubuntu/S14P21D206/
+  ├─ backend/dahaeng
+  ├─ frontend
+  └─ deploy/app
+      ├─ docker-compose.yml
+      ├─ .env.example
+      └─ .env   # 직접 생성
+```
+
+---
+
+## 3. 환경변수(.env) 만들기
+
+`deploy/app/.env.example` 기반으로 `.env`를 만듭니다.
+
+```bash
+cd /home/ubuntu/S14P21D206
+cp deploy/app/.env.example deploy/app/.env
+vi deploy/app/.env
+```
+
+최소 확인 항목:
+
+- DB 연결
+  - `DB_URL`
+  - `DB_USERNAME`
+  - `DB_PASSWORD`
+  - `MONGODB_URI`
+- 인증/외부 API
+  - `JWT_SECRET`
+  - `OPENAI_API_KEY`
+  - `GOOGLE_CLIENT_ID`
+  - `GOOGLE_CLIENT_SECRET`
+- 프론트 빌드 변수
+  - `VITE_API_BASE_URL=/api`
+  - `VITE_GOOGLE_CLIENT_ID`
+- OAuth 리다이렉트
+  - `GOOGLE_REDIRECT_URI=https://<도메인>/login/oauth2/code/google`
+  - `FRONT_CALLBACK_URL=https://<도메인>/`
+
+주의:
+
+- `VITE_*` 값은 **빌드 타임 변수**입니다.
+- 값 변경 후에는 반드시 `--build`로 프론트를 재빌드해야 반영됩니다.
+
+---
+
+## 4. 네트워크 준비
+
+앱 compose와 DB compose를 분리 운영하는 경우 external network를 맞춰야 합니다.
+
+기본 네트워크명: `dahaeng-db-net`
 
 ```bash
 docker network create dahaeng-db-net
 ```
 
-### 1-3. Database Compose 선기동 확인
-
-앱 stack 실행 전 database compose의 DB 컨테이너가 먼저 실행되어 있어야 합니다.
-
-예시 서비스명
-
-* MySQL: `mysql`
-* MongoDB: `mongodb`
-
-backend DB host는 **container_name이 아니라 database compose의 service name**을 사용합니다.
-
-```text
-DB_URL=jdbc:mysql://mysql:3306/dahang
-MONGODB_URI=mongodb://mongodb:27017/dahang
-```
-
-### 1-4. EC2 디렉토리 구조 예시
-
-```text
-/home/ubuntu/
-└── S14P21D206/
-    ├── backend/
-    │   └── dahaeng/
-    ├── frontend/
-    └── deploy/
-        └── app/
-            ├── docker-compose.yml
-            ├── .env.example
-            └── .env   # 직접 생성 (Git 미추적)
-```
+이미 있으면 에러가 나도 무시해도 됩니다.
 
 ---
 
-## 2. 최초 배포 절차
+## 5. 1차 실행(HTTP 상태 확인)
 
-### 2-1. GitLab clone
-
-```bash
-cd /home/ubuntu
-git clone <YOUR_GITLAB_REPO_URL> S14P21D206
-cd S14P21D206
-```
-
-### 2-2. `.env` 생성
-
-`deploy/app/.env.example`을 기반으로 `.env` 파일을 생성합니다.
+먼저 앱을 올려 컨테이너가 정상 동작하는지 확인합니다.
 
 ```bash
-cp deploy/app/.env.example deploy/app/.env
-vi deploy/app/.env
-```
-
-필수 확인
-
-* backend runtime env
-
-  * `DB_URL`
-  * `DB_PASSWORD`
-  * `JWT_SECRET`
-  * `OPENAI_API_KEY`
-
-* frontend build env
-
-  * `VITE_API_BASE_URL`
-  * `VITE_GOOGLE_CLIENT_ID`
-  * `VITE_ENABLE_MSW`
-
-* `DB_EXTERNAL_NETWORK`
-
-### 2-3. 앱 스택 빌드 및 기동
-
-```bash
+cd /home/ubuntu/S14P21D206
 docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
 ```
 
+상태 확인:
+
+```bash
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env ps
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs backend
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs frontend
+```
+
+점검 포인트:
+
+- `backend`, `frontend`가 `Up`
+- 브라우저에서 `http://도메인` 접속 가능
+- 프론트에서 `/api` 호출 시 백엔드 응답 확인
+
 ---
 
-## 3. 재배포 절차
+## 6. HTTPS 적용 (Certbot)
+
+현재 nginx 설정은 아래 흐름으로 동작합니다.
+
+- 80 포트: ACME 챌린지(`/.well-known/acme-challenge/`) 응답 + 그 외는 HTTPS로 리다이렉트
+- 443 포트: SSL 인증서로 실제 서비스
+
+### 6-1. 인증서 최초 발급 (1회)
 
 ```bash
 cd /home/ubuntu/S14P21D206
 
-git pull
+# frontend를 먼저 올려서 ACME 경로 응답 가능하게 함
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d frontend
 
+# certbot으로 인증서 발급
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env run --rm certbot certonly \
+  --webroot -w /var/www/certbot \
+  -d dahaeng.site -d j14d206.p.ssafy.io \
+  --email <YOUR_EMAIL> --agree-tos --no-eff-email
+```
+
+성공 후 nginx 재로딩:
+
+```bash
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build frontend
+```
+
+### 6-2. 인증서 갱신
+
+수동 갱신 테스트:
+
+```bash
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env run --rm certbot renew --webroot -w /var/www/certbot
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env exec -T frontend nginx -s reload
+```
+
+자동 갱신(권장: 매일 새벽 3시, 만료 임박 시에만 실제 갱신됨):
+
+```cron
+0 3 * * * cd /home/ubuntu/S14P21D206 && docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env run --rm certbot renew --webroot -w /var/www/certbot --quiet && docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env exec -T frontend nginx -s reload
+```
+
+---
+
+## 7. 최종 검증 체크리스트
+
+배포 후 아래 항목을 모두 확인하세요.
+
+- `https://dahaeng.site` 접속 가능
+- 주소창 자물쇠(인증서 정상)
+- `http://dahaeng.site` 접속 시 `https://...`로 리다이렉트
+- 프론트 페이지 새로고침 시 404 없이 동작(SPA fallback)
+- `/api/*` 호출이 정상 응답
+- OAuth 로그인 사용 시 Google Console redirect URI가 HTTPS 주소와 일치
+
+---
+
+## 8. 재배포 절차 (코드 변경 후)
+
+```bash
+cd /home/ubuntu/S14P21D206
+git pull
 docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
 ```
 
-불필요 이미지 정리
+정리:
 
 ```bash
 docker image prune -f
 ```
 
-⚠️ **중요**
+---
 
-`VITE_*` 값은 **빌드 타임 변수**입니다.
+## 9. 자주 발생하는 문제
 
-`.env` 수정 후 반드시 아래 명령으로 재빌드해야 프론트엔드에 반영됩니다.
+### 9-1. 443 접속이 안 됨
 
-```bash
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
-```
+- Security Group 443 오픈 여부 확인
+- 인증서 파일 존재 확인:
+  - `/home/ubuntu/S14P21D206/deploy/app/certbot/conf/live/dahaeng.site/fullchain.pem`
+- `frontend` 로그에 SSL 관련 에러 확인
+
+### 9-2. certbot 발급 실패
+
+- 도메인 A 레코드가 EC2 IP를 가리키는지 확인
+- 80 포트가 외부에서 열려 있는지 확인
+- `/.well-known/acme-challenge/*` 경로가 nginx에서 응답 가능한지 확인
+
+### 9-3. 프론트는 뜨는데 API 실패
+
+- `frontend/nginx.conf`의 `proxy_pass http://backend:8080/api/;` 확인
+- `backend` 컨테이너 상태/로그 확인
+- `VITE_API_BASE_URL=/api`인지 확인 후 프론트 재빌드
+
+### 9-4. .env 바꿨는데 프론트 반영 안 됨
+
+- 프론트는 빌드 타임 변수이므로 반드시 `--build` 재배포 필요
 
 ---
 
-## 4. 점검 체크리스트
+## 10. 운영 보안 메모
 
-```text
-[배포 후 기본 점검]
-[ ] docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env ps
-[ ] docker ps 에서 backend/frontend 컨테이너가 Up 상태
-[ ] 브라우저에서 frontend 접속 확인 (EC2 Public IP 또는 도메인)
-[ ] frontend에서 /api 호출 시 정상 응답 (nginx → backend 프록시)
-[ ] backend 로그에서 Spring Boot 정상 기동 확인
-[ ] backend 로그에서 MySQL / MongoDB 연결 성공 확인
-[ ] docker network inspect dahaeng-db-net 으로 backend + DB 컨테이너 네트워크 연결 확인
-```
-
-추천 점검 명령
-
-```bash
-# 상태 확인
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env ps
-
-# compose 기반 로그 확인
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs backend
-
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs frontend
-
-# 특정 컨테이너 로그 확인 (선택)
-docker logs --tail 200 <backend-container-name>
-
-docker logs --tail 200 <frontend-container-name>
-
-# 네트워크 확인
-docker network inspect dahaeng-db-net
-```
-
-확인 포인트
-
-* backend 컨테이너 존재
-* mysql 컨테이너 존재
-* mongodb 컨테이너 존재
+- `.env` 파일은 절대 Git에 커밋하지 않음
+- 노출된 비밀값은 즉시 폐기/재발급
+- 운영에서 백엔드 포트(8080) 외부 직접 노출 금지
 
 ---
 
-## 5. 장애 확인 포인트
-
-### 5-1. frontend는 뜨는데 API가 안 될 때
-
-확인 사항
-
-* `frontend/nginx.conf`의
-
-```text
-proxy_pass http://backend:8080/api/
-```
-
-* compose 서비스명이 `backend`인지 확인
-* backend 컨테이너 상태 및 로그 확인
-* backend가 `app-internal` 네트워크에 연결되어 있는지 확인
-
-### 5-2. backend DB 연결 실패
-
-확인 사항
-
-* `DB_URL`, `MONGODB_URI` host가 DB 서비스명과 일치하는지 확인
-
-* MySQL → `mysql`
-
-* MongoDB → `mongodb`
-
-* DB 컨테이너 정상 실행 여부 확인
-
-* `DB_EXTERNAL_NETWORK` 값이 DB compose 네트워크와 동일한지 확인
-
-### 5-3. `VITE_*` 값 반영이 안 될 때
-
-원인
-
-`.env` 수정 후 재빌드 없이 컨테이너만 재기동한 경우
-
-해결
+## 11. 빠른 실행 요약 (처음 하는 사람용)
 
 ```bash
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
-```
+# 1) 프로젝트 이동
+cd /home/ubuntu/S14P21D206
 
-### 5-4. nginx reverse proxy 문제
+# 2) .env 생성
+cp deploy/app/.env.example deploy/app/.env
+vi deploy/app/.env
 
-확인 사항
+# 3) 네트워크 생성 (최초 1회)
+docker network create dahaeng-db-net
 
-* frontend 컨테이너 내부 nginx 설정 반영 여부
-* `/api` 요청이 backend로 전달되는지 확인
-* backend API context path와 `/api` prefix 일치 여부 확인
-
----
-
-## 6. 운영 주의사항
-
-* `.env` 파일은 **절대 Git에 커밋하지 않습니다.**
-* 과거 노출된 비밀값은 즉시 **재발급 또는 폐기 후 교체**해야 합니다.
-* backend `8080` 포트 외부 노출은 **초기 점검 시에만 임시 사용**합니다.
-* 운영 환경에서는 backend 포트를 외부에 노출하지 않습니다.
-* DB host는 `container_name`이 아니라 **database compose service name 기준**으로 사용합니다.
-
----
-
-## 7. 참고 실행 명령
-
-```bash
-# 앱 기동
-
+# 4) 앱 기동
 docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
 
-# 상태 확인
+# 5) 인증서 발급 (최초 1회)
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env run --rm certbot certonly \
+  --webroot -w /var/www/certbot \
+  -d dahaeng.site -d j14d206.p.ssafy.io \
+  --email <YOUR_EMAIL> --agree-tos --no-eff-email
 
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env ps
-
-# 로그 확인
-
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs backend
-
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs frontend
-
-# 중지
-
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env down
+# 6) 프론트 재기동
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build frontend
 ```
+
+이 6단계가 완료되면 HTTPS 배포가 동작해야 합니다.
