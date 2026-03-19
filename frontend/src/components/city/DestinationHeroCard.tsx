@@ -12,6 +12,7 @@ import {
   BookOpen,
   Tag,
   AlertTriangle,
+  ChevronDown,
   type LucideIcon,
 } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
@@ -40,6 +41,47 @@ function getKeywordIcon(keyword: string): LucideIcon {
     if (patterns.some((p) => lower.includes(p))) return icon;
   }
   return Tag;
+}
+
+function DangerDropdown({ items }: { items: { level: string; description: string | null }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="flex flex-col bg-amber-500/20 backdrop-blur-md border border-amber-500/40 rounded-xl overflow-hidden"
+    >
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between gap-2 px-3 py-2 text-amber-300 hover:bg-amber-500/10 transition-colors"
+      >
+        <div className="flex items-center gap-1.5">
+          <AlertTriangle className="size-3.5 shrink-0" />
+          <span className="text-[10px] font-bold uppercase tracking-wide">여행 안전 정보</span>
+        </div>
+        <ChevronDown
+          className={`size-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <ul className="flex flex-col divide-y divide-white/10 px-3 pb-2.5">
+          {items.map((item, i) => (
+            <li key={i} className="flex flex-col gap-1 py-1.5 first:pt-1 last:pb-0">
+              <span className={`self-start text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                item.level === "여행금지" ? "bg-red-500/30 text-red-300" :
+                item.level === "출국권고" ? "bg-orange-500/30 text-orange-300" :
+                item.level === "여행자제" ? "bg-amber-500/30 text-amber-300" :
+                "bg-yellow-500/30 text-yellow-300"
+              }`}>{item.level}</span>
+              {item.description && (
+                <p className="text-[11px] text-white/70 leading-relaxed">{item.description}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </motion.div>
+  );
 }
 
 interface BookmarkButtonProps {
@@ -99,16 +141,16 @@ interface KeywordTagsProps {
 
 function KeywordTags({ keywords }: KeywordTagsProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {keywords.map((keyword) => {
         const Icon = getKeywordIcon(keyword);
         return (
           <span
             key={keyword}
-            className="flex items-center gap-1.5 backdrop-blur-md bg-white/10 border border-white/20 rounded-full px-3 py-1.5"
+            className="flex items-center gap-1 backdrop-blur-md bg-white/10 border border-white/20 rounded-full px-2 py-1"
           >
-            <Icon className="size-4 text-white/80 shrink-0" />
-            <span className="text-sm font-medium text-white">#{keyword}</span>
+            <Icon className="size-3 text-white/80 shrink-0" />
+            <span className="text-xs font-medium text-white">#{keyword}</span>
           </span>
         );
       })}
@@ -174,16 +216,7 @@ export function DestinationHeroCard({
 
         {/* Danger Alert Section */}
         {city.danger && city.danger.items.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2 px-3 py-2 bg-amber-500/20 backdrop-blur-md border border-amber-500/40 rounded-xl text-amber-200"
-          >
-            <AlertTriangle className="size-4 shrink-0 text-amber-400" />
-            <span className="text-xs font-bold leading-tight">
-              {city.danger.items.map((item) => item.description).join(' / ')}
-            </span>
-          </motion.div>
+          <DangerDropdown items={city.danger.items} />
         )}
       </div>
 
