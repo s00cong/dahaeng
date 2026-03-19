@@ -3,9 +3,12 @@ import json
 import glob
 from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent
+FLIGHT_ROOT = BASE_DIR.parent
+
 # Load English mapping
-eng_mapping_file = r'c:\Users\SSAFY\Desktop\soob\S14P21D206\data\trip_com\en_city_airport_mapping.json'
-with open(eng_mapping_file, 'r', encoding='utf-8') as f:
+eng_mapping_file = BASE_DIR / "en_city_airport_mapping.json"
+with eng_mapping_file.open('r', encoding='utf-8') as f:
     en_mapping = json.load(f)
 
 # Create a reverse mapping for quick lookup: airport_code -> (country_en, city_en)
@@ -66,18 +69,18 @@ def process_bronze_file(file_path):
 def main():
     # Base directories to search for bronze_airticket folders
     base_dirs = [
-        r'c:\Users\SSAFY\Desktop\soob\S14P21D206\data\trip_com\bronze_airticket',
-        r'c:\Users\SSAFY\Desktop\soob\S14P21D206\data\google_flight\bronze_airticket'
+        BASE_DIR / "bronze_airticket",
+        FLIGHT_ROOT / "google_flight" / "bronze_airticket",
     ]
     
     total_files_processed = 0
     total_files_updated = 0
     
     for base_dir in base_dirs:
-        if not os.path.exists(base_dir):
+        if not base_dir.exists():
             continue
             
-        jsonl_files = glob.glob(os.path.join(base_dir, '**', '*.jsonl'), recursive=True)
+        jsonl_files = glob.glob(os.path.join(str(base_dir), '**', '*.jsonl'), recursive=True)
         for j_file in jsonl_files:
             total_files_processed += 1
             if process_bronze_file(j_file):

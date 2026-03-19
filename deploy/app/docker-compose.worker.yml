@@ -1,10 +1,29 @@
 services:
+  flight-data-worker:
+    build:
+      context: ../..
+      dockerfile: deploy/data/Dockerfile
+    env_file:
+      - ${WORKER_ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      DB_URL: ${DB_URL:-jdbc:mysql://mysql:3306/dahaeng}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/dahaeng}
+    restart: "no"
+    working_dir: /workspace
+    volumes:
+      - ../..:/workspace
+    networks:
+      - db-external
+
   danger-worker:
     build:
       context: ../../data/danger
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - ${WORKER_ENV_FILE:-.env}
     environment:
       TZ: ${TZ:-Asia/Seoul}
       APP_RUNTIME: docker
@@ -22,7 +41,7 @@ services:
       context: ../../data/exchange
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - ${WORKER_ENV_FILE:-.env}
     environment:
       TZ: ${TZ:-Asia/Seoul}
       APP_RUNTIME: docker
@@ -40,7 +59,7 @@ services:
       context: ../../data/livingcost
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - ${WORKER_ENV_FILE:-.env}
     environment:
       TZ: ${TZ:-Asia/Seoul}
       APP_RUNTIME: docker
