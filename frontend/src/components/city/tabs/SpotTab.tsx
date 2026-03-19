@@ -27,6 +27,8 @@ import { useGeoapifySpots } from "@/hooks/spot/useGeoapifySpots";
 import { type OtmSpot, getKindLabel } from "@/api/opentripmap.api";
 import { type GeoapifySpot } from "@/api/geoapify.api";
 import type { Place } from "@/api/places.api";
+import { useNearbyAttractions } from "@/hooks/spot/useNearbyAttractions";
+import type { NearbyAttractionFeature } from "@/api/nearbyAttractions.api";
 
 interface SpotTabProps {
   city: CityDetail;
@@ -415,6 +417,68 @@ function GeoapifySpotCard({ spot }: { spot: GeoapifySpot }) {
   );
 }
 
+// ── 5. 근처 관광지 카드 (/api/{cityId}/nearby-attractions) ────────────────────
+
+function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature }) {
+  const p = feature.properties;
+  const category = p.categories?.[0] ?? null;
+
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-orange-200 hover:shadow-sm transition-all">
+      {/* 카테고리 뱃지 */}
+      {category && (
+        <span className="self-start text-[9px] font-medium text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-1.5 py-0.5 truncate">
+          {category.replace(/_/g, ' ')}
+        </span>
+      )}
+
+      {/* 이름 */}
+      <p className="text-xs font-semibold text-foreground leading-snug">{p.name}</p>
+
+      {/* 설명 */}
+      {p.description && (
+        <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
+          {p.description}
+        </p>
+      )}
+
+      {/* 주소 */}
+      {p.formatted && (
+        <div className="flex items-start gap-1 text-[10px] text-muted-foreground">
+          <MapPin className="size-2.5 shrink-0 mt-0.5" />
+          <span className="line-clamp-1">{p.formatted}</span>
+        </div>
+      )}
+
+      {/* 운영시간 */}
+      {p.opening_hours && (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <Clock className="size-2.5 shrink-0" />
+          <span className="truncate">{p.opening_hours}</span>
+        </div>
+      )}
+
+      {/* 링크 */}
+      {(p.website || p.wiki_and_media?.wikipedia) && (
+        <div className="flex gap-1.5 mt-1">
+          {p.website && (
+            <a href={p.website} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-orange-300 hover:text-orange-600 transition-colors text-[10px] text-muted-foreground">
+              <Globe className="size-2.5" />웹사이트
+            </a>
+          )}
+          {p.wiki_and_media?.wikipedia && (
+            <a href={p.wiki_and_media.wikipedia} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-orange-300 hover:text-orange-600 transition-colors text-[10px] text-muted-foreground">
+              <BookOpen className="size-2.5" />위키
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── 스켈레톤 ─────────────────────────────────────────────────────────────────
 
 function CardSkeleton({ count = 3 }: { count?: number }) {
@@ -440,7 +504,7 @@ interface MapMarker {
   lat: number;
   lon: number;
   name: string;
-  type: "ai" | "place";
+  type: "ai" | "place" | "nearby";
   tagName?: string;
   score?: number;
 }
@@ -472,7 +536,9 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
               className={`flex items-center justify-center rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform ${
                 m.type === "ai"
                   ? "w-7 h-7 bg-amber-400"
-                  : "w-6 h-6 bg-blue-500"
+                  : m.type === "nearby"
+                    ? "w-6 h-6 bg-orange-400"
+                    : "w-6 h-6 bg-blue-500"
               }`}
               title={m.name}
             >
@@ -528,6 +594,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
   const { data: places, isLoading: isPlacesLoading } = usePlaces(city.cityId);
   const { data: otmSpots, isLoading: isOtmLoading } = useOpenTripMapSpots(lat, lon);
   const { data: geoapifySpots, isLoading: isGeoapifyLoading } = useGeoapifySpots(lat, lon);
+  const { data: nearbyAttractions } = useNearbyAttractions(city.cityId);
 
   // 이미지 로드 실패한 spot 제거
   const visibleOtmSpots = otmSpots?.filter((s) => !failedXids.has(s.xid)) ?? [];
@@ -537,7 +604,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
     ? city.touristSpot
     : null;
 
-  // 지도 마커 생성 (AI 추천 + 명소, 좌표 있는 것만)
+  // 지도 마커 생성 (AI 추천 + 근처 관광지, 좌표 있는 것만)
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const markers: MapMarker[] = [];
     touristSpots?.forEach((s, i) => {
@@ -553,9 +620,14 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
         });
       }
     });
-    // places는 좌표 없으므로 스킵
+    nearbyAttractions?.forEach((f, i) => {
+      const { lat: fLat, lon: fLon, name } = f.properties;
+      if (fLat != null && fLon != null) {
+        markers.push({ id: `nearby-${i}`, lat: fLat, lon: fLon, name, type: "nearby" });
+      }
+    });
     return markers;
-  }, [touristSpots, places]);
+  }, [touristSpots, nearbyAttractions]);
 
   const centerLat = lat ?? city.latitude ?? 0;
   const centerLon = lon ?? city.longitude ?? 0;
@@ -687,6 +759,22 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                 <p className="text-xs text-muted-foreground py-4 text-center">관광지 데이터를 불러올 수 없습니다.</p>
               )}
             </section>
+
+            {/* ── Section 5: 근처 관광지 (/api/{cityId}/nearby-attractions) ── */}
+            {nearbyAttractions && nearbyAttractions.length > 0 && (
+              <section>
+                <SectionHeader
+                  icon={<MapPin className="size-4 text-orange-500" />}
+                  title="근처 관광지"
+                  sub={`${nearbyAttractions.length}곳`}
+                />
+                <div className="grid grid-cols-2 gap-2.5">
+                  {nearbyAttractions.map((feature, i) => (
+                    <NearbyAttractionCard key={i} feature={feature} />
+                  ))}
+                </div>
+              </section>
+            )}
 
           </div>
         </motion.div>

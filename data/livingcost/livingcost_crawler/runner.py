@@ -6,15 +6,14 @@ from typing import Any, Dict, List
 from scrapling.fetchers import Fetcher
 
 from .db_ops import (
+    bulk_upsert_city_costs,
+    bulk_upsert_country_costs,
     get_city_id_by_country_city_name,
     get_country_id_by_name,
     seed_locations_if_missing,
     soft_delete_existing_price_data,
-    upsert_city_cost,
-    upsert_country_cost,
 )
 from .scrape_ops import extract_selected_prices_from_cost_page
-from .text_utils import normalize_key
 from .url_resolver import build_verified_url_indexes, resolve_urls_from_verified
 
 
@@ -38,10 +37,11 @@ def run_batch(
     db_conn = get_db_connection()
     try:
         create_tables_if_not_exists(db_conn)
-        soft_delete_existing_price_data(db_conn)
         seed_locations_if_missing(db_conn, countries_cities)
         country_id_map: Dict[str, int] = {}
         city_id_map: Dict[tuple[str, str], int] = {}
+        successful_country_rows: List[tuple[int, Dict[str, Any]]] = []
+        successful_city_rows: List[tuple[int, Dict[str, Any]]] = []
 
         for country, cities in countries_cities.items():
             country_id = get_country_id_by_name(db_conn, country)
@@ -61,43 +61,58 @@ def run_batch(
                 print(f"[ERROR] missing country id: {country}")
                 continue
 
+            print(f"[CRAWL] country={country} country_id={country_id} url={country_url}")
             try:
                 country_data = extract_selected_prices_from_cost_page(fetcher, country_url, target_schema)
-                upsert_country_cost(db_conn, country_id, country_data)
-                print(f"[OK] {country} - COUNTRY -> {country_url}")
+                successful_country_rows.append((country_id, country_data))
+                print(f"[OK] country={country} country_id={country_id} scope=COUNTRY url={country_url}")
             except Exception as exc:
-                print(f"[ERROR] failed country fetch/insert: {country} -> {exc}")
+                print(f"[ERROR] failed country fetch: country={country} country_id={country_id} error={exc}")
 
-            normalized_country = normalize_key(country)
-            normalized_cities = [normalize_key(city_name) for city_name in cities]
-            should_skip_country_named_city = len(cities) == 1 and normalized_cities[0] == normalized_country
-            target_cities = [] if should_skip_country_named_city else cities
-
-            for city in target_cities:
+            for city in cities:
                 _, city_url = resolve_urls_from_verified(country, city, country_url_index, city_url_index)
                 if not city_url:
-                    print(f"[MISS] {country} - {city} (city url not found)")
+                    print(f"[MISS] country={country} country_id={country_id} city={city} (city url not found)")
                     continue
 
                 city_id = city_id_map.get((country, city))
                 if city_id is None:
-                    print(f"[ERROR] missing city id: {country} - {city}")
+                    print(f"[ERROR] missing city id: country={country} country_id={country_id} city={city}")
                     continue
 
+                print(
+                    f"[CRAWL] country={country} country_id={country_id} "
+                    f"city={city} city_id={city_id} url={city_url}"
+                )
                 try:
                     city_data = extract_selected_prices_from_cost_page(fetcher, city_url, target_schema)
                 except Exception as exc:
-                    print(f"[ERROR] failed city fetch: {country} - {city} -> {exc}")
+                    print(
+                        f"[ERROR] failed city fetch: country={country} country_id={country_id} "
+                        f"city={city} city_id={city_id} error={exc}"
+                    )
                     continue
 
                 try:
-                    upsert_city_cost(db_conn, city_id, city_data)
+                    successful_city_rows.append((city_id, city_data))
                 except Exception as exc:
-                    print(f"[ERROR] failed city DB insert: {country} - {city} -> {exc}")
+                    print(
+                        f"[ERROR] failed city staging: country={country} country_id={country_id} "
+                        f"city={city} city_id={city_id} error={exc}"
+                    )
                     continue
 
-                print(f"[OK] {country} - {city} -> {city_url}")
+                print(
+                    f"[OK] country={country} country_id={country_id} "
+                    f"city={city} city_id={city_id} url={city_url}"
+                )
                 time.sleep(sleep_seconds)
+
+        if successful_country_rows or successful_city_rows:
+            soft_delete_existing_price_data(db_conn)
+            bulk_upsert_country_costs(db_conn, successful_country_rows)
+            bulk_upsert_city_costs(db_conn, successful_city_rows)
+            db_conn.commit()
 
         print("\nDONE")
     finally:

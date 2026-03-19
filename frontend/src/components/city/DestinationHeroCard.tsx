@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import { useCreateBookmark } from "@/hooks/bookmark/useCreateBookmark";
+import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
+import defaultCityImg from "@/assets/no-picture.png";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
 
@@ -43,7 +45,11 @@ function getKeywordIcon(keyword: string): LucideIcon {
   return Tag;
 }
 
-function DangerDropdown({ items }: { items: { level: string; description: string | null }[] }) {
+function DangerDropdown({
+  items,
+}: {
+  items: { level: string; description: string | null }[];
+}) {
   const [open, setOpen] = useState(false);
   return (
     <motion.div
@@ -57,7 +63,9 @@ function DangerDropdown({ items }: { items: { level: string; description: string
       >
         <div className="flex items-center gap-1.5">
           <AlertTriangle className="size-3.5 shrink-0" />
-          <span className="text-[10px] font-bold uppercase tracking-wide">여행 안전 정보</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide">
+            여행 안전 정보
+          </span>
         </div>
         <ChevronDown
           className={`size-3.5 shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -66,15 +74,27 @@ function DangerDropdown({ items }: { items: { level: string; description: string
       {open && (
         <ul className="flex flex-col divide-y divide-white/10 px-3 pb-2.5">
           {items.map((item, i) => (
-            <li key={i} className="flex flex-col gap-1 py-1.5 first:pt-1 last:pb-0">
-              <span className={`self-start text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                item.level === "여행금지" ? "bg-red-500/30 text-red-300" :
-                item.level === "출국권고" ? "bg-orange-500/30 text-orange-300" :
-                item.level === "여행자제" ? "bg-amber-500/30 text-amber-300" :
-                "bg-yellow-500/30 text-yellow-300"
-              }`}>{item.level}</span>
+            <li
+              key={i}
+              className="flex flex-col gap-1 py-1.5 first:pt-1 last:pb-0"
+            >
+              <span
+                className={`self-start text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  item.level === "여행금지"
+                    ? "bg-red-500/30 text-red-300"
+                    : item.level === "출국권고"
+                      ? "bg-orange-500/30 text-orange-300"
+                      : item.level === "여행자제"
+                        ? "bg-amber-500/30 text-amber-300"
+                        : "bg-yellow-500/30 text-yellow-300"
+                }`}
+              >
+                {item.level}
+              </span>
               {item.description && (
-                <p className="text-[11px] text-white/70 leading-relaxed">{item.description}</p>
+                <p className="text-[11px] text-white/70 leading-relaxed">
+                  {item.description}
+                </p>
               )}
             </li>
           ))}
@@ -164,6 +184,9 @@ export function DestinationHeroCard({
 }: DestinationHeroCardProps) {
   const [imgError, setImgError] = useState(false);
   const { closeCityModal, selectedCityImgUrl } = useUiStore();
+  const { data: flagMap } = useCountryFlagMap();
+  const countryName = city.danger?.countryName ?? city.countryName;
+  const flagUrl = flagMap?.get(countryName);
 
   // tagScore 내림차순 정렬 후 상위 10개
   const displayKeywords = city.tags
@@ -181,18 +204,12 @@ export function DestinationHeroCard({
       )}
     >
       {/* Background image */}
-      {!imgError && (city.imgUrl || selectedCityImgUrl) ? (
-        <img
-          src={city.imgUrl || selectedCityImgUrl!}
-          alt={city.cityName}
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={() => setImgError(true)}
-        />
-      ) : (
-        <div className="absolute inset-0 bg-slate-700 flex items-center justify-center">
-          <Landmark className="size-16 text-slate-500" />
-        </div>
-      )}
+      <img
+        src={imgError || !(city.imgUrl || selectedCityImgUrl) ? defaultCityImg : (city.imgUrl || selectedCityImgUrl!)}
+        alt={city.cityName}
+        className="absolute inset-0 w-full h-full object-cover"
+        onError={() => setImgError(true)}
+      />
 
       {/* Gradient overlay — stronger at bottom for readability */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
@@ -230,15 +247,19 @@ export function DestinationHeroCard({
           <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md">
             {city.cityName}
           </h2>
-          <p className="text-sm text-white/70 mt-1">
-            {city.danger?.countryName ?? city.countryName}
+          <p className="text-sm text-white/70 mt-1 flex items-center gap-1.5">
+            {flagUrl && (
+              <img src={flagUrl} alt="" className="h-3.5 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
+            )}
+            {countryName}
           </p>
         </div>
 
         {/* 매칭 스코어 + 하트 버튼 (추천 도시만) */}
-        {city.score?.finalScore !== undefined && city.score.finalScore !== null && (
-          <MatchCard score={city.score.finalScore} city={city} />
-        )}
+        {city.score?.finalScore !== undefined &&
+          city.score.finalScore !== null && (
+            <MatchCard score={city.score.finalScore} city={city} />
+          )}
 
         {/* Glassmorphism keyword tags */}
         {displayKeywords.length > 0 && (

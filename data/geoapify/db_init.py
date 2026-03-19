@@ -1,6 +1,9 @@
-"""Connection helpers for the living cost pipeline."""
+"""MySQL connection helpers for the Geoapify cache loader."""
+
+from __future__ import annotations
 
 import os
+
 import pymysql
 
 
@@ -24,7 +27,7 @@ def _runtime_defaults() -> dict[str, str]:
 
 
 def get_db_connection():
-    """Open DB connection with runtime-aware defaults (local/docker)."""
+    """Open a pymysql connection with runtime-aware defaults."""
     defaults = _runtime_defaults()
     db_user = os.getenv("DB_USER") or os.getenv("DB_USERNAME") or defaults["user"]
     db_name = os.getenv("DB_NAME") or os.getenv("MYSQL_DATABASE") or defaults["database"]
@@ -36,13 +39,5 @@ def get_db_connection():
         charset="utf8mb4",
         autocommit=False,
         port=int(os.getenv("DB_PORT", defaults["port"])),
+        cursorclass=pymysql.cursors.DictCursor,
     )
-
-
-def create_tables_if_not_exists(conn=None):
-    """Kept for backward compatibility; schema creation is no longer handled here."""
-    return None
-
-
-if __name__ == "__main__":
-    print("data/livingcost/db_init.py only provides DB connection helpers.")

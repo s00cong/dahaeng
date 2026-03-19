@@ -47,6 +47,26 @@ DEBUG_SEARCH = os.environ.get("DEBUG_SEARCH", "0") == "1"
 SPECIAL_CITY_QUERY_TERMS = {"AGRA": ["아그라 인도"]}
 
 
+def get_browser_slow_mo(headless: bool) -> int:
+    raw = os.environ.get("GOOGLE_FLIGHT_SLOW_MO_MS", "").strip()
+    if raw:
+        try:
+            return max(0, int(raw))
+        except ValueError:
+            pass
+    return 0
+
+
+def get_result_refresh_timeout_ms() -> int:
+    raw = os.environ.get("GOOGLE_FLIGHT_RESULT_REFRESH_TIMEOUT_MS", "").strip()
+    if raw:
+        try:
+            return max(200, int(raw))
+        except ValueError:
+            pass
+    return 2500
+
+
 def build_browser_launch_kwargs(headless: bool, slow_mo: int) -> dict:
     kwargs = {
         "headless": headless,
@@ -134,6 +154,22 @@ def debug_log(message: str) -> None:
         print(message)
 
 
+async def wait_for_async_condition(
+    predicate,
+    timeout_ms: int = 2000,
+    interval_ms: int = 100,
+) -> bool:
+    interval_ms = max(1, interval_ms)
+    attempts = max(1, timeout_ms // interval_ms)
+
+    for _ in range(attempts):
+        if await predicate():
+            return True
+        await asyncio.sleep(interval_ms / 1000)
+
+    return await predicate()
+
+
 def configure_console_utf8(stdout=None, stderr=None) -> bool:
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
@@ -182,6 +218,10 @@ def get_target_months(n: int = 6) -> list[dict]:
 # ──────────────────────────────────────────
 
 
+def get_checkpoint_scope_date() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
 def load_checkpoint() -> set:
     """완료된 city_id:year_month 키 세트 반환"""
     if os.environ.get("IGNORE_CHECKPOINT") == "1":
@@ -190,6 +230,14 @@ def load_checkpoint() -> set:
         return set()
     try:
         data = json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
+        scope_date = data.get("date")
+        expected_scope_date = get_checkpoint_scope_date()
+        if scope_date != expected_scope_date:
+            print(
+                f"[Checkpoint] Ignoring stale checkpoint date={scope_date!r}; "
+                f"expected {expected_scope_date!r}."
+            )
+            return set()
         done = set(data.get("done", []))
         print(f"[Checkpoint] Loaded {len(done)} completed keys.")
         return done
@@ -199,7 +247,10 @@ def load_checkpoint() -> set:
 
 
 def save_checkpoint(done: set) -> None:
-    data = {"done": sorted(done)}
+    data = {
+        "date": get_checkpoint_scope_date(),
+        "done": sorted(done),
+    }
     CHECKPOINT_PATH.write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -933,6 +984,9 @@ async def explore_session_ready(page: Page, month_name: str) -> bool:
 
 
 async def return_to_explore_ready(page: Page, month_name: str) -> bool:
+    if await explore_session_ready(page, month_name):
+        return True
+
     back_ok = await go_back_to_explore(page)
     if not back_ok:
         return False
@@ -961,8 +1015,9 @@ async def dismiss_origin_dialog(page: Page) -> None:
 
 
 async def wait_for_result_refresh(
-    page: Page, previous_signature: str, timeout_ms: int = 6000
+    page: Page, previous_signature: str, timeout_ms: int | None = None
 ) -> bool:
+    timeout_ms = timeout_ms or get_result_refresh_timeout_ms()
     iterations = max(1, timeout_ms // 250)
     for _ in range(iterations):
         await asyncio.sleep(0.25)
@@ -1011,14 +1066,29 @@ async def select_month_flexible(page: Page, month_name: str) -> bool:
     if not clicked:
         return False
 
-    await asyncio.sleep(1.5)
+    await wait_for_any(
+        page,
+        [
+            f'button:has-text("{month_name}")',
+            f'[aria-label*="{month_name}"]',
+            '[role="tab"]',
+        ],
+        timeout=1500,
+    )
 
     # 유연한 일정 탭 클릭 (없어도 진행)
     try:
         flexible_tab = page.get_by_role("tab", name="유연한 일정")
         if await flexible_tab.count() > 0:
             await flexible_tab.first.click()
-            await asyncio.sleep(0.8)
+            await wait_for_any(
+                page,
+                [
+                    f'button:has-text("{month_name}")',
+                    f'[aria-label*="{month_name}"]',
+                ],
+                timeout=1000,
+            )
     except Exception:
         pass
 
@@ -1044,7 +1114,6 @@ async def select_month_flexible(page: Page, month_name: str) -> bool:
     if not month_clicked:
         return False
 
-    await asyncio.sleep(0.8)
 
     # 확인 버튼 클릭 — .first로 단일 요소만 클릭
     confirm_clicked = False
@@ -1069,10 +1138,17 @@ async def select_month_flexible(page: Page, month_name: str) -> bool:
             await page.mouse.click(1100, 850)
         except Exception:
             pass
-        await asyncio.sleep(1)
-        return await selected_month_looks_applied(page, month_name) is True
+        return await wait_for_async_condition(
+            lambda: selected_month_looks_applied(page, month_name),
+            timeout_ms=1200,
+            interval_ms=100,
+        )
 
-    await asyncio.sleep(3)
+    await wait_for_async_condition(
+        lambda: selected_month_looks_applied(page, month_name),
+        timeout_ms=1500,
+        interval_ms=100,
+    )
     return await selected_month_looks_applied(page, month_name) is not False
 
 
@@ -1098,7 +1174,6 @@ async def set_origin_icn(page: Page) -> bool:
             opener = page.locator(opener_sel).first
             await opener.wait_for(state="visible", timeout=5000)
             await opener.click(force=True)
-            await asyncio.sleep(0.5)
         except Exception:
             continue
 
@@ -1115,7 +1190,7 @@ async def set_origin_icn(page: Page) -> bool:
                 typed = await set_input_text(dialog_input, search_term)
                 if not typed:
                     await type_slowly(page, search_term)
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.3)
 
                 option_texts = await collect_visible_option_texts(page)
                 best_option = pick_best_origin_option(option_texts)
@@ -1128,11 +1203,12 @@ async def set_origin_icn(page: Page) -> bool:
                     await asyncio.sleep(0.3)
                     await page.keyboard.press("Enter")
 
-                await asyncio.sleep(0.8)
                 await dismiss_origin_dialog(page)
-                await asyncio.sleep(0.5)
-
-                if await actual_origin_input_is_icn(page):
+                if await wait_for_async_condition(
+                    lambda: actual_origin_input_is_icn(page),
+                    timeout_ms=1200,
+                    interval_ms=100,
+                ):
                     return True
 
                 debug_log(
@@ -1177,7 +1253,6 @@ async def set_destination(page: Page, city: dict) -> bool:
                 opener = page.locator(opener_sel).first
                 await opener.wait_for(state="visible", timeout=4000)
                 await opener.click(force=True)
-                await asyncio.sleep(0.5)
             except Exception:
                 continue
 
@@ -1212,7 +1287,7 @@ async def set_destination(page: Page, city: dict) -> bool:
                 filled = await set_input_text(locator, search_term)
                 if not filled:
                     await type_slowly(page, search_term)
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.3)
                 current_value = await get_input_value(page, dest_selectors)
                 debug_log(f"    [set_dest] typed_value={current_value}")
                 option_texts = await collect_destination_option_texts(page, locator)
@@ -1223,7 +1298,6 @@ async def set_destination(page: Page, city: dict) -> bool:
                     if not option_texts:
                         if allow_query_without_options(city, current_value):
                             await page.keyboard.press("Enter")
-                            await asyncio.sleep(0.8)
                             refreshed = await wait_for_result_refresh(
                                 page, previous_signature
                             )
@@ -1239,7 +1313,6 @@ async def set_destination(page: Page, city: dict) -> bool:
                     debug_log(f"    [set_dest] current_value={current_value}")
                     if destination_looks_valid(current_value, city):
                         await page.keyboard.press("Enter")
-                        await asyncio.sleep(0.8)
                         refreshed = await wait_for_result_refresh(
                             page, previous_signature
                         )
@@ -1250,7 +1323,6 @@ async def set_destination(page: Page, city: dict) -> bool:
                         await page.keyboard.press("ArrowDown")
                         await asyncio.sleep(0.3)
                         await page.keyboard.press("Enter")
-                        await asyncio.sleep(0.8)
                         refreshed = await wait_for_result_refresh(
                             page, previous_signature
                         )
@@ -1274,13 +1346,15 @@ async def set_destination(page: Page, city: dict) -> bool:
                     if await actual_destination_input_matches(page, city):
                         return True
                     await page.keyboard.press("Enter")
-                    await asyncio.sleep(0.8)
                     refreshed = await wait_for_result_refresh(page, previous_signature)
                     debug_log(f"    [set_dest] enter_refresh_after_click={refreshed}")
                     if not refreshed:
                         if await actual_destination_input_matches(page, city):
                             return True
-                        continue
+                        debug_log(
+                            "    [set_dest] valid option click never refreshed; bailing out early"
+                        )
+                        return False
 
                 if destination_looks_valid(best_option, city):
                     if search_term != city["city_name_kr"]:
@@ -1362,7 +1436,8 @@ async def extract_hotel_price(page: Page) -> int | None:
         page_text = await page.inner_text("body")
         hotel_match = re.search(r"숙박\s*정보.*?(₩\s*[\d,]+)", page_text, re.DOTALL)
         if hotel_match:
-            return parse_hotel_price_krw(hotel_match.group(1))
+            parsed_price = parse_hotel_price_krw(hotel_match.group(1))
+            return parsed_price // 2 if parsed_price is not None else None
     except Exception:
         pass
     return None
@@ -1417,7 +1492,6 @@ async def go_back_to_explore(page: Page) -> bool:
             btn = page.locator(sel).first
             if await btn.count() > 0:
                 await btn.click(force=True)
-                await asyncio.sleep(2.5)
                 break
         except Exception:
             continue
@@ -1425,7 +1499,6 @@ async def go_back_to_explore(page: Page) -> bool:
         # fallback: 브라우저 뒤로가기
         try:
             await page.go_back()
-            await asyncio.sleep(0.5)
         except Exception:
             pass
 
@@ -1445,7 +1518,6 @@ async def go_back_to_explore(page: Page) -> bool:
     print("  [go_back] Explore not detected, navigating back to URL...")
     try:
         await page.goto(EXPLORE_URL, wait_until="domcontentloaded", timeout=40000)
-        await asyncio.sleep(1)
         return False  # 월/출발지 재설정이 필요함을 알림
     except Exception as e:
         print(f"  [go_back] URL fallback also failed: {e}")
@@ -1599,7 +1671,6 @@ async def run_month_session(
                 await page.goto(
                     EXPLORE_URL, wait_until="domcontentloaded", timeout=60000
                 )
-                await asyncio.sleep(1)
             except Exception as e:
                 print(f"  [{setup_label}] WARN: goto EXPLORE_URL failed: {e}")
                 return False
@@ -1739,6 +1810,69 @@ async def run_month_with_retry(
     return retry_failures
 
 
+async def run_deferred_retry_pass(
+    context,
+    months: list[dict],
+    cities: list[dict],
+    failed_entries: list[dict],
+    done_keys: set,
+    jsonl_path: Path,
+    failed_path: Path,
+    ingest_time: str,
+) -> list[dict]:
+    if not failed_entries:
+        return []
+
+    remaining_failures: list[dict] = []
+
+    for month in months:
+        failed_city_ids: list[str] = []
+        seen_city_ids: set[str] = set()
+        for entry in failed_entries:
+            city_id = entry.get("city_id")
+            if (
+                entry.get("year_month") == month["year_month"]
+                and city_id
+                and city_id not in seen_city_ids
+            ):
+                seen_city_ids.add(city_id)
+                failed_city_ids.append(city_id)
+
+        if not failed_city_ids:
+            continue
+
+        retry_city_id_set = set(failed_city_ids)
+        retry_cities = [
+            city for city in cities if city.get("city_id") in retry_city_id_set
+        ]
+        if not retry_cities:
+            remaining_failures.extend(
+                [
+                    entry
+                    for entry in failed_entries
+                    if entry.get("year_month") == month["year_month"]
+                ]
+            )
+            continue
+
+        print(
+            f"[Deferred Retry] {month['year_month']} retrying "
+            f"{len(retry_cities)} failed city-month entries"
+        )
+        retry_failures = await run_month_session(
+            context=context,
+            month=month,
+            cities=retry_cities,
+            done_keys=done_keys,
+            jsonl_path=jsonl_path,
+            failed_path=failed_path,
+            ingest_time=ingest_time,
+        )
+        remaining_failures.extend(retry_failures)
+
+    return remaining_failures
+
+
 # ──────────────────────────────────────────
 # 메인
 # ──────────────────────────────────────────
@@ -1772,11 +1906,15 @@ async def main():
     done_keys = load_checkpoint()
 
     # 실패 목록 (전체)
+    initial_failed: list[dict] = []
     all_failed: list[dict] = []
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            **build_browser_launch_kwargs(headless=headless, slow_mo=30)
+            **build_browser_launch_kwargs(
+                headless=headless,
+                slow_mo=get_browser_slow_mo(headless=headless),
+            )
         )
         # 하나의 컨텍스트 — 월마다 새 페이지
         context = await browser.new_context(
@@ -1790,7 +1928,7 @@ async def main():
         )
 
         for month in months:
-            failed_this_month = await run_month_with_retry(
+            failed_this_month = await run_month_session(
                 context=context,
                 month=month,
                 cities=cities,
@@ -1799,10 +1937,21 @@ async def main():
                 failed_path=failed_path,
                 ingest_time=ingest_time,
             )
-            all_failed.extend(failed_this_month)
+            initial_failed.extend(failed_this_month)
             # 월 완료 후 체크포인트 저장
             save_checkpoint(done_keys)
             print(f"[Checkpoint] Saved after {month['year_month']}")
+
+        all_failed = await run_deferred_retry_pass(
+            context=context,
+            months=months,
+            cities=cities,
+            failed_entries=initial_failed,
+            done_keys=done_keys,
+            jsonl_path=jsonl_path,
+            failed_path=failed_path,
+            ingest_time=ingest_time,
+        )
 
         await context.close()
         await browser.close()
