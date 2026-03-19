@@ -11,6 +11,8 @@ services:
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/dahaeng}
+      TRIP_HEADLESS: ${TRIP_HEADLESS:-1}
+      HEADLESS: ${HEADLESS:-1}
     restart: "no"
     working_dir: /workspace
     volumes:
