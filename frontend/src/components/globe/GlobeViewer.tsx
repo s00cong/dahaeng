@@ -1,5 +1,4 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import { feature } from "topojson-client";
 import { animate } from "framer-motion";
 import {
   ComposableMap,
@@ -393,6 +392,7 @@ const BaseLayer = React.memo(
     onMove,
     onLeave,
     zoom,
+    onLoad,
   }: {
     geography: string | object;
     clickedName: string | null;
@@ -402,6 +402,7 @@ const BaseLayer = React.memo(
     onMove: (name: string, e: React.MouseEvent) => void;
     onLeave: () => void;
     zoom: number;
+    onLoad?: (geos: GeoFeature[]) => void;
   }) => {
     // 3D 효과 계산: 줌에 따라 돌출 정도를 조절
     const visualHeight = 7 / Math.pow(zoom, 0.45);
@@ -413,6 +414,7 @@ const BaseLayer = React.memo(
     return (
       <Geographies geography={geography}>
         {({ geographies }: { geographies: GeoFeature[] }) => {
+          if (onLoad && geographies.length > 0) onLoad(geographies);
           const nonSelected = geographies.filter(
             (geo) => (geo.properties.name ?? "") !== clickedName,
           );
@@ -689,6 +691,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const animControlsRef = useRef<{ stop: () => void } | null>(null);
   // SVG 역투영용 컨테이너 ref
   const containerRef = useRef<HTMLDivElement>(null);
+  // BaseLayer에서 파싱된 geographies 캐시 (나라 검색 카메라 이동용)
+  const geographiesRef = useRef<GeoFeature[]>([]);
 
   // ── 파생값 ─────────────────────────────────────────────
   const showBorders = zoom >= ZOOM_SHOW_BORDERS;
@@ -887,27 +891,22 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
 
   // 나라 검색 → 글로브 카메라 이동
   useEffect(() => {
-    if (!globeCountryTarget || !geoData) return;
+    if (!globeCountryTarget) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const topology = geoData as any;
-    const objectKey = Object.keys(topology.objects ?? {})[0];
-    if (!objectKey) return;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const collection = feature(topology, topology.objects[objectKey] as any);
-    const matched = collection.features.find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (f: any) => (f.properties?.name ?? "") === globeCountryTarget,
+    const geo = geographiesRef.current.find(
+      (g) => (g.properties.name ?? "") === globeCountryTarget,
     );
+    if (!geo) {
+      setGlobeCountryTarget(null);
+      return;
+    }
 
-    setGlobeCountryTarget(null);
-    if (!matched) return;
-
-    const geo = matched as unknown as GeoFeature;
     const rawName = globeCountryTarget;
     const bounds = COUNTRY_MAIN_BBOX[rawName] ?? getGeoBounds(geo);
-    if (!bounds) return;
+    if (!bounds) {
+      setGlobeCountryTarget(null);
+      return;
+    }
 
     const iso = COUNTRY_NAME_ISO3[rawName];
     if (iso) setClickedIso(iso);
@@ -948,11 +947,11 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         setCenter(targetCenter);
         setZoom(newZoom);
         setIsZooming(false);
+        setGlobeCountryTarget(null);
       },
     });
     animControlsRef.current = controls;
-    return () => controls.stop();
-  }, [globeCountryTarget, geoData, width, height]);
+  }, [globeCountryTarget, width, height]);
 
   const { data: citiesFromApi } = useCityList();
   const cities = citiesFromApi ?? [];
@@ -1060,6 +1059,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                 onMove={handleMove}
                 onLeave={handleLeave}
                 zoom={zoom}
+                onLoad={(geos) => { geographiesRef.current = geos; }}
               />
 
               {/* 대륙 외곽선 — 줌 1.5 미만에서만 (나라 선택 여부 무관) */}
