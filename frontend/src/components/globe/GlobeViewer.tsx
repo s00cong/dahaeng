@@ -638,8 +638,6 @@ const AdminLayer = React.memo(
 export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const {
     openRightPanel,
-    globeBudgetFilter,
-    globeDuration,
     selectedCityCoords,
     isRecommendActive,
     recommendResults,
@@ -669,8 +667,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   } | null>(null);
   const [clickedIso, setClickedIso] = useState<string | null>(null);
   const [clickedName, setClickedName] = useState<string | null>(null);
-  const [clickedGeo, setClickedGeo] = useState<GeoFeature | null>(null);
-
   const [hoveredAdminKey, setHoveredAdminKey] = useState<string | null>(null);
 
   // 1순위: 줌 애니메이션 중 admin 렌더 차단
@@ -745,7 +741,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const handleDeselect = useCallback(() => {
     setClickedIso(null);
     setClickedName(null);
-    setClickedGeo(null);
     setHoveredAdminKey(null);
     setTooltip(null);
   }, []);
@@ -757,7 +752,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       if (rawName === clickedNameRef.current) {
         setClickedIso(null);
         setClickedName(null);
-        setClickedGeo(null);
         setHoveredAdminKey(null);
         setTooltip(null);
         return;
@@ -808,7 +802,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       const iso = COUNTRY_NAME_ISO3[rawName];
       if (iso) setClickedIso(iso);
       setClickedName(rawName);
-      setClickedGeo(geo);
       setHoveredAdminKey(null);
       setTooltip(null);
 

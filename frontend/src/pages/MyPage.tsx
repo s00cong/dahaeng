@@ -255,7 +255,6 @@ const MyPage = () => {
   const navigate = useNavigate();
 
   const [youtubeConnected, setYoutubeConnected] = useState(true);
-  const [instagramConnected, setInstagramConnected] = useState(false);
   const [youtubeModalAction, setYoutubeModalAction] = useState<
     "connect" | "disconnect" | null
   >(null);

@@ -170,11 +170,6 @@ const containerVariants: Variants = {
   visible: { transition: { staggerChildren: 0.05, delayChildren: 0.1 } },
 };
 
-const cardVariants: Variants = {
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
-};
-
 // ─── BookmarkListPage ─────────────────────────────────────────────────────────
 const BookmarkListPage = () => {
   const { keyword } = useSearch({ from: "/_authenticated/bookmarks/" });
