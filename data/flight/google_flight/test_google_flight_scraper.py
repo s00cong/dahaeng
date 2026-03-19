@@ -910,6 +910,26 @@ class GoogleFlightScraperAsyncBehaviorTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result)
         self.assertEqual(typed_terms, ["아그라 인도"])
 
+    async def test_extract_hotel_price_returns_half_of_detected_price(self):
+        async def no_sleep(_seconds):
+            return None
+
+        class FakeMouse:
+            async def wheel(self, _x, _y):
+                return None
+
+        class FakeHotelPage:
+            def __init__(self):
+                self.mouse = FakeMouse()
+
+            async def inner_text(self, _selector):
+                return "숙박 정보\n₩ 260,000"
+
+        with patch.object(MODULE.asyncio, "sleep", new=no_sleep):
+            hotel_price = await MODULE.extract_hotel_price(FakeHotelPage())
+
+        self.assertEqual(hotel_price, 130000)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1436,7 +1436,8 @@ async def extract_hotel_price(page: Page) -> int | None:
         page_text = await page.inner_text("body")
         hotel_match = re.search(r"숙박\s*정보.*?(₩\s*[\d,]+)", page_text, re.DOTALL)
         if hotel_match:
-            return parse_hotel_price_krw(hotel_match.group(1))
+            parsed_price = parse_hotel_price_krw(hotel_match.group(1))
+            return parsed_price // 2 if parsed_price is not None else None
     except Exception:
         pass
     return None
