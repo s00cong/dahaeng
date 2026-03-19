@@ -17,3 +17,5 @@ venv/
 # Runtime/generated artifacts
 *.log
 api_error.log
+
+run-local.ps1
