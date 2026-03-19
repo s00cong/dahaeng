@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
-import type React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LineChart,
@@ -10,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Plane, Clock, Hotel, TrendingUp, TrendingDown, Minus, AlertCircle, X, CalendarDays, ArrowUpRight } from 'lucide-react';
+import { Plane, Clock, Hotel, TrendingUp, TrendingDown, Minus, AlertCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -71,7 +70,7 @@ export function FlightTab({ city }: FlightTabProps) {
   const nextYearMonth = nextMonthTab?.yearMonth;
 
   const { data: calendar, isLoading: calendarLoading } = useFlightCalendar(cityId, selectedYearMonth);
-  const { data: nextCalendar, isLoading: nextCalendarLoading } = useFlightCalendar(cityId, nextYearMonth || '');
+  const { data: nextCalendar } = useFlightCalendar(cityId, nextYearMonth || '');
 
   const { data: trend, isLoading: trendLoading } = useFlightTrend(cityId);
 
@@ -311,7 +310,7 @@ function FlightCalendarGrid({
 }) {
   const [priceView, setPriceView] = useState<PriceView>('total');
 
-  const { cells, outboundMap, inboundMap, fullInboundMap, today, daysInMonth, minPrice } = useMemo(() => {
+  const { cells, outboundMap, inboundMap, fullInboundMap, today, minPrice } = useMemo(() => {
     const base = dayjs(yearMonth + '-01');
     const firstDow = base.day();
     const days = base.daysInMonth();
