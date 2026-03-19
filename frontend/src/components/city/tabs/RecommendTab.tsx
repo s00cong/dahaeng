@@ -106,7 +106,7 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
   const costValue = totalDaily ? `일평균 ₩${totalDaily.toLocaleString()}` : "비교 보기";
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
+    <div className="flex flex-col min-h-full bg-slate-50/30">
       {/* 상단: AI 추천 사유 (고정 영역) */}
       <section className="p-6 pb-0">
         <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
@@ -143,7 +143,7 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
       </section>
 
       {/* 하단: 1:1 가로 배치 그리드 */}
-      <div className="grid grid-cols-2 gap-6 p-6 flex-1 min-h-0">
+      <div className="grid grid-cols-2 gap-6 p-6">
         {/* 왼쪽: 예산 계획 */}
         <section className="flex flex-col gap-4">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -151,7 +151,7 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
             예산 계획
           </h3>
 
-          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex-1 flex flex-col">
+          <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex flex-col">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
               하루 예상 비용
             </p>
