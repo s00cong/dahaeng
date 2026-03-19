@@ -6,7 +6,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
 import { useCityList } from "@/hooks/city/useCityList";
-import { useCostDetail } from "@/hooks/cost/useCostDetail";
 
 // 패널 폭 300px, 탭 24px, 간격 8px
 const PANEL_W = 300;
@@ -61,7 +60,6 @@ export function RightPanel() {
   );
 
   const city = cityFromApi ?? null;
-  const { data: costDetail } = useCostDetail('city', selectedCityId ?? 0);
 
   const handleOpenDetail = () => {
     openCityModal("recommend");
@@ -174,7 +172,10 @@ export function RightPanel() {
                 </div>
               ) : city?.tags && city.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {city.tags.map((tag) => (
+                  {[...city.tags]
+                    .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
+                    .slice(0, 10)
+                    .map((tag) => (
                     <span
                       key={tag.name}
                       className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"
@@ -196,9 +197,9 @@ export function RightPanel() {
                   ) : (
                     <span className="text-xs font-bold text-slate-800 text-center">
                       {(() => {
-                        const dailyBudget = costDetail?.living_cost?.daily_budget;
-                        if (!dailyBudget) return "-";
-                        return `₩${((dailyBudget + 30000) / 10000).toFixed(0)}만`;
+                        const total = city?.livingCostFor1Day?.total;
+                        if (!total) return "-";
+                        return `₩${(total / 10000).toFixed(0)}만`;
                       })()}
                     </span>
                   )}
@@ -264,11 +265,16 @@ export function RightPanel() {
                         <Skeleton className="h-3 w-4/5" />
                       </div>
                     ) : city?.danger?.items && city.danger.items.length > 0 ? (
-                      <ul className="flex flex-col gap-1">
+                      <ul className="flex flex-col divide-y divide-slate-100">
                         {city.danger.items.map((item, i) => (
-                          <li key={i} className="text-xs text-slate-500 leading-relaxed">
-                            <span className="font-medium text-slate-600">[{item.level}]</span>{" "}
-                            {item.description}
+                          <li key={i} className="flex flex-col gap-1 py-1.5 first:pt-0 last:pb-0">
+                            <span className={`self-start text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                              item.level === "여행금지" ? "bg-red-100 text-red-600" :
+                              item.level === "출국권고" ? "bg-orange-100 text-orange-600" :
+                              item.level === "여행자제" ? "bg-amber-100 text-amber-600" :
+                              "bg-yellow-100 text-yellow-600"
+                            }`}>{item.level}</span>
+                            <p className="text-xs text-slate-500 leading-relaxed">{item.description}</p>
                           </li>
                         ))}
                       </ul>
@@ -280,6 +286,7 @@ export function RightPanel() {
               </div>
             </div>
 
+            
             {/* ── 하단 고정 버튼 ── */}
             <div className="px-4 py-3 border-t border-slate-100 bg-white/80 shrink-0">
               <Button
