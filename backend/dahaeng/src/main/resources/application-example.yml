@@ -25,6 +25,11 @@
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/dahaeng}
+    redis:
+      host: ${REDIS_URI:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:0}
 
   jpa:
     hibernate:
@@ -52,6 +57,7 @@
     access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
+
 app:
   front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:3000/}
   internal-image-upload:
@@ -76,3 +82,6 @@ external:
   google-places:
     key: ${GOOGLE_PLACES_API_KEY}
     base-url: ${GOOGLE_PLACES_BASE_URL:https://places.googleapis.com}
+
+geoapify:
+  category: tourism.sights

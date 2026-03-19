@@ -71,6 +71,34 @@ services:
     restart: "no"
     networks:
       - db-external
+  
+  geoapify-worker:
+    build:
+      context: ../../data/geoapify
+      dockerfile: Dockerfile
+    env_file:
+      - ${WORKER_ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      APP_RUNTIME: docker
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-dahaeng}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
+      GEOAPIFY_BASE_URL: ${GEOAPIFY_BASE_URL:-https://api.geoapify.com}
+      GEOAPIFY_CATEGORY: ${GEOAPIFY_CATEGORY:-tourism.sights}
+      GEOAPIFY_RADIUS_METERS: ${GEOAPIFY_RADIUS_METERS:-10000}
+      GEOAPIFY_LIMIT: ${GEOAPIFY_LIMIT:-100}
+
+    restart: "no"
+    networks:
+      - db-external
 
 networks:
   db-external:
