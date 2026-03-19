@@ -32,7 +32,7 @@ def parse_args():
     )
     parser.add_argument(
         "--silver-path",
-        default="/data/silver/flight_summary",
+        default="/workspace/data/flight/silver/flight_summary",
         help="Silver parquet output path",
     )
     parser.add_argument(
