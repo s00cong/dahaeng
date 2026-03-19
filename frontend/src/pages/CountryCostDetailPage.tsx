@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useParams, Link } from '@tanstack/react-router';
-import { ChevronRight, AlertCircle, Loader2, Globe } from 'lucide-react';
+import { ChevronRight, AlertCircle, Globe } from 'lucide-react';
 import { motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useCostDetail } from '@/hooks/cost/useCostDetail';
 import { useExchangeRateNew } from '@/hooks/cost/useExchangeRateNew';
-import { costApi, SEOUL_COUNTRY_ID } from '@/api/cost.api';
+import { costApi, SEOUL_CITY_ID } from '@/api/cost.api';
 import { useQuery } from '@tanstack/react-query';
 import { ExchangeRateCombinedSection } from '@/components/cost/ExchangeRateCombinedSection';
 import { SalaryPopulationSection } from '@/components/cost/SalaryPopulationSection';
@@ -21,8 +21,8 @@ const pageVariants: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } },
 };
 
-// ─── 국가 히어로 ──────────────────────────────────────────────────
-function CountryHeroSection({
+// ─── 도시 히어로 ──────────────────────────────────────────────────
+function CityHeroSection({
   name,
   imgUrl,
   currency,
@@ -81,25 +81,26 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 // ─── 메인 페이지 ─────────────────────────────────────────────────
 const CountryCostDetailPage = () => {
-  const { countryId } = useParams({ from: '/_authenticated/cost/$countryId' });
+  // 라우트 파라미터는 cityId (CostPage 카드 클릭 시 도시 ID 전달)
+  const { countryId: cityIdParam } = useParams({ from: '/_authenticated/cost/$countryId' });
+  const cityId = Number(cityIdParam);
 
-  const { data, isLoading, isError, refetch } = useCostDetail('country', countryId);
+  const { data, isLoading, isError, refetch } = useCostDetail('city', cityId);
   const currency = data?.target.currency ?? '';
 
   const { data: exchangeRateData, isLoading: isExchangeLoading } = useExchangeRateNew(currency);
 
-  // 서울(한국) 대비 비교
+  // 서울 대비 비교 (도시 단위)
   const { data: compareData, isLoading: isCompareLoading } = useQuery({
-    queryKey: ['cost', 'compare', 'country', countryId],
-    queryFn: () => costApi.getCostCompare('COUNTRY', SEOUL_COUNTRY_ID, countryId),
-    enabled: countryId > 0 && countryId !== SEOUL_COUNTRY_ID,
+    queryKey: ['cost', 'compare', 'city', cityId],
+    queryFn: () => costApi.getCostCompare('CITY', SEOUL_CITY_ID, cityId),
+    enabled: cityId > 0 && cityId !== SEOUL_CITY_ID,
     staleTime: 60 * 60 * 1000,
   });
 
   // 서울 생활비 (비교 테이블용)
-  const { data: seoulDetail } = useSeoulDetail('country', SEOUL_COUNTRY_ID);
+  const { data: seoulDetail } = useSeoulDetail('city', SEOUL_CITY_ID);
 
-  // 환율 기준 KRW per 1 target
   const krwPerTarget = exchangeRateData?.krw_per_1target
     ? Math.round(exchangeRateData.krw_per_1target)
     : undefined;
@@ -119,7 +120,7 @@ const CountryCostDetailPage = () => {
           <ChevronRight className="size-3.5" />
           <Link to="/cost" className="hover:text-foreground transition-colors no-underline">글로벌 물가</Link>
           <ChevronRight className="size-3.5" />
-          <span className="text-foreground font-medium">{data?.target.name ?? `국가 #${countryId}`}</span>
+          <span className="text-foreground font-medium">{data?.target.name ?? `도시 #${cityId}`}</span>
         </nav>
 
         {/* ── 로딩 ─────────────────────────────────────────────────── */}
@@ -144,8 +145,8 @@ const CountryCostDetailPage = () => {
         {data && (
           <div className="flex flex-col gap-6">
 
-            {/* A. 국가 히어로 */}
-            <CountryHeroSection
+            {/* A. 도시 히어로 */}
+            <CityHeroSection
               name={data.target.name}
               imgUrl={data.target.img_url}
               currency={data.target.currency}
@@ -170,7 +171,7 @@ const CountryCostDetailPage = () => {
             </section>
 
             {/* D. 서울 대비 비교 */}
-            {countryId !== SEOUL_COUNTRY_ID && (
+            {cityId !== SEOUL_CITY_ID && (
               <section aria-label="서울 대비 물가 비교">
                 <SeoulCompareSection
                   data={compareData}
