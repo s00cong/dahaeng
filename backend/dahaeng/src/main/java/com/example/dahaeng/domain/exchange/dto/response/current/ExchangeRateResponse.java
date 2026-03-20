@@ -1,6 +1,7 @@
 package com.example.dahaeng.domain.exchange.dto.response.current;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
