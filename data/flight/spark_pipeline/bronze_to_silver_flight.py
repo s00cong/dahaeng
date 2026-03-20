@@ -168,11 +168,14 @@ def transform_to_silver(df: DataFrame, df_tripcom_avg: DataFrame | None = None) 
 def read_and_agg_tripcom_price(
     spark: SparkSession, tripcom_path: str
 ) -> DataFrame | None:
-    pattern = f"{tripcom_path}/dt=*/hour=*/*.jsonl"
-    print(f"[INFO] Reading Trip.com Bronze from: {pattern}")
+    print(f"[INFO] Reading Trip.com Bronze from: {tripcom_path}")
 
     try:
-        df_raw = spark.read.json(pattern)
+        df_raw = (
+            spark.read.option("recursiveFileLookup", "true")
+            .option("pathGlobFilter", "*.jsonl")
+            .json(tripcom_path)
+        )
     except Exception as exc:
         print(f"[WARN] Failed to read Trip.com Bronze: {exc}")
         return None
