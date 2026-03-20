@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Iterable
 from urllib.parse import urlparse
 
@@ -74,3 +76,13 @@ def resolve_tripcom_direction(entity: dict) -> str | None:
         return None
 
     return "outbound" if origin == "ICN" else "inbound"
+
+
+def load_code_to_city_name(mapping_path: str | Path) -> dict[str, str]:
+    path = Path(mapping_path)
+    mapping = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        (item.get("city_code") or "").strip().upper(): (item.get("city_name_en") or "").strip()
+        for item in mapping
+        if item.get("city_code") and item.get("city_name_en")
+    }
