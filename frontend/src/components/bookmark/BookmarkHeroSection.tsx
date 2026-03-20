@@ -16,6 +16,7 @@ export function BookmarkHeroSection({ data }: BookmarkHeroSectionProps) {
         src={data.imgUrl ?? undefined}
         alt={`${data.cityName} 도시 전경`}
         className="absolute inset-0 h-full w-full object-cover"
+        onError={(e) => { e.currentTarget.style.display = 'none'; }}
       />
 
       {/* 어두운 그라디언트 오버레이 */}

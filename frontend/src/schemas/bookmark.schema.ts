@@ -51,7 +51,7 @@ export const FlightAtSavedSchema = z.object({
 // 위험도
 export const DangerItemSchema = z.object({
   level: z.string(),
-  description: z.string(),
+  description: z.string().nullable(),
 });
 
 export const DangerSchema = z.object({
