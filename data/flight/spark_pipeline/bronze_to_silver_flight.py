@@ -15,7 +15,7 @@ import os
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import IntegerType
+from pyspark.sql.types import IntegerType, StructType
 from pyspark.sql.window import Window
 
 from city_id_mapping import parse_mysql_connection_info
@@ -62,6 +62,33 @@ def normalize_city_key(column_name: str):
     return F.upper(F.trim(F.col(column_name)))
 
 
+def nested_field_exists(schema: StructType, field_path: str) -> bool:
+    current_type = schema
+    for field_name in field_path.split("."):
+        if not isinstance(current_type, StructType):
+            return False
+        matching_field = next(
+            (field for field in current_type.fields if field.name == field_name),
+            None,
+        )
+        if matching_field is None:
+            return False
+        current_type = matching_field.dataType
+    return True
+
+
+def build_first_available_column(df: DataFrame, field_paths: list[str]):
+    available_paths = [
+        field_path for field_path in field_paths if nested_field_exists(df.schema, field_path)
+    ]
+    if not available_paths:
+        joined = ", ".join(field_paths)
+        raise RuntimeError(f"None of the expected fields exist: {joined}")
+    if len(available_paths) == 1:
+        return F.col(available_paths[0])
+    return F.coalesce(*[F.col(field_path) for field_path in available_paths])
+
+
 def read_google_normalized(spark: SparkSession, google_path: str) -> DataFrame:
     print(f"[INFO] Reading Google Flights normalized JSONL from: {google_path}")
     df_raw = spark.read.json(google_path)
@@ -73,8 +100,12 @@ def read_google_normalized(spark: SparkSession, google_path: str) -> DataFrame:
 
 
 def transform_to_silver(df: DataFrame, df_tripcom_avg: DataFrame | None = None) -> DataFrame:
+    google_city_column = build_first_available_column(
+        df,
+        ["entity.city_id", "entity.city_code"],
+    )
     df_silver = df.select(
-        F.coalesce(F.col("entity.city_id"), F.col("entity.city_code")).alias("city_code"),
+        google_city_column.alias("city_code"),
         F.col("entity.city_name").alias("city_name"),
         F.col("entity.year_month").alias("year_month"),
         F.col("entity.origin_airport").alias("origin_airport"),
@@ -127,11 +158,14 @@ def read_and_agg_tripcom_price(
         print(f"[WARN] Failed to read Trip.com Bronze: {exc}")
         return None
 
+    tripcom_city_column = build_first_available_column(
+        df_raw,
+        ["entity.city_code", "entity.city_id"],
+    )
+
     return (
         df_raw.select(
-            F.coalesce(F.col("entity.city_code"), F.col("entity.city_id")).alias(
-                "city_code"
-            ),
+            tripcom_city_column.alias("city_code"),
             F.substring(F.col("event_time"), 1, 7).alias("year_month"),
             F.col("payload.price").alias("price"),
         )
