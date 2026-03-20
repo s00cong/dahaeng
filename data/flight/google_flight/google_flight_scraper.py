@@ -44,7 +44,10 @@ ORIGIN_AIRPORT = "ICN"
 EXPLORE_URL = "https://www.google.com/travel/explore?q=인천+출발+전세계&hl=ko"
 TRIP_LENGTH_DAYS = 7
 DEBUG_SEARCH = os.environ.get("DEBUG_SEARCH", "0") == "1"
-SPECIAL_CITY_QUERY_TERMS = {"AGRA": ["아그라 인도"]}
+SPECIAL_CITY_QUERY_TERMS = {
+    "AGRA": ["아그라 인도"],
+    "NEW_YORK": ["New York", "New York City"],
+}
 
 
 def get_browser_slow_mo(headless: bool) -> int:
@@ -976,6 +979,20 @@ def format_setup_state(snapshot: dict[str, object]) -> str:
 
 
 async def explore_session_ready(page: Page, month_name: str) -> bool:
+    # If a back button is visible, we are on a destination detail page, so we are not ready.
+    back_selectors = [
+        'button[aria-label="뒤로 이동"]:visible',
+        'button[aria-label="뒤로"]:visible',
+        'button[aria-label*="Back"]:visible',
+        'button[aria-label*="back"]:visible',
+    ]
+    for sel in back_selectors:
+        try:
+            if await page.locator(sel).count() > 0:
+                return False
+        except Exception:
+            pass
+
     if not await actual_origin_input_is_icn(page):
         return False
 
@@ -1247,124 +1264,148 @@ async def set_destination(page: Page, city: dict) -> bool:
         'input[placeholder="목적지가 어디인가요?"][aria-expanded="true"]',
     ]
 
+    for opener_sel in opener_selectors:
+        debug_log(f"    [set_dest] Trying opener: {opener_sel}")
+        try:
+            opener = page.locator(opener_sel).first
+            debug_log(f"    [set_dest] Waiting for opener to be visible...")
+            await opener.wait_for(state="visible", timeout=4000)
+            debug_log(f"    [set_dest] Opener visible. Clicking...")
+            await opener.click(force=True)
+            debug_log(f"    [set_dest] Opener clicked successfully.")
+            break
+        except Exception as e:
+            debug_log(f"    [set_dest] Opener {opener_sel} failed: {e}")
+            continue
+    else:
+        debug_log("    [set_dest] Could not open destination dialog")
+        # 팝업이 이미 열려있을 수도 있으니 확인해본다.
+        dialog_sel_check = await wait_for_any(page, dialog_selectors, timeout=2000)
+        if not dialog_sel_check:
+            return False
+        debug_log("    [set_dest] Actually, dialog was already open!")
+
+    debug_log(f"    [set_dest] Waiting for dialog to appear...")
+    dialog_sel = await wait_for_any(page, dialog_selectors, timeout=4000)
+    if not dialog_sel:
+        debug_log("    [set_dest] Dialog did not appear")
+        return False
+    debug_log(f"    [set_dest] Dialog is ready using selector: {dialog_sel}")
+
     for search_term in search_terms:
-        for opener_sel in opener_selectors:
-            try:
-                opener = page.locator(opener_sel).first
-                await opener.wait_for(state="visible", timeout=4000)
-                await opener.click(force=True)
-            except Exception:
+        try:
+            if not await focus_and_clear(page, dialog_sel):
                 continue
-
-            dialog_sel = await wait_for_any(page, dialog_selectors, timeout=4000)
-            if not dialog_sel:
-                continue
-
-            try:
-                if not await focus_and_clear(page, dialog_sel):
-                    continue
-                previous_signature = await get_result_signature(page)
-                debug_log(f"    [set_dest] term={search_term} selector={dialog_sel}")
-                locator = page.locator(dialog_sel).first
-                if DEBUG_SEARCH:
-                    try:
-                        meta = await locator.evaluate(
-                            """el => ({
-                                tag: el.tagName,
-                                type: el.getAttribute('type'),
-                                role: el.getAttribute('role'),
-                                aria: el.getAttribute('aria-label'),
-                                placeholder: el.getAttribute('placeholder'),
-                                readonly: el.readOnly,
-                                disabled: el.disabled,
-                                value: el.value
-                            })"""
-                        )
-                        editable = await locator.is_editable()
-                        debug_log(f"    [set_dest] meta={meta} editable={editable}")
-                    except Exception as exc:
-                        debug_log(f"    [set_dest] meta_error={exc}")
-                filled = await set_input_text(locator, search_term)
-                if not filled:
-                    await type_slowly(page, search_term)
-                await asyncio.sleep(0.3)
-                current_value = await get_input_value(page, dest_selectors)
-                debug_log(f"    [set_dest] typed_value={current_value}")
-                option_texts = await collect_destination_option_texts(page, locator)
-                debug_log(f"    [set_dest] options={option_texts[:5]}")
-                best_option = pick_best_destination_option(option_texts, city)
-                debug_log(f"    [set_dest] best_option={best_option}")
-                if not best_option:
-                    if not option_texts:
-                        if allow_query_without_options(city, current_value):
-                            await page.keyboard.press("Enter")
-                            refreshed = await wait_for_result_refresh(
-                                page, previous_signature
-                            )
-                            debug_log(
-                                f"    [set_dest] special_enter_refresh={refreshed}"
-                            )
-                            if refreshed or await actual_destination_input_matches(
-                                page, city
-                            ):
-                                return True
-                        debug_log("    [set_dest] no options found; skipping term")
-                        continue
-                    debug_log(f"    [set_dest] current_value={current_value}")
-                    if destination_looks_valid(current_value, city):
+            previous_signature = await get_result_signature(page)
+            debug_log(f"    [set_dest] term={search_term} selector={dialog_sel}")
+            locator = page.locator(dialog_sel).first
+            if DEBUG_SEARCH:
+                try:
+                    meta = await locator.evaluate(
+                        """el => ({
+                            tag: el.tagName,
+                            type: el.getAttribute('type'),
+                            role: el.getAttribute('role'),
+                            aria: el.getAttribute('aria-label'),
+                            placeholder: el.getAttribute('placeholder'),
+                            readonly: el.readOnly,
+                            disabled: el.disabled,
+                            value: el.value
+                        })"""
+                    )
+                    editable = await locator.is_editable()
+                    debug_log(f"    [set_dest] meta={meta} editable={editable}")
+                except Exception as exc:
+                    debug_log(f"    [set_dest] meta_error={exc}")
+            filled = await set_input_text(locator, search_term)
+            if not filled:
+                await type_slowly(page, search_term)
+            await asyncio.sleep(0.3)
+            current_value = await get_input_value(page, dest_selectors)
+            debug_log(f"    [set_dest] typed_value={current_value}")
+            option_texts = await collect_destination_option_texts(page, locator)
+            debug_log(f"    [set_dest] options={option_texts[:5]}")
+            best_option = pick_best_destination_option(option_texts, city)
+            debug_log(f"    [set_dest] best_option={best_option}")
+            if not best_option:
+                if not option_texts:
+                    if allow_query_without_options(city, current_value):
                         await page.keyboard.press("Enter")
                         refreshed = await wait_for_result_refresh(
                             page, previous_signature
                         )
-                        debug_log(f"    [set_dest] enter_refresh={refreshed}")
-                        if refreshed:
-                            return True
-                    try:
-                        await page.keyboard.press("ArrowDown")
-                        await asyncio.sleep(0.3)
-                        await page.keyboard.press("Enter")
-                        refreshed = await wait_for_result_refresh(
-                            page, previous_signature
+                        debug_log(
+                            f"    [set_dest] special_enter_refresh={refreshed}"
                         )
-                        debug_log(f"    [set_dest] arrowdown_refresh={refreshed}")
-                        if refreshed:
+                        if refreshed or await actual_destination_input_matches(
+                            page, city
+                        ):
                             return True
-                    except Exception:
-                        pass
+                    debug_log("    [set_dest] no options found; skipping term")
                     continue
+                debug_log(f"    [set_dest] current_value={current_value}")
+                if destination_looks_valid(current_value, city):
+                    await page.keyboard.press("Enter")
+                    refreshed = await wait_for_result_refresh(
+                        page, previous_signature
+                    )
+                    debug_log(f"    [set_dest] enter_refresh={refreshed}")
+                    if refreshed:
+                        return True
+                try:
+                    await page.keyboard.press("ArrowDown")
+                    await asyncio.sleep(0.3)
+                    await page.keyboard.press("Enter")
+                    refreshed = await wait_for_result_refresh(
+                        page, previous_signature
+                    )
+                    debug_log(f"    [set_dest] arrowdown_refresh={refreshed}")
+                    if refreshed:
+                        return True
+                except Exception:
+                    pass
+                continue
 
-                clicked = await click_owned_option_by_text(locator, best_option)
-                if not clicked:
-                    clicked = await click_option_by_text(page, best_option)
-                debug_log(f"    [set_dest] clicked={clicked}")
-                if not clicked:
-                    continue
+            clicked = await click_owned_option_by_text(locator, best_option)
+            if not clicked:
+                clicked = await click_option_by_text(page, best_option)
+            debug_log(f"    [set_dest] clicked={clicked}")
+            if not clicked:
+                continue
 
+            refreshed = await wait_for_result_refresh(page, previous_signature)
+            debug_log(f"    [set_dest] option_refresh={refreshed}")
+            if not refreshed:
+                if await actual_destination_input_matches(page, city):
+                    return True
+                await page.keyboard.press("Enter")
                 refreshed = await wait_for_result_refresh(page, previous_signature)
-                debug_log(f"    [set_dest] option_refresh={refreshed}")
+                debug_log(f"    [set_dest] enter_refresh_after_click={refreshed}")
                 if not refreshed:
                     if await actual_destination_input_matches(page, city):
                         return True
-                    await page.keyboard.press("Enter")
-                    refreshed = await wait_for_result_refresh(page, previous_signature)
-                    debug_log(f"    [set_dest] enter_refresh_after_click={refreshed}")
-                    if not refreshed:
-                        if await actual_destination_input_matches(page, city):
-                            return True
-                        debug_log(
-                            "    [set_dest] valid option click never refreshed; bailing out early"
-                        )
-                        return False
+                    debug_log(
+                        "    [set_dest] valid option click never refreshed; bailing out early"
+                    )
+                    try:
+                        await page.keyboard.press("Escape")
+                    except Exception:
+                        pass
+                    return False
 
-                if destination_looks_valid(best_option, city):
-                    if search_term != city["city_name_kr"]:
-                        print(
-                            f"    [set_dest] '{city['city_name_kr']}' matched via '{search_term}'"
-                        )
-                    return True
-            except Exception:
-                continue
+            if destination_looks_valid(best_option, city):
+                if search_term != city["city_name_kr"]:
+                    print(
+                        f"    [set_dest] '{city['city_name_kr']}' matched via '{search_term}'"
+                    )
+                return True
+        except Exception:
+            continue
 
+    try:
+        await page.keyboard.press("Escape")
+    except Exception:
+        pass
     return False
 
 
@@ -1712,7 +1753,14 @@ async def run_month_session(
         needs_session_reset = False
 
         async def restore_session() -> bool:
-            """URL 재이동 후 월 선택 + 인천 출발지를 다시 설정"""
+            """기존 페이지를 닫고 새 페이지(창)를 열어서 봇 감지/세션 꼬임 완전 초기화"""
+            nonlocal page
+            try:
+                await page.close()
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
+            page = await context.new_page()
             return await setup_month_origin("Session")
 
         for idx, city in enumerate(cities):

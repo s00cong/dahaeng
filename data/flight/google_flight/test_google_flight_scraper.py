@@ -215,6 +215,23 @@ class GoogleFlightScraperHelpersTest(unittest.TestCase):
             ["아그라 인도", "아그라", "AGRA"],
         )
 
+    def test_build_destination_search_terms_includes_english_name_for_new_york(self):
+        city = {
+            "city_id": "NEW_YORK",
+            "city_name_kr": "뉴욕",
+            "city_name_en": "New York City",
+            "country_kr": "미국",
+            "primary_airport": "JFK",
+            "routes": [
+                {"trip_city": "nyc", "airport": "JFK", "trip_airport": "jfk"},
+            ],
+        }
+
+        self.assertEqual(
+            MODULE.build_destination_search_terms(city)[:5],
+            ["New York", "New York City", "뉴욕", "NEW_YORK", "JFK"],
+        )
+
 
     def test_filter_cities_by_env_keeps_requested_city_ids_only(self):
         cities = [
@@ -763,7 +780,7 @@ class GoogleFlightScraperAsyncBehaviorTest(unittest.IsolatedAsyncioTestCase):
             result = await MODULE.set_destination(page, city)
 
         self.assertFalse(result)
-        self.assertEqual(page.keyboard.presses, [])
+        self.assertEqual(page.keyboard.presses, ["Escape"])
 
     async def test_set_destination_allows_special_city_query_without_options(self):
         async def no_sleep(_seconds):
