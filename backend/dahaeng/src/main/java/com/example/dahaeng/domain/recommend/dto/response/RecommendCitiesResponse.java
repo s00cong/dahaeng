@@ -60,8 +60,9 @@ public record RecommendCitiesResponse(
             String placeName,
             List<String> categoryTags,
             Map<String, Double> tagScores,
-            String description,
-            String imageUrl,
+            String address,
+            String websiteUrl,
+            String socialUrl,
             Location location
     ){}
 

@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface YouTubeSyncSnapshotRepository extends JpaRepository<YouTubeSyncSnapshot, Long> {
     void deleteByAccountIdAndSnapshotType(Long accountId, SnapshotType snapshotType);
+    void deleteByAccountId(Long accountId);
 }

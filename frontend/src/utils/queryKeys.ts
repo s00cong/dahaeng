@@ -33,6 +33,7 @@ export const queryKeys = {
   },
   country: {
     flagMap: ['country', 'flagMap'] as const,
+    maps: ['country', 'maps'] as const,
   },
   bookmark: {
     all: ['bookmark'] as const,

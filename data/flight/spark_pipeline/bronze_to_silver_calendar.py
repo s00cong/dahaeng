@@ -11,9 +11,16 @@ from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+
+from city_id_mapping import load_code_to_city_name
+
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_MAPPING_PATH = BASE_DIR.parent / "trip_com" / "city_airport_mapping.json"
 
 
 def parse_args():
@@ -48,11 +55,25 @@ def parse_args():
         default=os.getenv("DB_PASSWORD", ""),
         help="MariaDB password",
     )
+    parser.add_argument(
+        "--mapping-path",
+        default=str(DEFAULT_MAPPING_PATH),
+        help="Trip.com city mapping JSON path",
+    )
     return parser.parse_args()
 
 
 def normalize_city_key(column_name: str):
     return F.upper(F.trim(F.col(column_name)))
+
+
+def build_city_name_mapping_expr(code_to_city_name: dict[str, str]):
+    items = []
+    for city_code, city_name in code_to_city_name.items():
+        items.extend([F.lit(city_code), F.lit(city_name)])
+    if not items:
+        return None
+    return F.create_map(*items)
 
 
 def resolve_tripcom_direction_column():
@@ -85,9 +106,12 @@ def main():
     spark.sparkContext.setLogLevel("WARN")
 
     try:
-        bronze_path_pattern = f"{args.bronze_path}/dt=*/hour=*/*.jsonl"
-        print(f"[INFO] Reading Trip.com Bronze from: {bronze_path_pattern}")
-        df_raw = spark.read.json(bronze_path_pattern)
+        print(f"[INFO] Reading Trip.com Bronze from: {args.bronze_path}")
+        df_raw = (
+            spark.read.option("recursiveFileLookup", "true")
+            .option("pathGlobFilter", "*.jsonl")
+            .json(args.bronze_path)
+        )
 
         df_parsed = (
             df_raw.select(
@@ -102,7 +126,18 @@ def main():
             )
             .filter(F.col("price").isNotNull())
             .filter(F.col("direction").isin("outbound", "inbound"))
-            .withColumn("city_join_key", normalize_city_key("city_code"))
+        )
+
+        code_to_city_name = load_code_to_city_name(args.mapping_path)
+        city_name_mapping = build_city_name_mapping_expr(code_to_city_name)
+        mapped_city_name = (
+            city_name_mapping[F.col("city_code")] if city_name_mapping is not None else F.lit(None)
+        )
+        df_parsed = (
+            df_parsed.withColumn(
+                "resolved_city_name",
+                F.coalesce(mapped_city_name, F.col("city_code")),
+            ).withColumn("city_join_key", normalize_city_key("resolved_city_name"))
         )
 
         city_lookup = (

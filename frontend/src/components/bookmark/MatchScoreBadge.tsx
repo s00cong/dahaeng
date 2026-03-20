@@ -7,10 +7,11 @@ export function MatchScoreBadge({ score }: MatchScoreBadgeProps) {
     <div
       className="flex size-20 flex-col items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-yellow-300 shadow-lg"
       role="status"
-      aria-label={`매칭 점수 ${score}점`}
+      aria-label={`매칭 점수 ${score}%`}
     >
-      <span className="text-xl font-bold text-white leading-none">{score}</span>
-      <span className="text-xs font-semibold text-white/90 leading-none mt-0.5">점</span>
+      <span className="text-xl font-bold text-white leading-none">
+        {score}%
+      </span>
     </div>
   );
 }

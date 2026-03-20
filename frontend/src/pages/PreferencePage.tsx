@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, type Variants } from "framer-motion";
 import {
   Mountain,
@@ -19,6 +19,7 @@ import { TagCategorySection } from "@/components/preference/TagCategorySection";
 import { usePreferenceStore } from "@/stores/preferenceStore";
 import { useSubmitPreference, useUpdatePreference } from "@/hooks/auth/usePreference";
 import { useTagList } from "@/hooks/tag/useTagList";
+import { useMemberTags } from "@/hooks/auth/useMemberTags";
 import { youtubeApi } from "@/api/youtube.api";
 import { cn } from "@/lib/utils";
 
@@ -203,14 +204,25 @@ function SelectionCounter({ count }: SelectionCounterProps) {
 const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
   // 서버에서 태그 목록 fetch
   const { data: tagList = [], isLoading: isTagLoading } = useTagList();
+  const { data: memberTags = [], isLoading: isMemberTagLoading } = useMemberTags();
 
   const { youtubeAutoSelected, youtubeTagIds, setYoutubeTagIds } = usePreferenceStore();
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // 선택된 태그 ID 로컬 상태 — YouTube 분석 결과가 있으면 초기값으로 세팅
+  // edit 모드: 서버에서 불러온 기존 태그로 초기화
+  // 신규 등록: YouTube 분석 결과가 있으면 초기값, 없으면 빈 배열
+  const savedTagIds = memberTags.map((t) => t.tagId);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
     youtubeAutoSelected ? youtubeTagIds : [],
   );
+
+  // edit 모드에서 서버 태그 로딩 완료 후 초기 선택 세팅
+  useEffect(() => {
+    if (isEdit && !isMemberTagLoading && savedTagIds.length > 0) {
+      setSelectedTagIds(savedTagIds);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMemberTagLoading]);
   const submitResult = useSubmitPreference();
   const updateResult = useUpdatePreference();
   const { mutate, isPending } = isEdit ? updateResult : submitResult;
@@ -222,8 +234,12 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
     );
   };
 
-  // 선택 완료 → 서버에 tagIds 전송
+  // 선택 완료 → 서버에 tagIds 전송 + preferenceStore에 태그 이름 저장
   const handleSubmit = () => {
+    const tagNames = tagList
+      .filter((t) => selectedTagIds.includes(t.tagId))
+      .map((t) => t.tagName);
+    usePreferenceStore.getState().setSelectedTags(tagNames);
     mutate(selectedTagIds);
   };
 
