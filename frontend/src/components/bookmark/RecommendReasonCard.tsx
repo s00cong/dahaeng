@@ -1,4 +1,4 @@
-import { Sparkles, Tag, AlertTriangle, Bus, Utensils } from 'lucide-react';
+import { Sparkles, Tag, AlertTriangle, Bus, Utensils, Wallet } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -82,7 +82,9 @@ export function RecommendReasonCard({ data }: RecommendReasonCardProps) {
         {/* 하루 예상 비용 */}
         {(data.dailyFood !== undefined || data.dailyTransport !== undefined) && (
           <div className="flex flex-col gap-1.5">
-            <p className="text-xs font-semibold text-slate-400">저장 당시 하루 예상 비용</p>
+            <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
+              <Wallet className="size-3" /> 저장 당시 하루 예상 비용
+            </p>
             <div className="grid grid-cols-2 gap-2">
               {data.dailyFood !== undefined && (
                 <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2">
