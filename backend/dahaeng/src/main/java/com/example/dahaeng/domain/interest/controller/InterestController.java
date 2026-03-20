@@ -6,6 +6,7 @@ import com.example.dahaeng.domain.interest.service.InterestAnalysisService;
 import com.example.dahaeng.domain.member.entity.Member;
 import com.example.dahaeng.domain.member.repository.MemberRepository;
 import com.example.dahaeng.domain.youtube.entity.YouTubeAccount;
+import com.example.dahaeng.domain.youtube.enums.SyncStatus;
 import com.example.dahaeng.domain.youtube.repository.YouTubeAccountRepository;
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
@@ -32,6 +33,12 @@ public class InterestController {
     @PostMapping("/analyze")
     public ResponseEntity<Map<String, String>> analyze(@AuthenticationPrincipal CustomOAuth2User principal) {
         YouTubeAccount account = getLoginUserYouTubeAccount(principal);
+        if (!account.isSyncEnabledEffective()) {
+            throw new CustomException(ErrorCode.OPERATION_NOT_ALLOWED, "YouTube sync is disabled by user preference.");
+        }
+        if (account.getSyncStatus() != SyncStatus.SYNCED) {
+            throw new CustomException(ErrorCode.OPERATION_NOT_ALLOWED, "YouTube data is not synced yet.");
+        }
         analysisService.analyze(account.getId());
         return ResponseEntity.ok(Map.of("message", "interest analysis completed"));
     }

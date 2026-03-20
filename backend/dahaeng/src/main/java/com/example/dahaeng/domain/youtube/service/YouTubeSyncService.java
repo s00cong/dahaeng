@@ -94,6 +94,9 @@ public class YouTubeSyncService {
         if (account.getAccessToken() == null || account.getAccessToken().isBlank()) {
             throw new CustomException(ErrorCode.UNAUTHORIZED, "Google account is not linked.");
         }
+        if (!account.isSyncEnabledEffective()) {
+            throw new CustomException(ErrorCode.OPERATION_NOT_ALLOWED, "YouTube sync is disabled by user preference.");
+        }
         return account;
     }
 

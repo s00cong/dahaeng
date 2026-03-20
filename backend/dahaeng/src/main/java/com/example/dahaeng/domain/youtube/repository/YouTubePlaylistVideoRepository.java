@@ -8,4 +8,5 @@ import java.util.List;
 public interface YouTubePlaylistVideoRepository extends JpaRepository<YouTubePlaylistVideo, Long> {
     List<YouTubePlaylistVideo> findByPlaylistId(Long playlistId);
     void deleteByPlaylistId(Long playlistId);
+    void deleteByPlaylistAccountId(Long accountId);
 }
