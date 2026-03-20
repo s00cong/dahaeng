@@ -280,7 +280,7 @@ const MyPage = () => {
   };
 
   const handleTagEdit = () => {
-    setYoutubeAutoSelected(false);
+    setYoutubeAutoSelected(youtubeConnected);
     navigate({ to: "/preference" });
   };
 
