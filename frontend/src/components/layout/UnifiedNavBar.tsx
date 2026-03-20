@@ -139,7 +139,7 @@ export function UnifiedNavBar() {
             style={{ maxWidth: "320px" }}
           >
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 pointer-events-none" style={{ color: '#60a5fa' }} />
               <input
                 type="text"
                 value={query}

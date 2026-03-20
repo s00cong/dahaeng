@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Sparkles,
   Wallet,
@@ -5,6 +6,7 @@ import {
   TrendingUp,
   Newspaper,
   ChevronRight,
+  ChevronLeft,
   AlertCircle,
   ExternalLink,
   type LucideIcon,
@@ -20,6 +22,128 @@ interface RecommendTabProps {
   city: CityDetail;
   onTabChange: (tab: "recommend" | "cost" | "flight" | "spots") => void;
   isAiLoading?: boolean;
+}
+
+// ── 뉴스 캐러셀 ───────────────────────────────────────────────
+
+type NewsItem = NonNullable<NonNullable<CityDetail["news"]>["top3"]>[number];
+
+function NewsCarousel({ news, isLoading }: { news?: NewsItem[]; isLoading?: boolean }) {
+  const [idx, setIdx] = useState(0);
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex flex-col gap-2 rounded-xl overflow-hidden border border-slate-100">
+        <Skeleton className="h-36 w-full" />
+        <div className="p-3 flex flex-col gap-2">
+          <Skeleton className="h-3.5 w-4/5" />
+          <Skeleton className="h-3 w-3/5" />
+          <Skeleton className="h-2.5 w-16" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!news || news.length === 0) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2 py-8">
+        <Newspaper className="size-8 opacity-20" />
+        <p className="text-xs">관련 소식이 없습니다.</p>
+      </div>
+    );
+  }
+
+  const current = news[idx];
+  const total = news.length;
+  const domain = current.url ? (() => { try { return new URL(current.url).hostname; } catch { return null; } })() : null;
+  const faviconSrc = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
+
+  return (
+    <div className="flex-1 flex flex-col rounded-xl border border-slate-100 overflow-hidden bg-white">
+      {/* 이미지 영역 */}
+      <div className="relative h-36 bg-slate-100 shrink-0">
+        {current.urlToImage ? (
+          <img
+            key={current.urlToImage}
+            src={current.urlToImage}
+            alt={current.title}
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const img = e.currentTarget;
+              img.style.display = 'none';
+              const fallback = img.parentElement?.querySelector('.favicon-fallback') as HTMLElement | null;
+              if (fallback) fallback.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        {/* favicon 폴백 */}
+        <div
+          className="favicon-fallback absolute inset-0 flex items-center justify-center bg-slate-100"
+          style={{ display: current.urlToImage ? 'none' : 'flex' }}
+        >
+          {faviconSrc
+            ? <img src={faviconSrc} alt={domain ?? ""} className="w-12 h-12 object-contain opacity-50" />
+            : <Newspaper className="size-10 text-slate-300" />
+          }
+        </div>
+        {/* 그라디언트 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+        {/* 인덱스 표시 */}
+        <div className="absolute top-2 right-2 bg-black/40 text-white text-[10px] font-bold rounded-full px-2 py-0.5">
+          {idx + 1} / {total}
+        </div>
+        {/* 좌우 화살표 */}
+        {total > 1 && (
+          <>
+            <button
+              onClick={() => setIdx((prev) => (prev - 1 + total) % total)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 hover:bg-white flex items-center justify-center shadow transition-colors"
+              aria-label="이전 뉴스"
+            >
+              <ChevronLeft className="size-4 text-slate-700" />
+            </button>
+            <button
+              onClick={() => setIdx((prev) => (prev + 1) % total)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-white/80 hover:bg-white flex items-center justify-center shadow transition-colors"
+              aria-label="다음 뉴스"
+            >
+              <ChevronRight className="size-4 text-slate-700" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* 텍스트 영역 */}
+      <a
+        href={current.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group flex-1 flex flex-col gap-1.5 p-3 hover:bg-slate-50 transition-colors"
+      >
+        <p className="text-[12px] font-bold text-slate-800 line-clamp-3 group-hover:text-blue-600 transition-colors leading-snug">
+          {current.title}
+        </p>
+        <div className="flex items-center justify-between mt-auto">
+          <p className="text-[10px] text-slate-400">{dayjs(current.publishedAt).format('YYYY.MM.DD')}</p>
+          <ExternalLink className="size-3 text-slate-300 group-hover:text-blue-400 transition-colors" />
+        </div>
+      </a>
+
+      {/* 하단 dot 인디케이터 */}
+      {total > 1 && (
+        <div className="flex items-center justify-center gap-1.5 pb-3">
+          {Array.from({ length: total }).map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setIdx(i)}
+              className={`rounded-full transition-all ${i === idx ? 'w-4 h-1.5 bg-blue-500' : 'w-1.5 h-1.5 bg-slate-300 hover:bg-slate-400'}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── 비용 항목 바 ──────────────────────────────────────────────
@@ -238,76 +362,8 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
               </div>
             ) : null}
 
-            {/* Top 3 News Preview */}
-            <div className="flex flex-col gap-2 overflow-y-auto">
-              {isAiLoading ? (
-                [1, 2, 3].map((i) => (
-                  <div key={i} className="p-3 rounded-xl border border-slate-100 flex flex-col gap-1.5">
-                    <Skeleton className="h-3 w-4/5" />
-                    <Skeleton className="h-2.5 w-16" />
-                  </div>
-                ))
-              ) : (
-                <>
-                  {city.news?.top3?.map((news, idx) => {
-                    const domain = news.url ? new URL(news.url).hostname : null;
-                    const faviconSrc = domain
-                      ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
-                      : null;
-                    return (
-                    <a
-                      key={idx}
-                      href={news.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100 bg-white hover:border-blue-200 hover:shadow-sm transition-all"
-                    >
-                      <div className="w-14 h-10 rounded-lg shrink-0 bg-slate-100 overflow-hidden flex items-center justify-center">
-                        {news.urlToImage ? (
-                          <img
-                            src={news.urlToImage}
-                            alt={news.title}
-                            referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const img = e.currentTarget;
-                              if (faviconSrc) {
-                                img.src = faviconSrc;
-                                img.className = "w-8 h-8 object-contain";
-                              } else {
-                                img.style.display = 'none';
-                              }
-                            }}
-                          />
-                        ) : faviconSrc ? (
-                          <img
-                            src={faviconSrc}
-                            alt={domain ?? ""}
-                            className="w-8 h-8 object-contain"
-                          />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[12px] font-bold text-slate-800 line-clamp-2 group-hover:text-blue-600 transition-colors leading-snug">
-                          {news.title}
-                        </p>
-                        <p className="text-[9px] text-slate-400 mt-0.5">
-                          {dayjs(news.publishedAt).format('YYYY.MM.DD')}
-                        </p>
-                      </div>
-                      <ExternalLink className="size-3 text-slate-300 group-hover:text-blue-400 transition-colors shrink-0" />
-                    </a>
-                    );
-                  })}
-                  {(!city.news?.top3 || city.news.top3.length === 0) && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-2 py-8">
-                      <Newspaper className="size-8 opacity-20" />
-                      <p className="text-xs">관련 소식이 없습니다.</p>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            {/* Top 3 News Carousel */}
+            <NewsCarousel news={city.news?.top3} isLoading={isAiLoading} />
           </div>
         </section>
       </div>
