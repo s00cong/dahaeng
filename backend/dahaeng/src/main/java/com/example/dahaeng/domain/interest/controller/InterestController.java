@@ -1,6 +1,7 @@
 package com.example.dahaeng.domain.interest.controller;
 
 import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
+import com.example.dahaeng.domain.interest.dto.InterestAnalyzeResultResponse;
 import com.example.dahaeng.domain.interest.dto.InterestTagResponse;
 import com.example.dahaeng.domain.interest.service.InterestAnalysisService;
 import com.example.dahaeng.domain.member.entity.Member;
@@ -44,9 +45,9 @@ public class InterestController {
     }
 
     @GetMapping("/analyze")
-    public ResponseEntity<List<InterestTagResponse>> getAnalyzeResult(@AuthenticationPrincipal CustomOAuth2User principal) {
+    public ResponseEntity<InterestAnalyzeResultResponse> getAnalyzeResult(@AuthenticationPrincipal CustomOAuth2User principal) {
         YouTubeAccount account = getLoginUserYouTubeAccount(principal);
-        return ResponseEntity.ok(analysisService.getAnalyzedTags(account.getId()));
+        return ResponseEntity.ok(analysisService.getAnalyzeResult(account.getId()));
     }
 
     private YouTubeAccount getLoginUserYouTubeAccount(CustomOAuth2User principal) {

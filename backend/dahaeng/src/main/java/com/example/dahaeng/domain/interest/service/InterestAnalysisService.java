@@ -1,9 +1,12 @@
 package com.example.dahaeng.domain.interest.service;
 
 import com.example.dahaeng.domain.interest.dto.ExtractedInterestFeatures;
+import com.example.dahaeng.domain.interest.dto.InterestAnalyzeResultResponse;
+import com.example.dahaeng.domain.interest.dto.InterestKeywordResponse;
 import com.example.dahaeng.domain.interest.dto.InterestAnalysisResult;
 import com.example.dahaeng.domain.interest.dto.InterestTagResponse;
 import com.example.dahaeng.domain.interest.dto.TravelTagScore;
+import com.example.dahaeng.domain.interest.repository.YoutubeInterestKeywordRepository;
 import com.example.dahaeng.domain.youtube.repository.YouTubeTravelTagRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +28,7 @@ public class InterestAnalysisService {
     private final TravelTagValidator validator;
     private final InterestResultSaver saver;
     private final YouTubeTravelTagRepository youTubeTravelTagRepository;
+    private final YoutubeInterestKeywordRepository youtubeInterestKeywordRepository;
 
     public InterestAnalysisResult analyze(Long accountId) {
         log.info(">>> [COORDINATOR] Starting orchestrated analysis for account: {}", accountId);
@@ -63,6 +67,24 @@ public class InterestAnalysisService {
                         .tagName(resolveTagName(tag))
                         .build())
                 .toList();
+    }
+
+    public InterestAnalyzeResultResponse getAnalyzeResult(Long accountId) {
+        List<InterestTagResponse> tags = getAnalyzedTags(accountId);
+        List<InterestKeywordResponse> topKeywords = youtubeInterestKeywordRepository
+                .findTop60ByAccount_IdOrderByScoreDesc(accountId).stream()
+                .map(keyword -> InterestKeywordResponse.builder()
+                        .keyword(keyword.getKeyword())
+                        .normalizedKeyword(keyword.getNormalizedKeyword())
+                        .sourceType(keyword.getSourceType() != null ? keyword.getSourceType().name() : null)
+                        .score(keyword.getScore())
+                        .build())
+                .toList();
+
+        return InterestAnalyzeResultResponse.builder()
+                .tags(tags)
+                .topKeywords(topKeywords)
+                .build();
     }
 
     private String resolveCategoryName(com.example.dahaeng.domain.youtube.entity.YouTubeTravelTag tag) {
