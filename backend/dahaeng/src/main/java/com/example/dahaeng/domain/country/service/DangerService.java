@@ -1,7 +1,9 @@
 package com.example.dahaeng.domain.country.service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,21 +29,24 @@ public class DangerService {
 	public CountryDangerResponse dangers(Long countryId) {
 		Country country = countryRepository.findById(countryId).orElse(null);
 		Danger danger = dangerRepository.findByCountryId(countryId).orElse(null);
-		if (danger == null) {
-			return new CountryDangerResponse(
-				country != null ? country.getCountryName() : null,
-				List.of()
-			);
+		return toCountryDangerResponse(country, danger);
+	}
+
+	public Map<Long, CountryDangerResponse> dangersByCountryIds(List<Long> countryIds) {
+		if (countryIds == null || countryIds.isEmpty()) {
+			return Map.of();
 		}
 
-		List<CountryDanger> res = new ArrayList<>();
+		Map<Long, Country> countryMap = countryRepository.findAllByIdInAndIsDeletedFalse(countryIds).stream()
+			.collect(java.util.stream.Collectors.toMap(Country::getId, country -> country));
+		Map<Long, Danger> dangerMap = dangerRepository.findAllByCountryIds(countryIds).stream()
+			.collect(java.util.stream.Collectors.toMap(danger -> danger.getCountry().getId(), danger -> danger));
 
-		addAttention(res, danger);
-		addBan(res, danger);
-		addLimita(res, danger);
-		addSpecial(res, danger);
-
-		return new CountryDangerResponse(danger.getCountry().getCountryName(), res);
+		Map<Long, CountryDangerResponse> result = new HashMap<>();
+		for (Long countryId : countryIds) {
+			result.put(countryId, toCountryDangerResponse(countryMap.get(countryId), dangerMap.get(countryId)));
+		}
+		return result;
 	}
 
 	private void addSpecial(List<CountryDanger> res, Danger danger) {
@@ -78,5 +83,23 @@ public class DangerService {
 				)
 			);
 		}
+	}
+
+	private CountryDangerResponse toCountryDangerResponse(Country country, Danger danger) {
+		if (danger == null) {
+			return new CountryDangerResponse(
+				country != null ? country.getCountryName() : null,
+				List.of()
+			);
+		}
+
+		List<CountryDanger> res = new ArrayList<>();
+
+		addAttention(res, danger);
+		addBan(res, danger);
+		addLimita(res, danger);
+		addSpecial(res, danger);
+
+		return new CountryDangerResponse(danger.getCountry().getCountryName(), res);
 	}
 }

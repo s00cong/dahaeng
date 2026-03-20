@@ -8,4 +8,6 @@ import com.example.dahaeng.domain.country.entity.Country;
 
 public interface CountryRepository extends JpaRepository<Country, Long> {
 	List<Country> findAllByIsDeletedFalse();
+
+	List<Country> findAllByIdInAndIsDeletedFalse(List<Long> ids);
 }

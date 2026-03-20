@@ -51,6 +51,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -74,19 +75,36 @@ public class CityService {
     public List<AllCitiesResponse> getAllCities() {
         String targetYearMonth = currentYearMonth();
         Exchange usdExchange = getLatestUsdExchange();
-        List<City> cities = cityRepository.findAll();
+        List<City> cities = cityRepository.findAllWithCountryByIsDeletedFalse();
+        if (cities.isEmpty()) {
+            return List.of();
+        }
+        List<Long> cityIds = cities.stream()
+                .map(City::getId)
+                .toList();
+        List<Long> countryIds = cities.stream()
+                .map(city -> city.getCountry().getId())
+                .distinct()
+                .toList();
+
+        Map<Long, FlightSummary> flightSummaryMap = flightSummaryRepository.findAllByYearMonthAndCityIdsWithCity(targetYearMonth, cityIds)
+                .stream()
+                .collect(Collectors.toMap(summary -> summary.getCity().getId(), summary -> summary, (left, right) -> left));
+        Map<Long, LivingCostOfCity> livingCostMap = livingCostOfCityRepository.findAllInCities(cities).stream()
+                .collect(Collectors.toMap(cost -> cost.getCity().getId(), cost -> cost, (left, right) -> left));
+        Map<Long, com.example.dahaeng.domain.country.dto.response.CountryDangerResponse> dangerMap =
+                dangerService.dangersByCountryIds(countryIds);
         List<AllCitiesResponse> result = new ArrayList<>();
 
         for (City city : cities) {
             double hotelPerDay = 0.0;
-            FlightSummary summary = flightSummaryRepository.findByCityIdAndYearMonthWithCity(city.getId(), targetYearMonth)
-                    .orElse(null);
+            FlightSummary summary = flightSummaryMap.get(city.getId());
 
             if (summary != null) {
                 hotelPerDay = summary.getAvgHotelPrice() != null ? summary.getAvgHotelPrice() : 0.0;
             }
 
-            LivingCostOfCity cost = livingCostOfCityRepository.findOneByCityId(city.getId()).orElse(null);
+            LivingCostOfCity cost = livingCostMap.get(city.getId());
             if (cost != null && cost.getCity().getCityName().toLowerCase().equals(CityEnum.SEOUL.getCityName())) {
                 continue;
             }
@@ -102,7 +120,7 @@ public class CityService {
                     city.getCityName(),
                     city.getImgUrl(),
                     dailyLivingCost.total(),
-                    dangerService.dangers(city.getCountry().getId()),
+                    dangerMap.get(city.getCountry().getId()),
                     city.getLat(),
                     city.getLon()
             ));
