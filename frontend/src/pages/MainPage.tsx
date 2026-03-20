@@ -5,6 +5,8 @@ import { LeftSidebar } from "@/components/main/LeftSidebar";
 import { GlobeContainer } from "@/components/globe/GlobeContainer";
 import { RightPanel } from "@/components/main/RightPanel";
 import { youtubeApi } from "@/api/youtube.api";
+import { authApi } from "@/api/auth.api";
+import { tagApi } from "@/api/tag.api";
 import { usePreferenceStore } from "@/stores/preferenceStore";
 
 const MainPage = () => {
@@ -12,15 +14,26 @@ const MainPage = () => {
   useSearch({ from: "/_authenticated/main" });
 
   // 메인 진입 시 유저 관심 태그 로드 → selectedTags 초기화
+  // 우선순위: DB 저장 태그 → YouTube 관심 태그
   const { selectedTags, setSelectedTags } = usePreferenceStore();
   useEffect(() => {
-    if (selectedTags.length === 0) {
-      youtubeApi.getInterestTags()
-        .then(({ tagNames }) => {
-          if (tagNames.length > 0) setSelectedTags(tagNames);
-        })
-        .catch(() => {});
-    }
+    if (selectedTags.length > 0) return;
+    Promise.all([authApi.getMemberTags(), tagApi.getList()])
+      .then(([memberTags, tagList]) => {
+        const savedTagIds = memberTags.map((t) => t.tagId);
+        const tagNames = tagList
+          .filter((t) => savedTagIds.includes(t.tagId))
+          .map((t) => t.tagName);
+        if (tagNames.length > 0) {
+          setSelectedTags(tagNames);
+          return;
+        }
+        // DB 태그 없으면 YouTube 관심 태그로 폴백
+        return youtubeApi.getInterestTags().then(({ tagNames: ytNames }) => {
+          if (ytNames.length > 0) setSelectedTags(ytNames);
+        });
+      })
+      .catch(() => {});
   }, []);
 
   // navbar 애니메이션(0.4s)이 끝난 뒤 Globe를 마운트해 JS 스레드 경합 방지
