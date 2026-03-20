@@ -190,10 +190,11 @@ public class CityService {
         List<RecommendCityDetailResponse.TouristSpotResponse> touristSpots = places.stream()
                 .map(place -> new RecommendCityDetailResponse.TouristSpotResponse(
                         place.placeName(),
-                        place.description(),
                         place.location() != null ? place.location().lat() : null,
                         place.location() != null ? place.location().lon() : null,
-                        place.imageUrl(),
+                        place.address(),
+                        place.websiteUrl(),
+                        place.socialUrl(),
                         place.tagScores().entrySet().stream()
                                 .filter(entry -> entry.getValue() != null && entry.getValue() > 0)
                                 .map(Map.Entry::getKey)
@@ -386,6 +387,26 @@ public class CityService {
             @Override
             public String getDescription() {
                 return touristSpot.getDescription();
+            }
+
+            @Override
+            public String getImageUrl() {
+                return touristSpot.getImageUrl();
+            }
+
+            @Override
+            public String getAddress() {
+                return touristSpot.getAddress();
+            }
+
+            @Override
+            public String getWebsiteUrl() {
+                return touristSpot.getWebsite();
+            }
+
+            @Override
+            public String getSocialUrl() {
+                return touristSpot.getSns();
             }
 
             @Override
