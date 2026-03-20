@@ -87,8 +87,8 @@ services:
     environment:
       TZ: ${TZ:-Asia/Seoul}
       APP_RUNTIME: docker
-      DB_HOST: mysql
-      DB_PORT: 3306
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
       DB_USER: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE:-dahaeng}

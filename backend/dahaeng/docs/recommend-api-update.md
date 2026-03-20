@@ -1,576 +1,326 @@
-# Recommend API Update
+# 추천 API 점수 필드 문서
 
-## 개요
+## 1. 목적
 
-이 문서는 추천 API와 도시 상세 API를 어떻게 바꿨는지, 현재 응답이 어떤 구조인지, 프론트가 어떤 흐름으로 호출해야 하는지, 그리고 추가 확장 포인트가 무엇인지 정리한 문서다.
+이 문서는 추천 관련 API에서 내려주는 점수 필드가 무엇을 뜻하는지, 어떤 계산 결과가 어떤 응답 필드로 내려가는지 정리한다.
 
-## 이번 작업에서 바뀐 핵심
+대상 API:
 
-- `POST /api/recommend`는 더 이상 뉴스, 추천 문구, 관광지 목록까지 한 번에 많이 내려주지 않는다.
-- 대신 추천 상위 3개 도시의 요약 정보만 내려준다.
-- 다만 추천 상세를 같은 기준으로 다시 계산할 수 있도록 `requestContext`를 함께 내려준다.
-- `GET /api/city/{id}?recommend=true`는 추천 목록에서 사용한 조건을 다시 받아 상세 정보를 계산한다.
-- 위험도(`danger`)는 기존 팀원이 만든 `DangerService`를 그대로 재사용한다.
-- 추천 상세 응답에서는 News API, Google Places, OpenAI 결과를 사용하도록 연결했다.
+- `POST /api/recommend`
+- `GET /api/city/{id}?recommend=true`
 
-## API 흐름
+## 2. 추천 목록 API
 
-### 1. 추천 목록 요청
+### 2.1 요청
 
-프론트가 먼저 아래 API를 호출한다.
+엔드포인트:
 
 ```http
 POST /api/recommend
 Content-Type: application/json
 ```
 
-요청 예시:
+요청 바디:
 
 ```json
 {
-  "selectedTags": ["food", "nature"],
-  "userDailyBudget": 1000,
+  "selectedTags": ["food", "nature", "healing"],
+  "userDailyBudget": 250000,
   "travelDays": 3,
-  "month": 5
+  "month": 4
 }
 ```
 
-### 2. 추천 목록 응답
+### 2.2 응답 핵심 구조
 
-서버는 추천 계산에 사용한 값과 추천 도시 상위 3개를 함께 반환한다.
-
-응답 예시:
+실제 응답 DTO 기준 핵심 구조는 아래와 같다.
 
 ```json
 {
   "requestContext": {
-    "selectedTags": ["food", "nature"],
-    "userDailyBudget": 1000.0,
+    "selectedTags": ["food", "nature", "healing"],
+    "userDailyBudget": 250000,
     "travelDays": 3,
-    "month": 5
+    "month": 4
   },
   "recommendations": [
     {
-      "id": 1,
-      "name": "Chicago",
-      "imgUrl": null,
-      "expectedBudgetFor1day": 906.0,
-      "danger": {
-        "countryName": "United States",
-        "items": [
-          {
-            "level": "여행유의(일부)",
-            "description": "하와이 제외한 지역"
-          }
-        ]
-      },
-      "lat": 41.8781,
-      "lon": -87.6298
-    },
-    {
       "id": 2,
-      "name": "Guam",
-      "imgUrl": null,
-      "expectedBudgetFor1day": 819.9,
-      "danger": {
-        "countryName": "United States",
-        "items": [
-          {
-            "level": "여행유의(일부)",
-            "description": "하와이 제외한 지역"
-          }
-        ]
+      "name": "Tokyo",
+      "imgUrl": "https://...",
+      "livingCostFor1Day": 145800.0,
+      "scores": {
+        "total": 59.9,
+        "tag": 44.0,
+        "budget": 4.4,
+        "safety": 15.0,
+        "newsPenalty": -3.5
       },
-      "lat": 13.4443,
-      "lon": 144.7937
+      "danger": {
+        "countryName": "Japan",
+        "danger": []
+      },
+      "lat": 35.6762,
+      "lon": 139.6503
     }
   ]
 }
 ```
 
-### 3. 추천 도시 상세 요청
+### 2.3 점수 필드 정의
 
-사용자가 추천 도시 하나를 클릭하면, 프론트는 추천 목록 응답에서 받은 `requestContext`를 그대로 상세 API에 다시 넘긴다.
+#### `scores.total`
 
-```http
-GET /api/city/1?recommend=true&userDailyBudget=1000&travelDays=3&month=5&selectedTags=food&selectedTags=nature
+- 최종 추천 점수
+- 계산식:
+
+```text
+tag + budget + safety + newsPenalty
 ```
 
-### 4. 추천 도시 상세 응답
+- 범위:
+  - 0 ~ 100
 
-서버는 같은 예산, 같은 태그, 같은 여행월 기준으로 상세 점수와 추천 사유를 다시 계산해서 내려준다.
+#### `scores.tag`
 
-응답 예시:
+- 태그 적합도 점수
+- 사용자 취향 태그와 도시 태그/기후 태그의 매칭 평균을 55점 스케일로 환산한 값
+- 범위:
+  - 0 ~ 55
+
+#### `scores.budget`
+
+- 예산 적합도 점수
+- 총예산 대비 예상 총비용의 차이를 반영
+- 범위:
+  - -25 ~ 25
+
+#### `scores.safety`
+
+- 안전 점수
+- 범위:
+  - 7.5 또는 15.0
+
+#### `scores.newsPenalty`
+
+- 뉴스 패널티 점수
+- 이름은 점수지만 실제 값은 0 또는 음수다
+- 범위:
+  - -15 ~ 0
+
+## 3. 추천 상세 API
+
+### 3.1 요청
+
+엔드포인트:
+
+```http
+GET /api/city/{id}?recommend=true&selectedTags=food&selectedTags=nature&userDailyBudget=250000&travelDays=3&month=4
+```
+
+주의:
+
+- `recommend=true`일 때는 아래 파라미터가 모두 필요하다.
+  - `userDailyBudget`
+  - `travelDays`
+  - `month`
+- 누락 시 예외가 발생한다.
+
+### 3.2 응답 핵심 구조
 
 ```json
 {
-  "name": "Chicago",
+  "name": "Tokyo",
   "score": {
-    "finalScore": 72.4,
-    "budgetScore": 11.8,
-    "safetyScore": 7.5,
-    "tagMatchScore": 40.0,
-    "newPenaltyScore": -2.0
+    "finalScore": 59.9,
+    "budgetScore": 4.4,
+    "safetyScore": 15.0,
+    "tagMatchScore": 44.0,
+    "newPenaltyScore": -3.5
   },
-  "recommendationReason": "예산과 선호 태그에 잘 맞고 최근 뉴스 흐름도 비교적 안정적이어서 추천된 도시입니다.",
+  "recommendationReason": "사용자 취향과 잘 맞고...",
   "livingCostFor1Day": {
-    "food": 120.0,
-    "transportation": 35.0
+    "food": {
+      "total": 61600.0,
+      "breakfast": 8400.0,
+      "lunch": 16800.0,
+      "dinner": 28000.0,
+      "cappuccino": 5600.0,
+      "cokePepsi": 2800.0
+    },
+    "transportation": {
+      "total": 4200.0,
+      "localTransportTicket": 2100.0,
+      "ticketCount": 2.0
+    },
+    "hotel": 80000.0,
+    "total": 145800.0
   },
   "airTicketAndHotel": {
-    "airTicket": 650.0,
-    "hotel": 101.0
+    "airTicket": 180000.0,
+    "hotel": 80000.0
   },
   "news": {
-    "summation": "최근 시카고 여행 관련 기사들을 보면 관광, 이벤트, 치안 이슈가 함께 언급되지만 전반적으로 여행 수요는 유지되고 있습니다.",
-    "top3": [
-      {
-        "title": "Chicago tourism sees spring rebound",
-        "url": "https://example.com/news1",
-        "content": "Chicago tourism is seeing a rebound this spring...",
-        "description": "Visitor demand is recovering ahead of the summer season.",
-        "urlToImage": "https://example.com/image1.jpg",
-        "publishedAt": "2026-03-12T08:30:00Z"
-      }
-    ]
+    "summation": "...",
+    "top3": []
   },
   "danger": {
-    "countryName": "United States",
-    "items": [
-      {
-        "level": "여행유의(일부)",
-        "description": "하와이 제외한 지역"
-      }
-    ]
+    "countryName": "Japan",
+    "danger": []
   },
-  "tags": [
-    {
-      "name": "food",
-      "tagScore": 0.91
-    },
-    {
-      "name": "nature",
-      "tagScore": 0.77
-    }
-  ],
-  "touristSpot": [
-    {
-      "name": "Millennium Park",
-      "description": "Google Places가 보강한 관광지 설명",
-      "lat": 41.8826,
-      "lon": -87.6226,
-      "imageUrl": "https://example.com/place-image.jpg",
-      "tags": ["nature"]
-    }
-  ]
+  "tags": [],
+  "touristSpot": []
 }
 ```
 
-### 5. 일반 도시 상세 요청
+### 3.3 상세 API 점수 필드 정의
 
-추천 맥락 없이 일반 상세만 볼 경우에는 아래처럼 호출한다.
+#### `score.finalScore`
 
-```http
-GET /api/city/1?recommend=false
-```
+- 추천 목록 API의 `scores.total`과 같은 값
 
-응답 예시:
+#### `score.budgetScore`
 
-```json
-{
-  "id": 1,
-  "name": "Chicago",
-  "livingCostFor1Day": {
-    "food": 120.0,
-    "transportation": 35.0
-  },
-  "airTicketAndHotel": {
-    "airTicket": 650.0,
-    "hotel": 101.0
-  },
-  "danger": {
-    "countryName": "United States",
-    "items": [
-      {
-        "level": "여행유의(일부)",
-        "description": "하와이 제외한 지역"
-      }
-    ]
-  },
-  "tags": [
-    {
-      "name": "food",
-      "tagScore": 0.91
-    }
-  ]
-}
-```
+- 추천 목록 API의 `scores.budget`과 같은 값
 
-## 현재 추천 상세에서 실제로 채워지는 외부 API 데이터
+#### `score.safetyScore`
 
-### News API
+- 추천 목록 API의 `scores.safety`와 같은 값
 
-추천 상세 응답의 `news.top3`에는 아래 필드가 들어간다.
+#### `score.tagMatchScore`
 
-- `title`
-- `url`
-- `description`
-- `content`
-- `urlToImage`
-- `publishedAt`
+- 추천 목록 API의 `scores.tag`와 같은 값
 
-즉, 이전처럼 `content`, `description`, `publishedAt`이 비어 있지 않고 News API 원본 응답을 그대로 매핑한다.
+#### `score.newPenaltyScore`
 
-### Google Places
+- 추천 목록 API의 `scores.newsPenalty`와 같은 값
+- 필드명이 `newPenaltyScore`로 되어 있는데 의미상 `newsPenaltyScore`다
 
-추천 상세 응답의 `touristSpot`은 Google Places enrichment 결과를 우선 사용한다.
+## 4. 목록 API와 상세 API의 관계
 
-- `description`
-- `imageUrl`
-- `lat`
-- `lon`
+두 API는 점수 계산 공식을 공유한다.
 
-API 키가 있으면 Google Places 보강 결과가 우선 반영되고, 실패하면 DB 기본값을 사용한다.
-실패 원인은 서버 로그에 warning 레벨로 남기도록 수정했다.
+차이는 아래다.
 
-### OpenAI
+- 목록 API
+  - 여러 도시를 비교해서 상위 3개를 반환
+- 상세 API
+  - 특정 도시 1개에 대해 같은 계산식을 적용하고 세부 근거까지 내려줌
 
-추천 상세 응답의 `recommendationReason`은 OpenAI narration service 결과를 사용한다.
+즉:
 
-만약 OpenAI 호출이 실패하면 fallback 문구를 사용한다.
+- 목록의 점수는 "비교용"
+- 상세의 점수는 "설명용"
 
-## 외부 API 실패 로그
+하지만 수식 자체는 동일하다.
 
-외부 API가 실패해도 사용자 응답은 fallback으로 내려가지만, 이제 서버 로그에는 원인이 남는다.
+## 5. 점수 외 보조 필드의 의미
 
-### News API
+### `livingCostFor1Day`
 
-다음 상황에서 warning 로그가 남는다.
+- 점수 계산에 실제로 사용된 1일 생활비 내역
+- 예산 점수 해석의 근거 데이터
 
-- News API 호출 실패
-- 뉴스 요약용 OpenAI 호출 실패
+### `airTicketAndHotel.airTicket`
+
+- 예상 총비용 계산에 들어가는 항공권 가격
+
+### `danger`
+
+- 안전 점수와 후보 제외 판단의 근거가 되는 국가 위험 정보
+
+### `news`
+
+- 뉴스 패널티와 함께 보여주는 설명 자료
+- 패널티 자체는 DB의 `news_penalty_score`를 사용하지만, 상세 응답에서는 관련 뉴스 요약도 함께 내려준다
+
+### `tags`
+
+- 해당 도시가 가진 태그 목록과 태그 점수
+- 태그 적합도 설명용 데이터
+
+### `touristSpot`
+
+- 사용자가 고른 태그와 맞는 관광지 추천 결과
+- 각 관광지의 `tagScores`와 `spotScore`를 통해 어떤 태그 때문에 추천됐는지 설명 가능
+
+## 6. 관광지 추천 점수 해석
+
+추천 상세의 `touristSpot`은 도시 총점과는 별도 로직으로 만든다.
+
+동작 방식:
+
+1. 선택 태그가 없으면 도시의 관광지 목록을 ID 순으로 최대 5개 반환
+2. 선택 태그가 있으면 관광지별 태그 점수를 합산한 `matchScore`로 정렬해 상위 5개 반환
+3. 응답에는 각 태그별 점수 맵 `tagScores`를 포함
+4. `spotScore`는 `tagScores`의 합계를 소수 넷째 자리로 반올림한 값
 
 예시:
 
-```text
-News API request failed for city=Tokyo, country=Japan: 401 Unauthorized
-News summary generation failed for city=Tokyo, country=Japan: ...
-```
-
-### Google Places
-
-다음 상황에서 warning 로그가 남는다.
-
-- Google Places 검색 실패
-- 사진 media 조회 실패
-- Places API 권한, 과금, 키 문제
-
-예시:
-
-```text
-Google Places enrichment failed for spot=Shibuya Crossing: 403 Forbidden
-```
-
-## 점수 계산 방식
-
-### 추천 목록 도시 점수
-
-추천 목록에서 도시 점수는 다음 요소를 조합한다.
-
-- `budgetScore`
-- `safetyScore`
-- `tagScore`
-- `newsPenaltyScore`
-
-최종적으로 `totalScore`를 계산하고 상위 3개를 반환한다.
-
-### 추천 상세 도시 점수
-
-추천 상세도 같은 조건을 다시 받아 아래 값을 계산한다.
-
-- `budgetScore`
-- `safetyScore`
-- `tagMatchScore`
-- `newPenaltyScore`
-- `finalScore`
-
-상세 API가 `requestContext`를 다시 받기 때문에 추천 목록과 같은 기준으로 계산할 수 있다.
-
-## 각 관광지에도 점수를 줄 수 있는가
-
-가능하다.
-
-현재 내부적으로는 관광지별 태그 점수 맵을 이미 만들고 있다. 추천 서비스 내부의 `RecommendedPlace`에는 아래 값이 이미 존재한다.
-
-- `categoryTags`
-- `tagScores`
-
-즉, 내부 데이터 기준으로는 각 관광지별 매칭 점수를 계산할 준비가 되어 있다.
-
-### 현재 상태
-
-- 추천 상세 응답의 `touristSpot`에는 이제 `tags`가 포함된다.
-- `tags`는 내부 `tagScores` 중 0보다 큰 태그만 추려서 내려준다.
-- `spotScore`는 아직 노출하지 않는다.
-
-현재 실제 `touristSpot` 응답 형태:
-
 ```json
 {
-  "name": "Millennium Park",
-  "description": "Google Places가 보강한 관광지 설명",
-  "lat": 41.8826,
-  "lon": -87.6226,
-  "imageUrl": "https://example.com/place-image.jpg",
-  "tags": ["nature"]
-}
-```
-
-### 바로 확장 가능한 방식
-
-`touristSpot` 응답에 예를 들어 아래 필드를 추가하면 된다.
-
-```json
-{
-  "name": "Millennium Park",
-  "description": "Google Places가 보강한 관광지 설명",
-  "lat": 41.8826,
-  "lon": -87.6226,
-  "imageUrl": "https://example.com/place-image.jpg",
-  "spotScore": 8.7,
+  "name": "Senso-ji",
+  "tags": ["food", "history"],
+  "spotScore": 1.27,
   "tagScores": {
-    "food": 0.2,
-    "nature": 0.9
+    "food": 0.41,
+    "nature": 0.0,
+    "history": 0.86
   }
 }
 ```
 
-### 관광지 점수 계산 예시
+해석:
 
-아래 방식으로 계산할 수 있다.
+- 사용자가 선택한 태그 중 `history`와 강하게 맞고
+- `food`와도 일부 맞기 때문에 추천된 관광지
 
-- 선택 태그 점수 평균
-- 선택 태그 점수 합계
-- 상위 태그 가중합
-- Google Places 보강 성공 여부 가산점
+## 7. API 문서화 시 프론트와 맞춰야 할 포인트
 
-가장 단순한 버전은:
+### 7.1 `newsPenalty`는 음수값이다
 
-- `spotScore = selectedTags에 대한 tagScores 합계`
+프론트에서 `3.5점`으로 보여주면 의미가 바뀐다.
+반드시 감점으로 이해되도록 표시해야 한다.
 
-가장 실용적인 버전은:
+### 7.2 목록과 상세의 필드명이 다르다
 
-- `spotScore = 태그 매칭 점수 + 이미지 보유 가산점 + 설명 보강 가산점`
+예:
 
-즉, 지금 구조에서는 관광지별 점수 추가가 어렵지 않고, 응답 DTO만 확장하면 바로 붙일 수 있다.
+- 목록: `total`
+- 상세: `finalScore`
 
-## 현재 기준 최종 정리
+- 목록: `tag`
+- 상세: `tagMatchScore`
 
-### 이미 반영된 것
+프론트 모델을 분리하거나 매핑 계층을 두는 것이 안전하다.
 
-- `POST /api/recommend`는 `requestContext + recommendations` 구조로 응답
-- 추천 상위 3개 도시만 요약형으로 반환
-- `GET /api/city/{id}?recommend=true`는 예산, 태그, 여행월을 다시 받아 같은 기준으로 상세 계산
-- 추천 상세에서 `budgetScore`, `finalScore`, `recommendationReason` 재계산
-- 추천 상세에서 News API 기사 상세 필드 사용
-- 추천 상세에서 Google Places 관광지 보강 사용
-- 추천 상세에서 OpenAI 추천 문구 사용
-- `danger`는 기존 `DangerService` 재사용
+### 7.3 `newPenaltyScore`는 오타에 가깝다
 
-### 아직 응답에 없는 것
+상세 API 필드명은 현재 `newPenaltyScore`인데 의미상 `newsPenaltyScore`다.
+클라이언트에서는 이름 그대로 받아야 하지만 내부 문서에서는 혼동이 없게 설명해야 한다.
 
-- `touristSpot.spotScore`
-- `touristSpot.tagScores`
+## 8. 추천 응답 해석 예시
 
-즉, 관광지별 태그는 현재 API 응답에 포함되지만, 관광지별 점수는 아직 포함되지 않는다.
-
-### 다음에 바로 확장 가능한 것
-
-아래 형태로 확장 가능하다.
+예를 들어 아래 응답이 왔다고 가정한다.
 
 ```json
-{
-  "touristSpot": [
-    {
-      "name": "Millennium Park",
-      "description": "Google Places가 보강한 관광지 설명",
-      "lat": 41.8826,
-      "lon": -87.6226,
-      "imageUrl": "https://example.com/place-image.jpg",
-      "spotScore": 8.7,
-      "tagScores": {
-        "food": 0.2,
-        "nature": 0.9
-      }
-    }
-  ]
+"scores": {
+  "total": 63.4,
+  "tag": 46.2,
+  "budget": 6.7,
+  "safety": 15.0,
+  "newsPenalty": -4.5
 }
 ```
 
-## 구현 메모
+이 응답은 아래처럼 읽으면 된다.
 
-- `POST /api/recommend`는 요약형 응답으로 유지
-- 추천 조건은 `requestContext`로 함께 반환
-- `GET /api/city/{id}?recommend=true`는 그 조건을 query parameter로 다시 받음
-- `danger`는 기존 `DangerService.dangers(countryId)` 재사용
-- 추천 상세는 News API, Google Places, OpenAI를 사용
-- News API 기사 상세 필드도 현재는 응답에 포함
+- 취향 적합도가 매우 높다
+- 예산에도 무난하게 들어온다
+- 안전 공지 이슈는 없다
+- 다만 최근 뉴스 리스크로 4.5점 감점됐다
+- 최종적으로는 여전히 높은 추천 점수다
 
-## 더미 데이터 시딩
+## 9. 한 줄 결론
 
-모든 기능을 바로 테스트할 수 있도록 서버 시작 시 추천용 더미 데이터를 자동으로 넣는 시더를 추가했다.
-
-시더 파일:
-
-- `src/main/java/com/example/dahaeng/global/init/DemoDataSeeder.java`
-
-설정:
-
-- `src/main/resources/application.yml`
-  - `app.demo-data.enabled: true`
-- `src/main/resources/application-example.yml`
-  - `app.demo-data.enabled: ${DEMO_DATA_ENABLED:false}`
-
-### 시딩 방식
-
-- 서버 실행 시 `DemoDataSeeder`가 동작한다.
-- 같은 이름의 국가, 도시, 태그, 관광지, 월별 항공 데이터가 있으면 update
-- 없으면 insert
-- 즉, 로컬에서 여러 번 실행해도 같은 테스트용 데이터를 유지하도록 idempotent 방식으로 구성했다.
-
-### 자동으로 들어가는 더미 데이터
-
-#### 카테고리
-
-- `travel`
-
-#### 태그
-
-- `food`
-- `nature`
-- `city`
-- `art`
-- `beach`
-- `healing`
-
-#### 국가
-
-- `United States`
-- `Japan`
-- `Vietnam`
-
-#### 위험도
-
-- 미국: `여행유의(일부)` / `하와이 제외한 지역`
-- 일본: `철수권고(일부)` / `후쿠시마 원전 반경 30km 이내 및 일본 정부 지정 피난지시구역`
-- 베트남: `여행유의` / `전 지역`
-
-#### 도시
-
-- `Chicago`
-- `Guam`
-- `Tokyo`
-- `Da Nang`
-
-#### 도시 태그
-
-- Chicago: `food`, `city`, `art`
-- Guam: `beach`, `healing`, `nature`
-- Tokyo: `city`, `food`, `art`
-- Da Nang: `beach`, `food`, `healing`
-
-#### 생활비
-
-각 도시에 대해 다음 데이터가 자동 생성된다.
-
-- `daily_budget`
-- `food`
-- `transport`
-- 점심, 저녁, 커피, 교통권, 택시 등 기본 생활비 컬럼
-
-#### 항공/호텔 요약
-
-각 도시에 대해 현재 연도의 `1월~12월` 전부 `flight_summary`가 생성된다.
-
-예시:
-
-- Chicago: `ORD`, 항공 `650`, 호텔 `101`
-- Guam: `GUM`, 항공 `540`, 호텔 `85`
-- Tokyo: `NRT`, 항공 `330`, 호텔 `110`
-- Da Nang: `DAD`, 항공 `280`, 호텔 `60`
-
-즉, 사용자가 어느 여행월을 넣어도 추천 API가 동작하도록 월별 데이터를 모두 넣는다.
-
-#### 관광지
-
-- Chicago
-  - `Millennium Park`
-  - `Art Institute of Chicago`
-- Guam
-  - `Tumon Beach`
-  - `Two Lovers Point`
-- Tokyo
-  - `Shibuya Crossing`
-  - `Senso-ji`
-- Da Nang
-  - `My Khe Beach`
-  - `Dragon Bridge`
-
-#### 관광지 태그
-
-각 관광지에는 `spot_tags`가 연결된다.
-
-예시:
-
-- Millennium Park: `city`, `art`
-- Tumon Beach: `beach`, `healing`
-- Shibuya Crossing: `city`, `food`
-- My Khe Beach: `beach`, `healing`
-
-### 더미 데이터로 바로 테스트 가능한 기능
-
-- 추천 상위 3개 도시 조회
-- 추천 상세 조회
-- 예산/태그/여행월 기준 점수 계산
-- 위험도 응답
-- 관광지 목록 조회
-- 관광지 태그 조회
-- Google Places 기반 관광지 보강
-- OpenAI 추천 문구 생성
-- News API 기반 뉴스 요약 및 기사 3개 조회
-
-### 실행 후 확인 포인트
-
-서버를 띄운 뒤 아래 흐름으로 바로 확인할 수 있다.
-
-1. `POST /api/recommend`
-2. 응답에서 `requestContext`와 추천 도시 `id` 확인
-3. `GET /api/city/{id}?recommend=true...` 호출
-4. `touristSpot.tags`, `news.top3`, `recommendationReason`, `danger` 확인
-
-## 수정 파일
-
-- `src/main/java/com/example/dahaeng/domain/recommend/controller/RecommendController.java`
-- `src/main/java/com/example/dahaeng/domain/recommend/Service/RecommendFacade.java`
-- `src/main/java/com/example/dahaeng/domain/recommend/Service/CityRankResult.java`
-- `src/main/java/com/example/dahaeng/domain/recommend/repository/RecommendQueryRepository.java`
-- `src/main/java/com/example/dahaeng/domain/recommend/repository/CityCandidateProjection.java`
-- `src/main/java/com/example/dahaeng/domain/recommend/dto/response/RecommendCitySummaryResponse.java`
-- `src/main/java/com/example/dahaeng/domain/recommend/dto/response/RecommendCitiesResponse.java`
-- `src/main/java/com/example/dahaeng/domain/recommend/Service/NewsApiSearchService.java`
-- `src/main/java/com/example/dahaeng/domain/recommend/Service/DummyNewsSerachService.java`
-- `src/main/java/com/example/dahaeng/domain/city/controller/CityController.java`
-- `src/main/java/com/example/dahaeng/domain/city/service/CityService.java`
-- `docs/recommend-api-update.md`
-
-## 검증
-
-아래 명령으로 컴파일 검증을 진행했다.
-
-```bash
-./gradlew compileJava --project-cache-dir .gradle-home/project-cache
-```
-
-결과:
-
-- 컴파일 성공
+추천 API의 점수 필드는 모두 같은 계산기의 결과이며, 목록 API는 비교용 요약, 상세 API는 근거 설명용 확장 응답으로 보면 된다.

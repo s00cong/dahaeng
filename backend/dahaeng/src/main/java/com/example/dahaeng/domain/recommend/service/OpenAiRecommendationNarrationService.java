@@ -31,7 +31,7 @@ public class OpenAiRecommendationNarrationService implements RecommendationNarra
         try {
             String content = chatClientBuilder.build()
                     .prompt()
-                    .system("너는 여행 추천 서비스의 설명 생성기다. 한국어로만 2문장 이내로 답하고, 과장하지 마라.")
+                    .system("너는 여행 추천 서비스의 설명 생성기야. 한국어로만 2문장 이내로 답하고, 과장하지 마라.")
                     .user("""
                             사용자 태그: %s
                             국가: %s

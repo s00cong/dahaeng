@@ -106,9 +106,12 @@ def main():
     spark.sparkContext.setLogLevel("WARN")
 
     try:
-        bronze_path_pattern = f"{args.bronze_path}/dt=*/hour=*/*.jsonl"
-        print(f"[INFO] Reading Trip.com Bronze from: {bronze_path_pattern}")
-        df_raw = spark.read.json(bronze_path_pattern)
+        print(f"[INFO] Reading Trip.com Bronze from: {args.bronze_path}")
+        df_raw = (
+            spark.read.option("recursiveFileLookup", "true")
+            .option("pathGlobFilter", "*.jsonl")
+            .json(args.bronze_path)
+        )
 
         df_parsed = (
             df_raw.select(

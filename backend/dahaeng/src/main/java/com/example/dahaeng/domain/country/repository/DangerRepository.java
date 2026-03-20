@@ -17,4 +17,12 @@ public interface DangerRepository extends JpaRepository<Danger, Long> {
         """
     )
     Optional<Danger> findByCountryId(Long countryId);
+
+    @Query("""
+        select d
+        from Danger d join fetch d.country
+        where d.isDeleted = false
+          and d.country.id in :countryIds
+        """)
+    List<Danger> findAllByCountryIds(List<Long> countryIds);
 }

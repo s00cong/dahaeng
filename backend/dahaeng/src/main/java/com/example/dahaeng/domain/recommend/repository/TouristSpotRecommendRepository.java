@@ -14,6 +14,10 @@ public interface TouristSpotRecommendRepository extends JpaRepository<TouristSpo
             ts.city_id as cityId,
             ts.tourist_name as placeName,
             ts.description as description,
+            null as imageUrl,
+            ts.address as address,
+            ts.website as websiteUrl,
+            ts.sns as socialUrl,
             ts.lat as lat,
             ts.lon as lon,
             coalesce(sum(case when t.name in (:selectedTags) then st.score else 0 end), 0) as matchScore
@@ -26,7 +30,7 @@ public interface TouristSpotRecommendRepository extends JpaRepository<TouristSpo
            and t.is_deleted = b'0'
         where ts.city_id in (:cityIds)
           and ts.is_deleted = b'0'
-        group by ts.id, ts.city_id, ts.tourist_name, ts.description, ts.lat, ts.lon
+        group by ts.id, ts.city_id, ts.tourist_name, ts.description, ts.address, ts.website, ts.sns, ts.lat, ts.lon
         order by ts.city_id asc, matchScore desc, ts.id asc
         """, nativeQuery = true)
     List<SpotRecommendationProjection> findSpotCandidates(
