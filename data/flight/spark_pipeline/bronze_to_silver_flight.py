@@ -12,13 +12,18 @@ from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import IntegerType
+from pyspark.sql.types import IntegerType, StructType
 from pyspark.sql.window import Window
 
-from city_id_mapping import parse_mysql_connection_info
+from city_id_mapping import load_code_to_city_name, parse_mysql_connection_info
+
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_MAPPING_PATH = BASE_DIR.parent / "trip_com" / "city_airport_mapping.json"
 
 
 def parse_args():
@@ -26,13 +31,13 @@ def parse_args():
         description="Bronze -> Silver -> MariaDB ETL for flight data"
     )
     parser.add_argument(
-        "--bronze-path",
-        default="/workspace/data/flight/google_flight/bronze_airticket",
-        help="Google Flights Bronze base path",
+        "--google-path",
+        default="/workspace/data/flight/normalized/google_flight.jsonl",
+        help="Google Flights normalized JSONL path",
     )
     parser.add_argument(
         "--silver-path",
-        default="/workspace/data/flight/silver/flight_summary",
+        default="hdfs://namenode:9000/data/silver/flight/flight_summary",
         help="Silver parquet output path",
     )
     parser.add_argument(
@@ -51,15 +56,14 @@ def parse_args():
         help="MariaDB password",
     )
     parser.add_argument(
-        "--mode",
-        default="all",
-        choices=["all", "today"],
-        help="Read all snapshots or only today's snapshot",
+        "--tripcom-path",
+        default="hdfs://namenode:9000/data/bronze/flight/trip_com",
+        help="Trip.com Bronze base path",
     )
     parser.add_argument(
-        "--tripcom-path",
-        default="/workspace/data/flight/trip_com/bronze_airticket",
-        help="Trip.com Bronze base path",
+        "--mapping-path",
+        default=str(DEFAULT_MAPPING_PATH),
+        help="Trip.com city mapping JSON path",
     )
     return parser.parse_args()
 
@@ -68,17 +72,45 @@ def normalize_city_key(column_name: str):
     return F.upper(F.trim(F.col(column_name)))
 
 
-def read_bronze(spark: SparkSession, bronze_path: str, mode: str) -> DataFrame:
-    if mode == "today":
-        from datetime import date
+def nested_field_exists(schema: StructType, field_path: str) -> bool:
+    current_type = schema
+    for field_name in field_path.split("."):
+        if not isinstance(current_type, StructType):
+            return False
+        matching_field = next(
+            (field for field in current_type.fields if field.name == field_name),
+            None,
+        )
+        if matching_field is None:
+            return False
+        current_type = matching_field.dataType
+    return True
 
-        today = date.today().strftime("dt=%Y-%m-%d")
-        pattern = f"{bronze_path}/google_flights/{today}/hour=*/*.jsonl"
-    else:
-        pattern = f"{bronze_path}/google_flights/dt=*/hour=*/*.jsonl"
 
-    print(f"[INFO] Reading Google Flights Bronze from: {pattern}")
-    df_raw = spark.read.json(pattern)
+def build_first_available_column(df: DataFrame, field_paths: list[str]):
+    available_paths = [
+        field_path for field_path in field_paths if nested_field_exists(df.schema, field_path)
+    ]
+    if not available_paths:
+        joined = ", ".join(field_paths)
+        raise RuntimeError(f"None of the expected fields exist: {joined}")
+    if len(available_paths) == 1:
+        return F.col(available_paths[0])
+    return F.coalesce(*[F.col(field_path) for field_path in available_paths])
+
+
+def build_city_name_mapping_expr(code_to_city_name: dict[str, str]):
+    items = []
+    for city_code, city_name in code_to_city_name.items():
+        items.extend([F.lit(city_code), F.lit(city_name)])
+    if not items:
+        return None
+    return F.create_map(*items)
+
+
+def read_google_normalized(spark: SparkSession, google_path: str) -> DataFrame:
+    print(f"[INFO] Reading Google Flights normalized JSONL from: {google_path}")
+    df_raw = spark.read.json(google_path)
 
     return df_raw.filter(
         (F.col("dataset") == "airticket")
@@ -87,8 +119,12 @@ def read_bronze(spark: SparkSession, bronze_path: str, mode: str) -> DataFrame:
 
 
 def transform_to_silver(df: DataFrame, df_tripcom_avg: DataFrame | None = None) -> DataFrame:
+    google_city_column = build_first_available_column(
+        df,
+        ["entity.city_id", "entity.city_code"],
+    )
     df_silver = df.select(
-        F.coalesce(F.col("entity.city_id"), F.col("entity.city_code")).alias("city_code"),
+        google_city_column.alias("city_code"),
         F.col("entity.city_name").alias("city_name"),
         F.col("entity.year_month").alias("year_month"),
         F.col("entity.origin_airport").alias("origin_airport"),
@@ -132,20 +168,26 @@ def transform_to_silver(df: DataFrame, df_tripcom_avg: DataFrame | None = None) 
 def read_and_agg_tripcom_price(
     spark: SparkSession, tripcom_path: str
 ) -> DataFrame | None:
-    pattern = f"{tripcom_path}/dt=*/hour=*/*.jsonl"
-    print(f"[INFO] Reading Trip.com Bronze from: {pattern}")
+    print(f"[INFO] Reading Trip.com Bronze from: {tripcom_path}")
 
     try:
-        df_raw = spark.read.json(pattern)
+        df_raw = (
+            spark.read.option("recursiveFileLookup", "true")
+            .option("pathGlobFilter", "*.jsonl")
+            .json(tripcom_path)
+        )
     except Exception as exc:
         print(f"[WARN] Failed to read Trip.com Bronze: {exc}")
         return None
 
+    tripcom_city_column = build_first_available_column(
+        df_raw,
+        ["entity.city_code", "entity.city_id"],
+    )
+
     return (
         df_raw.select(
-            F.coalesce(F.col("entity.city_code"), F.col("entity.city_id")).alias(
-                "city_code"
-            ),
+            tripcom_city_column.alias("city_code"),
             F.substring(F.col("event_time"), 1, 7).alias("year_month"),
             F.col("payload.price").alias("price"),
         )
@@ -192,15 +234,29 @@ def fail_on_unmatched_city_keys(df: DataFrame, city_lookup: DataFrame) -> None:
         raise RuntimeError(f"Unmatched city codes in MariaDB city table: {joined}")
 
 
-def attach_city_ids(df: DataFrame, city_lookup: DataFrame) -> DataFrame:
-    fail_on_unmatched_city_keys(df, city_lookup)
+def attach_city_ids(
+    df: DataFrame, city_lookup: DataFrame, code_to_city_name: dict[str, str]
+) -> DataFrame:
+    city_name_mapping = build_city_name_mapping_expr(code_to_city_name)
+    mapped_city_name = (
+        city_name_mapping[F.col("city_code")] if city_name_mapping is not None else F.lit(None)
+    )
+
+    resolved_df = (
+        df.withColumn("resolved_city_name", F.coalesce(mapped_city_name, F.col("city_name")))
+        .withColumn("city_join_key", normalize_city_key("resolved_city_name"))
+    )
+
+    fail_on_unmatched_city_keys(resolved_df, city_lookup)
 
     return (
-        df.join(city_lookup.select("city_id", "city_join_key"), on="city_join_key", how="inner")
+        resolved_df.join(
+            city_lookup.select("city_id", "city_join_key"), on="city_join_key", how="inner"
+        )
         .select(
             F.col("city_code"),
             F.col("city_id"),
-            F.col("city_name"),
+            F.col("resolved_city_name").alias("city_name"),
             F.col("year_month"),
             F.col("origin_airport"),
             F.col("avg_flight_price"),
@@ -221,7 +277,7 @@ def write_silver(df: DataFrame, silver_path: str) -> None:
     print(f"[INFO] Writing Silver parquet to: {silver_path}")
     (
         df.write.mode("overwrite")
-        .partitionBy("ingest_date")
+        .partitionBy("city_id", "year_month")
         .parquet(silver_path)
     )
 
@@ -318,16 +374,26 @@ def main():
     spark = (
         SparkSession.builder.appName("Bronze_to_Silver_flight_summary")
         .config("spark.sql.legacy.timeParserPolicy", "LEGACY")
+        .config(
+            "spark.jars.packages",
+            ",".join(
+                [
+                    "org.mongodb.spark:mongo-spark-connector_2.12:10.3.0",
+                    "com.mysql:mysql-connector-j:8.4.0",
+                ]
+            ),
+        )
         .getOrCreate()
     )
     spark.sparkContext.setLogLevel("WARN")
 
     try:
-        df_raw = read_bronze(spark, args.bronze_path, args.mode)
+        df_raw = read_google_normalized(spark, args.google_path)
         df_tripcom_avg = read_and_agg_tripcom_price(spark, args.tripcom_path)
         df_silver = transform_to_silver(df_raw, df_tripcom_avg)
         city_lookup = read_city_lookup(spark, args.db_url, args.db_user, args.db_password)
-        df_silver_resolved = attach_city_ids(df_silver, city_lookup)
+        code_to_city_name = load_code_to_city_name(args.mapping_path)
+        df_silver_resolved = attach_city_ids(df_silver, city_lookup, code_to_city_name)
         write_silver(df_silver_resolved, args.silver_path)
         write_to_mariadb(
             df_silver_resolved,

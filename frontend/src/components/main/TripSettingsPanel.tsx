@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, type ChangeEvent } from "react";
+import { useState, useCallback, type ChangeEvent } from "react";
 import { SlidersHorizontal, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ export function TripSettingsPanel() {
     setGlobeDuration,
     setGlobeTravelMonth,
     setRecommendActive,
+    setRecommendRequest,
   } = useUiStore();
 
   const [budgetInput, setBudgetInput] = useState<string>("10,000,000");
@@ -148,6 +149,12 @@ export function TripSettingsPanel() {
       setGlobeDuration(duration);
       setGlobeTravelMonth(selectedYear, selectedMonth);
       setRecommendActive(true);
+      setRecommendRequest({
+        selectedTags,
+        userDailyBudget: budget / duration,
+        travelDays: duration,
+        month: selectedMonth,
+      });
       recommend({
         selectedTags,
         userDailyBudget: budget / duration,
@@ -165,6 +172,7 @@ export function TripSettingsPanel() {
     setGlobeDuration,
     setGlobeTravelMonth,
     setRecommendActive,
+    setRecommendRequest,
     recommend,
   ]);
 

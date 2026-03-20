@@ -173,56 +173,91 @@ def get_city_id_by_country_city_name(conn, country_name: str, city_name: str) ->
     return None if not row else int(row[0])
 
 
-def upsert_country_cost(conn, country_id: int, data: Dict[str, Any]) -> None:
-    values = build_price_column_values(data)
-    columns = list(values.keys())
+def _get_active_target_ids(conn, table_name: str, owner_column: str, owner_ids: List[int]) -> Dict[int, int]:
+    if not owner_ids:
+        return {}
+
+    placeholders = ", ".join(["%s"] * len(owner_ids))
+    query = (
+        f"SELECT id, {owner_column} "
+        f"FROM `{table_name}` "
+        f"WHERE {owner_column} IN ({placeholders}) "
+        "AND (is_deleted=FALSE OR is_deleted IS NULL)"
+    )
+    with conn.cursor() as cursor:
+        cursor.execute(query, owner_ids)
+        rows = cursor.fetchall()
+    return {int(row[1]): int(row[0]) for row in rows}
+
+
+def _bulk_upsert_costs(conn, table_name: str, owner_column: str, rows: List[Tuple[int, Dict[str, Any]]]) -> None:
+    if not rows:
+        return
+
+    normalized_rows = [(owner_id, build_price_column_values(data)) for owner_id, data in rows]
+    columns = list(normalized_rows[0][1].keys())
+    existing_ids = _get_active_target_ids(
+        conn,
+        table_name=table_name,
+        owner_column=owner_column,
+        owner_ids=[owner_id for owner_id, _ in normalized_rows],
+    )
+
+    update_sql = ", ".join([*(f"`{column}`=%s" for column in columns), "updated_at=CURRENT_TIMESTAMP"])
+    insert_columns = ", ".join(
+        [f"`{owner_column}`"] + [f"`{column}`" for column in columns] + ["`is_deleted`", "`created_at`", "`updated_at`"]
+    )
+    insert_values = ", ".join(["%s"] * (len(columns) + 1) + ["FALSE", "CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP"])
+
+    update_params = []
+    insert_params = []
+
+    for owner_id, values in normalized_rows:
+        ordered_values = [values[column] for column in columns]
+        target_id = existing_ids.get(owner_id)
+        if target_id is not None:
+            update_params.append(ordered_values + [target_id])
+        else:
+            insert_params.append([owner_id] + ordered_values)
 
     with conn.cursor() as cursor:
-        cursor.execute(
-            f"SELECT id FROM `{TABLE_COUNTRY_COST}` WHERE country_id=%s AND (is_deleted=FALSE OR is_deleted IS NULL) ORDER BY id DESC LIMIT 1",
-            (country_id,),
-        )
-        row = cursor.fetchone()
-        if row:
-            target_id = row[0]
-            set_sql = ", ".join([*(f"`{column}`=%s" for column in columns), "updated_at=CURRENT_TIMESTAMP"])
-            params = [values[column] for column in columns] + [target_id]
-            cursor.execute(f"UPDATE `{TABLE_COUNTRY_COST}` SET {set_sql} WHERE id=%s", params)
-        else:
-            col_sql = ", ".join(
-                ["`country_id`"] + [f"`{column}`" for column in columns] + ["`is_deleted`", "`created_at`", "`updated_at`"]
+        if update_params:
+            cursor.executemany(
+                f"UPDATE `{table_name}` SET {update_sql} WHERE id=%s",
+                update_params,
             )
-            val_sql = ", ".join(["%s"] * (len(columns) + 1) + ["FALSE", "CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP"])
-            params = [country_id] + [values[column] for column in columns]
-            cursor.execute(f"INSERT INTO `{TABLE_COUNTRY_COST}` ({col_sql}) VALUES ({val_sql})", params)
+        if insert_params:
+            cursor.executemany(
+                f"INSERT INTO `{table_name}` ({insert_columns}) VALUES ({insert_values})",
+                insert_params,
+            )
 
+
+def bulk_upsert_country_costs(conn, rows: List[Tuple[int, Dict[str, Any]]]) -> None:
+    _bulk_upsert_costs(
+        conn,
+        table_name=TABLE_COUNTRY_COST,
+        owner_column="country_id",
+        rows=rows,
+    )
+
+
+def upsert_country_cost(conn, country_id: int, data: Dict[str, Any]) -> None:
+    bulk_upsert_country_costs(conn, [(country_id, data)])
     conn.commit()
 
 
+def bulk_upsert_city_costs(conn, rows: List[Tuple[int, Dict[str, Any]]]) -> None:
+    _bulk_upsert_costs(
+        conn,
+        table_name=TABLE_CITY_COST,
+        owner_column="city_id",
+        rows=rows,
+    )
+
+
 def upsert_city_cost(conn, city_id: int, data: Dict[str, Any]) -> None:
-    values = build_price_column_values(data)
-    columns = list(values.keys())
-    
-
-    with conn.cursor() as cursor:
-        cursor.execute(
-            f"SELECT id FROM `{TABLE_CITY_COST}` WHERE city_id=%s AND (is_deleted=FALSE OR is_deleted IS NULL) ORDER BY id DESC LIMIT 1",
-            (city_id,),
-        )
-        row = cursor.fetchone()
-        if row:
-            target_id = row[0]
-            set_sql = ", ".join([*(f"`{column}`=%s" for column in columns), "updated_at=CURRENT_TIMESTAMP"])
-            params = [values[column] for column in columns] + [target_id]
-            cursor.execute(f"UPDATE `{TABLE_CITY_COST}` SET {set_sql} WHERE id=%s", params)
-        else:
-            col_sql = ", ".join(
-                ["`city_id`"] + [f"`{column}`" for column in columns] + ["`is_deleted`", "`created_at`", "`updated_at`"]
-            )
-            val_sql = ", ".join(["%s"] * (len(columns) + 1) + ["FALSE", "CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP"])
-            params = [city_id] + [values[column] for column in columns]
-            cursor.execute(f"INSERT INTO `{TABLE_CITY_COST}` ({col_sql}) VALUES ({val_sql})", params)
-
+    bulk_upsert_city_costs(conn, [(city_id, data)])
     conn.commit()
 
 
@@ -234,4 +269,3 @@ def soft_delete_existing_price_data(conn) -> None:
         cursor.execute(
             f"UPDATE `{TABLE_CITY_COST}` SET is_deleted=TRUE, updated_at=CURRENT_TIMESTAMP WHERE is_deleted=FALSE"
         )
-    conn.commit()

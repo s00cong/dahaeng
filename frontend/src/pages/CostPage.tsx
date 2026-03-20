@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DestinationCard } from '@/components/cost/DestinationCard';
 import { SmallDestinationCard } from '@/components/cost/SmallDestinationCard';
 import { PromotionBanner } from '@/components/cost/PromotionBanner';
-import { CostCityCompareSection } from '@/components/cost/CostCityCompareSection';
+import { CostCompareSection } from '@/components/cost/CostCompareSection';
 import { costApi } from '@/api/cost.api';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -339,8 +339,8 @@ const CostPage = () => {
               )}
             </section>
 
-            {/* 도시 물가 비교 */}
-            <CostCityCompareSection />
+            {/* 물가 비교 (도시/국가 통합) */}
+            <CostCompareSection />
           </>
         )}
       </div>

@@ -44,6 +44,12 @@ public class YouTubeAccount extends BaseEntity {
     @Column(name = "sync_status", nullable = false)
     private SyncStatus syncStatus;
 
+    @Column(name = "sync_enabled")
+    private Boolean syncEnabled;
+
+    @Column(name = "sync_disabled_at")
+    private LocalDateTime syncDisabledAt;
+
     @Column(name = "last_synced_at")
     private LocalDateTime lastSyncedAt;
 
@@ -69,5 +75,14 @@ public class YouTubeAccount extends BaseEntity {
         if (status == SyncStatus.SYNCED) {
             this.lastSyncedAt = syncedAt;
         }
+    }
+
+    public void updateSyncPreference(boolean enabled, LocalDateTime changedAt) {
+        this.syncEnabled = enabled;
+        this.syncDisabledAt = enabled ? null : changedAt;
+    }
+
+    public boolean isSyncEnabledEffective() {
+        return this.syncEnabled == null || this.syncEnabled;
     }
 }

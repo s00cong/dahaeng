@@ -280,8 +280,9 @@ const PreferenceFlowPage = () => {
     try {
       await youtubeApi.sync();
       await youtubeApi.analyze();
-      const tagIds = await youtubeApi.getInterestTags();
+      const { tagIds, tagNames } = await youtubeApi.getInterestTags();
       setYoutubeTagIds(tagIds);
+      usePreferenceStore.getState().setSelectedTags(tagNames);
       setYoutubeAutoSelected(true);
     } catch {
       // 실패 시에도 select 단계로 진행 (자동 선택 없이)

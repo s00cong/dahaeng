@@ -1,7 +1,8 @@
 import { useState, useCallback, type KeyboardEvent } from 'react';
-import { Landmark } from 'lucide-react';
+import defaultCityImg from '@/assets/no-picture.png';
 import { Badge } from '@/components/ui/badge';
 import { useUiStore } from '@/stores/uiStore';
+import { useCountryFlagMap } from '@/hooks/country/useCountryFlagMap';
 import { cn } from '@/lib/utils';
 import type { CityListItem } from '@/schemas/city.schema';
 
@@ -19,6 +20,8 @@ function getMatchColor(score: number | undefined): string {
 
 export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
   const { openRightPanel } = useUiStore();
+  const { data: flagMap } = useCountryFlagMap();
+  const flagUrl = flagMap?.get(city.countryName);
   const [imgError, setImgError] = useState(false);
 
   const handleClick = useCallback(() => {
@@ -54,17 +57,13 @@ export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
       </span>
 
       {/* 이미지 아바타 */}
-      <div className="size-10 rounded-xl overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
-        {imgError ? (
-          <Landmark className="size-5 text-slate-400" aria-hidden="true" />
-        ) : (
-          <img
-            src={city.imgUrl}
-            alt={city.cityName}
-            className="size-full object-cover"
-            onError={() => setImgError(true)}
-          />
-        )}
+      <div className="size-10 rounded-xl overflow-hidden bg-slate-200 shrink-0">
+        <img
+          src={imgError || !city.imgUrl ? defaultCityImg : city.imgUrl}
+          alt={city.cityName}
+          className="size-full object-cover"
+          onError={() => setImgError(true)}
+        />
       </div>
 
       {/* 텍스트 */}
@@ -72,7 +71,12 @@ export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
         <span className="text-sm font-semibold text-slate-800 truncate">
           {city.cityName}
         </span>
-        <span className="text-xs text-slate-500 truncate">{city.countryName}</span>
+        <span className="text-xs text-slate-500 truncate flex items-center gap-1">
+          {flagUrl && (
+            <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] shrink-0 object-cover" aria-hidden="true" />
+          )}
+          {city.countryName}
+        </span>
       </div>
 
       {/* 매칭 배지 */}

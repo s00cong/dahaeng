@@ -1,0 +1,12 @@
+
+.env.*
+
+!.env.local.example
+
+README.md
+__pycache__/
+
+geoapify_api.json
+
+test_geoapify_main.py
+venv/

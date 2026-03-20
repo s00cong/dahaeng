@@ -67,9 +67,14 @@ export const authApi = {
   },
 
   // GET /api/member/tag — 내 태그 목록 조회 (태그 등록 여부 확인용)
-  getMemberTags: async (): Promise<{ id: number; tagId: number }[]> => {
+  getMemberTags: async (): Promise<{ id: number; tagId: number; isFromYoutube: boolean }[]> => {
     const { data } = await axiosInstance.get('/api/member/tag');
     return data;
+  },
+
+  // DELETE /api/member/tag/{id} — memberTag 레코드 id로 태그 삭제
+  deleteTag: async (memberTagId: number): Promise<void> => {
+    await axiosInstance.delete(`/api/member/tag/${memberTagId}`);
   },
 
   // GET /api/members/youtube/status

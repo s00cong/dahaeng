@@ -11,17 +11,29 @@ from __future__ import annotations
 
 import argparse
 import os
+from pathlib import Path
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+
+from city_id_mapping import load_code_to_city_name
+
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_MAPPING_PATH = BASE_DIR.parent / "trip_com" / "city_airport_mapping.json"
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Bronze -> MongoDB ETL for calendar data")
     parser.add_argument(
         "--bronze-path",
-        default="/workspace/data/flight/trip_com/bronze_airticket",
+        default="hdfs://namenode:9000/data/bronze/flight/trip_com",
         help="Trip.com Bronze base path",
+    )
+    parser.add_argument(
+        "--silver-path",
+        default="hdfs://namenode:9000/data/silver/flight/trip_com_daily_prices",
+        help="Trip.com Silver parquet output path",
     )
     parser.add_argument(
         "--mongo-uri",
@@ -43,11 +55,25 @@ def parse_args():
         default=os.getenv("DB_PASSWORD", ""),
         help="MariaDB password",
     )
+    parser.add_argument(
+        "--mapping-path",
+        default=str(DEFAULT_MAPPING_PATH),
+        help="Trip.com city mapping JSON path",
+    )
     return parser.parse_args()
 
 
 def normalize_city_key(column_name: str):
     return F.upper(F.trim(F.col(column_name)))
+
+
+def build_city_name_mapping_expr(code_to_city_name: dict[str, str]):
+    items = []
+    for city_code, city_name in code_to_city_name.items():
+        items.extend([F.lit(city_code), F.lit(city_name)])
+    if not items:
+        return None
+    return F.create_map(*items)
 
 
 def resolve_tripcom_direction_column():
@@ -64,13 +90,28 @@ def resolve_tripcom_direction_column():
 def main():
     args = parse_args()
 
-    spark = SparkSession.builder.appName("Bronze_to_Silver_Mongo_Calendar").getOrCreate()
+    spark = (
+        SparkSession.builder.appName("Bronze_to_Silver_Mongo_Calendar")
+        .config(
+            "spark.jars.packages",
+            ",".join(
+                [
+                    "org.mongodb.spark:mongo-spark-connector_2.12:10.3.0",
+                    "com.mysql:mysql-connector-j:8.4.0",
+                ]
+            ),
+        )
+        .getOrCreate()
+    )
     spark.sparkContext.setLogLevel("WARN")
 
     try:
-        bronze_path_pattern = f"{args.bronze_path}/dt=*/hour=*/*.jsonl"
-        print(f"[INFO] Reading Trip.com Bronze from: {bronze_path_pattern}")
-        df_raw = spark.read.json(bronze_path_pattern)
+        print(f"[INFO] Reading Trip.com Bronze from: {args.bronze_path}")
+        df_raw = (
+            spark.read.option("recursiveFileLookup", "true")
+            .option("pathGlobFilter", "*.jsonl")
+            .json(args.bronze_path)
+        )
 
         df_parsed = (
             df_raw.select(
@@ -85,7 +126,18 @@ def main():
             )
             .filter(F.col("price").isNotNull())
             .filter(F.col("direction").isin("outbound", "inbound"))
-            .withColumn("city_join_key", normalize_city_key("city_code"))
+        )
+
+        code_to_city_name = load_code_to_city_name(args.mapping_path)
+        city_name_mapping = build_city_name_mapping_expr(code_to_city_name)
+        mapped_city_name = (
+            city_name_mapping[F.col("city_code")] if city_name_mapping is not None else F.lit(None)
+        )
+        df_parsed = (
+            df_parsed.withColumn(
+                "resolved_city_name",
+                F.coalesce(mapped_city_name, F.col("city_code")),
+            ).withColumn("city_join_key", normalize_city_key("resolved_city_name"))
         )
 
         city_lookup = (
@@ -121,6 +173,21 @@ def main():
             city_lookup.select("numeric_city_id", "city_join_key"),
             on="city_join_key",
             how="inner",
+        )
+
+        print(f"[INFO] Writing Trip.com silver parquet to: {args.silver_path}")
+        (
+            df_joined.select(
+                F.col("numeric_city_id").alias("city_id"),
+                F.col("year_month"),
+                F.col("target_date"),
+                F.col("direction"),
+                F.col("price").cast("integer").alias("price"),
+                F.col("collected_date"),
+            )
+            .write.mode("overwrite")
+            .partitionBy("city_id", "year_month")
+            .parquet(args.silver_path)
         )
 
         df_structured = df_joined.withColumn(

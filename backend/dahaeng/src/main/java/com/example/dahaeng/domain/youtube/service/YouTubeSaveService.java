@@ -48,6 +48,7 @@ public class YouTubeSaveService {
                 .refreshToken(refreshToken)
                 .tokenExpiresAt(tokenExpiresAt)
                 .syncStatus(SyncStatus.PENDING)
+                .syncEnabled(true)
                 .build();
 
         return accountRepository.save(newAccount);
@@ -197,17 +198,8 @@ public class YouTubeSaveService {
     }
 
     public void updateSyncStatus(YouTubeAccount account, SyncStatus status, LocalDateTime lastSyncedAt) {
-        YouTubeAccount updated = YouTubeAccount.builder()
-                .id(account.getId())
-                .member(account.getMember())
-                .youtubeChannelId(account.getYoutubeChannelId())
-                .googleEmail(account.getGoogleEmail())
-                .accessToken(account.getAccessToken())
-                .refreshToken(account.getRefreshToken())
-                .syncStatus(status)
-                .lastSyncedAt(lastSyncedAt)
-                .build();
-        accountRepository.save(updated);
+        account.updateSyncStatus(status, lastSyncedAt);
+        accountRepository.save(account);
     }
 
     public record PlaylistVideoInput(YouTubeVideo video, Integer position) {}

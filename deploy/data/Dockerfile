@@ -9,6 +9,9 @@ WORKDIR /workspace
 COPY . /workspace
 
 RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir pymysql pymongo
+    && apt-get update \
+    && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
+    && rm -rf /var/lib/apt/lists/* \
+    && python -m pip install --no-cache-dir playwright pymysql pymongo pyspark requests
 
-CMD ["python", "data/run_scheduled_pipeline.py", "--dry-run"]
+CMD ["python", "data/flight/run_scheduled_pipeline.py", "--dry-run"]

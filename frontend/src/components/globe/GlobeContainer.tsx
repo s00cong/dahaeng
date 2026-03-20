@@ -44,7 +44,7 @@ const [size, setSize] = useState({ width: 800, height: 500 });
   return (
     <div
       ref={containerRef}
-      className={cn("overflow-hidden flex items-center justify-center", className)}
+      className={cn("flex items-center justify-center", className)}
       aria-label="2D 세계 지도"
     >
       <Suspense fallback={<GlobeFallback />}>

@@ -1,11 +1,7 @@
 import { axiosInstance } from "./axiosInstance";
 import type { CityDetail } from "@/schemas/city.schema";
 import { z } from "zod";
-import {
-  DUMMY_CITY_DETAIL_RECOMMEND,
-  DUMMY_CITY_DETAIL_NOT_RECOMMEND,
-  DUMMY_NEWS_ARTICLES,
-} from "@/data/city.dummy";
+import { DUMMY_NEWS_ARTICLES } from "@/data/city.dummy";
 
 // 백엔드 CountryDanger { level, description }
 const BackendCountryDangerItemSchema = z.object({
@@ -27,7 +23,6 @@ const BackendCitySchema = z.object({
   id: z.number(),
   name: z.string(),
   imgUrl: z.string().nullable(),
-  expectedBudgetFor1day: z.number().nullable().optional(),
   livingCostFor1Day: z.number().nullable().optional(),
   danger: BackendCountryDangerSchema,
   lat: z.number().nullable(),
@@ -116,12 +111,9 @@ const BackendTouristSpotSchema = z.object({
   lat: z.number().nullable().optional(),
   lon: z.number().nullable().optional(),
   imageUrl: z.string().nullable().optional(),
-  address: z.string().nullable().optional(),
-  snsLink: z.string().nullable().optional(),
-  websiteLink: z.string().nullable().optional(),
   spotScore: z.number().nullable().optional(),
-  tags: z.array(z.string()).optional(),           // string[]
-  tagScores: z.record(z.string(), z.number()).optional(), // { "태그명": score }
+  tags: z.array(z.string()).optional(),
+  tagScores: z.record(z.string(), z.number()).optional(),
 });
 
 // touristSpot 변환: string[] tags + tagScores → Tag[]
@@ -160,8 +152,8 @@ const BackendRecommendDetailSchema = z.object({
     .nullable()
     .optional(),
   danger: BackendCountryDangerSchema,
-  tags: z.array(BackendTagResponseSchema).optional(),
-  touristSpot: z.array(BackendTouristSpotSchema).optional(),
+  tags: z.array(BackendTagResponseSchema).optional().catch([]),
+  touristSpot: z.array(BackendTouristSpotSchema).optional().catch([]),
   exchangeRate: BackendExchangeRateSchema,
 });
 
@@ -172,7 +164,7 @@ const BackendNotRecommendDetailSchema = z.object({
   livingCostFor1Day: BackendLivingCostSchema.nullable().optional(),
   airTicketAndHotel: BackendAirTicketSchema.nullable().optional(),  // 백엔드 키: airTicketAndHotel
   danger: BackendCountryDangerSchema,
-  tags: z.array(BackendTagResponseSchema).optional(),
+  tags: z.array(BackendTagResponseSchema).optional().catch([]),
   exchangeRate: BackendExchangeRateSchema,
 });
 
@@ -188,7 +180,7 @@ export const cityApi = {
         cityName: city.name,
         countryName: city.danger?.countryName ?? "",
         imgUrl: city.imgUrl ?? "",
-        estimatedBudget: ((city.livingCostFor1Day ?? city.expectedBudgetFor1day ?? 0)) * 7,
+        estimatedBudget: (city.livingCostFor1Day ?? 0) * 7,
         riskLevel: dangerToRiskLevel(city.danger),
         latitude: city.lat ?? 0,
         longitude: city.lon ?? 0,
@@ -231,6 +223,7 @@ export const cityApi = {
           food: typeof city.livingCostFor1Day.food === 'number' ? city.livingCostFor1Day.food : city.livingCostFor1Day.food.total,
           transportation: typeof city.livingCostFor1Day.transportation === 'number' ? city.livingCostFor1Day.transportation : city.livingCostFor1Day.transportation.total,
           accommodation: city.livingCostFor1Day.hotel ?? city.livingCostFor1Day.accommodation ?? undefined,
+          total: city.livingCostFor1Day.total ?? undefined,
         } : undefined,
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
         news: city.news?.top3?.length
@@ -259,6 +252,7 @@ export const cityApi = {
           food: typeof city.livingCostFor1Day.food === 'number' ? city.livingCostFor1Day.food : city.livingCostFor1Day.food.total,
           transportation: typeof city.livingCostFor1Day.transportation === 'number' ? city.livingCostFor1Day.transportation : city.livingCostFor1Day.transportation.total,
           accommodation: city.livingCostFor1Day.hotel ?? city.livingCostFor1Day.accommodation ?? undefined,
+          total: city.livingCostFor1Day.total ?? undefined,
         } : undefined,
         // not-recommend는 airTicket 키 사용
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
@@ -267,10 +261,10 @@ export const cityApi = {
         exchangeRate: city.exchangeRate ?? undefined,
       };
     }
-    } catch {
-      // 외부 API(News API, OpenAI, Google Places) 장애 또는 개발 환경에서 더미 데이터 반환
-      const dummy = recommend ? DUMMY_CITY_DETAIL_RECOMMEND : DUMMY_CITY_DETAIL_NOT_RECOMMEND;
-      return { ...dummy, cityId };
+    } catch (e) {
+      // recommend=true 실패 시 throw → aiCity=undefined → basicCity(실제 데이터) 사용
+      // recommend=false 실패 시에도 throw → TanStack Query isError 처리
+      throw e;
     }
   },
 
@@ -293,7 +287,14 @@ export const cityApi = {
           id: z.number(),
           name: z.string(),
           imgUrl: z.string().nullable().optional(),
-          expectedBudgetFor1day: z.number().nullable().optional(),
+          livingCostFor1Day: z.number().nullable().optional(),
+          scores: z.object({
+            total: z.number().nullable().optional(),
+            tag: z.number().nullable().optional(),
+            budget: z.number().nullable().optional(),
+            safety: z.number().nullable().optional(),
+            newsPenalty: z.number().nullable().optional(),
+          }).nullable().optional(),
           danger: BackendCountryDangerSchema,
           lat: z.number().nullable().optional(),
           lon: z.number().nullable().optional(),
@@ -306,7 +307,7 @@ export const cityApi = {
       rank: index + 1,
       country: item.danger?.countryName ?? "",
       city: item.name,
-      totalScore: 0,
+      totalScore: item.scores?.total ?? 0,
       reason: null,
     }));
   },

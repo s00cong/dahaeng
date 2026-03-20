@@ -8,7 +8,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
+import com.example.dahaeng.domain.place.service.GeoapifyService;
 import com.example.dahaeng.domain.place.service.TouristService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class PlaceController {
 
 	private final TouristService placeService;
+	private final GeoapifyService geoapifyService;
 
 	@GetMapping("/{cityId}/places")
 	public ResponseEntity<?> places(
@@ -33,5 +36,12 @@ public class PlaceController {
 		@AuthenticationPrincipal CustomOAuth2User user
 	) {
 		return ResponseEntity.ok(placeService.detail(id));
+	}
+
+	@GetMapping("/{cityId}/nearby-attractions")
+	public ResponseEntity<?> nearby(
+		@PathVariable("cityId") Long id
+	) throws JsonProcessingException {
+		return ResponseEntity.ok(geoapifyService.nearby(id));
 	}
 }

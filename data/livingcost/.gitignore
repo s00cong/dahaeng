@@ -16,3 +16,8 @@ venv/
 
 # Runtime/generated artifacts
 *.log
+
+
+tests/
+
+run-local.ps1

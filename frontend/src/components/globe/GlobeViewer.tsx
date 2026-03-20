@@ -357,11 +357,52 @@ function calcCountryView(
   return { center, zoom };
 }
 
-function getMarkerColor(score: number | undefined): string {
-  if (score === undefined) return "#3b82f6";
+function getMarkerColor(score: number | null | undefined): string {
+  if (score == null) return "#3b82f6";
   if (score >= 80) return "#10b981";
   if (score >= 50) return "#3b82f6";
   return "#f59e0b";
+}
+
+// ── 물가 히트맵: 8단계 색상 (분포 기반 동적 계산용) ────────────────────────
+const COST_COLORS_8 = [
+  "#047857", // 1구간: 진초록 (가장 저렴)
+  "#10b981", // 2구간: 초록
+  "#6ee7b7", // 3구간: 연초록
+  "#bef264", // 4구간: 라임
+  "#fbbf24", // 5구간: 노랑
+  "#fb923c", // 6구간: 주황
+  "#ef4444", // 7구간: 빨강
+  "#7f1d1d", // 8구간: 진빨강 (가장 비쌈)
+] as const;
+
+// 분포 기반 임계값 계산 (percentile 12.5% 단위 8등분)
+function calcCostThresholds(costs: number[]): { max: number; color: string; label: string }[] {
+  const sorted = [...costs].sort((a, b) => a - b);
+  const n = sorted.length;
+  if (n === 0) return [];
+  const p = (pct: number) => sorted[Math.min(Math.floor((pct / 100) * n), n - 1)];
+  const fmt = (v: number) => `${Math.round(v / 10000)}만`;
+  const pcts = [12.5, 25, 37.5, 50, 62.5, 75, 87.5];
+  const thresholds = pcts.map(p);
+  return [
+    { max: thresholds[0], color: COST_COLORS_8[0], label: `${fmt(sorted[0])} 미만` },
+    { max: thresholds[1], color: COST_COLORS_8[1], label: `${fmt(thresholds[0])} ~ ${fmt(thresholds[1])}` },
+    { max: thresholds[2], color: COST_COLORS_8[2], label: `${fmt(thresholds[1])} ~ ${fmt(thresholds[2])}` },
+    { max: thresholds[3], color: COST_COLORS_8[3], label: `${fmt(thresholds[2])} ~ ${fmt(thresholds[3])}` },
+    { max: thresholds[4], color: COST_COLORS_8[4], label: `${fmt(thresholds[3])} ~ ${fmt(thresholds[4])}` },
+    { max: thresholds[5], color: COST_COLORS_8[5], label: `${fmt(thresholds[4])} ~ ${fmt(thresholds[5])}` },
+    { max: thresholds[6], color: COST_COLORS_8[6], label: `${fmt(thresholds[5])} ~ ${fmt(thresholds[6])}` },
+    { max: Infinity,      color: COST_COLORS_8[7], label: `${fmt(thresholds[6])} 초과` },
+  ];
+}
+
+// ── 위험도 히트맵 색상 ─────────────────────────────────────────────────────
+function getDangerColor(riskLevel: number): string {
+  if (riskLevel <= 1) return "#10b981"; // 안전
+  if (riskLevel === 2) return "#f59e0b"; // 여행유의
+  if (riskLevel === 3) return "#f97316"; // 여행주의
+  return "#ef4444";                      // 여행자제/금지
 }
 
 // ── 지도 색상 중앙 관리 ──────────────────────────────────────────────────────
@@ -392,6 +433,7 @@ const BaseLayer = React.memo(
     onMove,
     onLeave,
     zoom,
+    onLoad,
   }: {
     geography: string | object;
     clickedName: string | null;
@@ -401,6 +443,7 @@ const BaseLayer = React.memo(
     onMove: (name: string, e: React.MouseEvent) => void;
     onLeave: () => void;
     zoom: number;
+    onLoad?: (geos: GeoFeature[]) => void;
   }) => {
     // 3D 효과 계산: 줌에 따라 돌출 정도를 조절
     const visualHeight = 7 / Math.pow(zoom, 0.45);
@@ -412,6 +455,7 @@ const BaseLayer = React.memo(
     return (
       <Geographies geography={geography}>
         {({ geographies }: { geographies: GeoFeature[] }) => {
+          if (onLoad && geographies.length > 0) onLoad(geographies);
           const nonSelected = geographies.filter(
             (geo) => (geo.properties.name ?? "") !== clickedName,
           );
@@ -595,9 +639,7 @@ const AdminLayer = React.memo(
                   key={geo.rsmKey}
                   geography={geo}
                   fill={
-                    isHovered
-                      ? "rgba(99, 179, 237, 0.3)"
-                      : "rgba(0,0,0,0.001)"
+                    isHovered ? "rgba(99, 179, 237, 0.3)" : "rgba(0,0,0,0.001)"
                   }
                   stroke="none"
                   style={ADMIN_AREA_STYLE}
@@ -638,11 +680,15 @@ const AdminLayer = React.memo(
 export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const {
     openRightPanel,
-    globeBudgetFilter,
-    globeDuration,
     selectedCityCoords,
+    selectedCityId,
+    selectedCityScore,
     isRecommendActive,
     recommendResults,
+    globeCountryTarget,
+    setGlobeCountryTarget,
+    isRightPanelOpen,
+    isRightPanelCollapsed,
   } = useUiStore();
 
   // ── 지도 데이터 캐시 state ─────────────────────────────
@@ -669,12 +715,13 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   } | null>(null);
   const [clickedIso, setClickedIso] = useState<string | null>(null);
   const [clickedName, setClickedName] = useState<string | null>(null);
-  const [clickedGeo, setClickedGeo] = useState<GeoFeature | null>(null);
-
   const [hoveredAdminKey, setHoveredAdminKey] = useState<string | null>(null);
 
   // 1순위: 줌 애니메이션 중 admin 렌더 차단
   const [isZooming, setIsZooming] = useState(false);
+
+  // 시각화 모드: none=일반, cost=물가, danger=위험도
+  const [visualMode, setVisualMode] = useState<'none' | 'cost' | 'danger'>('none');
 
   // ── refs ───────────────────────────────────────────────
   const centerRef = useRef<[number, number]>([0, 20]);
@@ -686,6 +733,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const animControlsRef = useRef<{ stop: () => void } | null>(null);
   // SVG 역투영용 컨테이너 ref
   const containerRef = useRef<HTMLDivElement>(null);
+  // BaseLayer에서 파싱된 geographies 캐시 (나라 검색 카메라 이동용)
+  const geographiesRef = useRef<GeoFeature[]>([]);
 
   // ── 파생값 ─────────────────────────────────────────────
   const showBorders = zoom >= ZOOM_SHOW_BORDERS;
@@ -745,7 +794,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const handleDeselect = useCallback(() => {
     setClickedIso(null);
     setClickedName(null);
-    setClickedGeo(null);
     setHoveredAdminKey(null);
     setTooltip(null);
   }, []);
@@ -757,7 +805,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       if (rawName === clickedNameRef.current) {
         setClickedIso(null);
         setClickedName(null);
-        setClickedGeo(null);
         setHoveredAdminKey(null);
         setTooltip(null);
         return;
@@ -808,7 +855,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       const iso = COUNTRY_NAME_ISO3[rawName];
       if (iso) setClickedIso(iso);
       setClickedName(rawName);
-      setClickedGeo(geo);
       setHoveredAdminKey(null);
       setTooltip(null);
 
@@ -882,6 +928,69 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     return () => controls.stop();
   }, [selectedCityCoords]);
 
+  // 나라 검색 → 글로브 카메라 이동
+  useEffect(() => {
+    if (!globeCountryTarget) return;
+
+    const geo = geographiesRef.current.find(
+      (g) => (g.properties.name ?? "") === globeCountryTarget,
+    );
+    if (!geo) {
+      setGlobeCountryTarget(null);
+      return;
+    }
+
+    const rawName = globeCountryTarget;
+    const bounds = COUNTRY_MAIN_BBOX[rawName] ?? getGeoBounds(geo);
+    if (!bounds) {
+      setGlobeCountryTarget(null);
+      return;
+    }
+
+    const iso = COUNTRY_NAME_ISO3[rawName];
+    if (iso) setClickedIso(iso);
+    setClickedName(rawName);
+    setHoveredAdminKey(null);
+    setTooltip(null);
+    setIsZooming(true);
+
+    const { center: newCenter, zoom: newZoom } = calcCountryView(
+      bounds.minLng, bounds.maxLng, bounds.minLat, bounds.maxLat, width, height,
+    );
+    const currentLng = centerRef.current[0];
+    const diff = ((((newCenter[0] - currentLng + 180) % 360) + 360) % 360) - 180;
+    const targetCenter: [number, number] = [currentLng + diff, newCenter[1]];
+
+    if (animControlsRef.current) animControlsRef.current.stop();
+    const fromCenter: [number, number] = [...centerRef.current];
+    const fromZoom = zoomRef.current;
+
+    const controls = animate(0, 1, {
+      duration: 0.85,
+      ease: "easeInOut",
+      onUpdate: (t) => {
+        const animCenter: [number, number] = [
+          fromCenter[0] + (targetCenter[0] - fromCenter[0]) * t,
+          fromCenter[1] + (targetCenter[1] - fromCenter[1]) * t,
+        ];
+        const animZoom = fromZoom + (newZoom - fromZoom) * t;
+        centerRef.current = animCenter;
+        zoomRef.current = animZoom;
+        setCenter([...animCenter]);
+        setZoom(animZoom);
+      },
+      onComplete: () => {
+        centerRef.current = targetCenter;
+        zoomRef.current = newZoom;
+        setCenter(targetCenter);
+        setZoom(newZoom);
+        setIsZooming(false);
+        setGlobeCountryTarget(null);
+      },
+    });
+    animControlsRef.current = controls;
+  }, [globeCountryTarget, width, height]);
+
   const { data: citiesFromApi } = useCityList();
   const cities = citiesFromApi ?? [];
 
@@ -895,7 +1004,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     );
   }, [cities, recommendResults, isRecommendActive]);
 
-  // 추천 활성 시 도시명 → 점수 매핑 (마커 색상에 사용)
+  // 추천 활성 시 도시명 → totalScore 매핑 (마커 색상용)
   const recommendScoreMap = useMemo<Map<string, number>>(() => {
     if (!isRecommendActive || recommendResults.length === 0) return new Map();
     return new Map(recommendResults.map((r) => [r.city, r.totalScore]));
@@ -912,6 +1021,19 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     });
     return map;
   }, [cities, recommendResults, isRecommendActive]);
+
+  // ── 물가 분포 기반 임계값 (cities 로드 후 동적 계산) ────────
+  const costThresholds = useMemo(() => {
+    const costs = cities.map((c) => c.estimatedBudget / 7).filter((v) => v > 0);
+    return calcCostThresholds(costs);
+  }, [cities]);
+
+  const getCostColor = (costPerDay: number): string => {
+    for (const { max, color } of costThresholds) {
+      if (costPerDay < max) return color;
+    }
+    return COST_COLORS_8[7];
+  };
 
   // ── 줌 버튼 핸들러 ────────────────────────────────────────
   const handleZoomButton = useCallback((factor: number) => {
@@ -950,6 +1072,12 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         tabIndex={-1}
         style={{ width: "100%", height: "100%", outline: "none" }}
       >
+        <defs>
+          <filter id="heatmap-blur" filterUnits="userSpaceOnUse"
+            x="-5000" y="-5000" width="15000" height="15000">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="5" />
+          </filter>
+        </defs>
         <ZoomableGroup
           center={center}
           zoom={zoom}
@@ -988,6 +1116,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                 onMove={handleMove}
                 onLeave={handleLeave}
                 zoom={zoom}
+                onLoad={(geos) => { geographiesRef.current = geos; }}
               />
 
               {/* 대륙 외곽선 — 줌 1.5 미만에서만 (나라 선택 여부 무관) */}
@@ -1037,84 +1166,162 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
                 return null;
               })()}
 
-              {/* 도시 마커 */}
+              {/* ── 히트맵 레이어 (물가/위험도) — BaseLayer 바로 위 ── */}
+              {visualMode !== 'none' && (
+                <g filter="url(#heatmap-blur)" style={{ pointerEvents: "none", mixBlendMode: "multiply" }}>
+                  {cities.map((city) => {
+                    const costPerDay = city.estimatedBudget / 7;
+                    const color = visualMode === 'cost'
+                      ? getCostColor(costPerDay)
+                      : getDangerColor(city.riskLevel);
+                    const r = 32 / Math.pow(zoom, 0.4);
+                    return (
+                      <Marker
+                        key={`heat-${city.cityId}-${slotIndex}`}
+                        coordinates={[city.longitude, city.latitude]}
+                      >
+                        <circle r={r} fill={color} opacity={0.35} style={{ pointerEvents: "none" }} />
+                      </Marker>
+                    );
+                  })}
+                </g>
+              )}
+
+              {/* ── 레이어 3 (bottom): 메달 이미지 ── */}
               {cities.map((city) => {
-                const isMatched =
-                  !isRecommendActive || matchedCityIds.has(city.cityId);
                 const medalRank = medalRankMap.get(city.cityId);
-                const rawScore = isRecommendActive
-                  ? recommendScoreMap.get(city.cityName)
-                  : undefined;
-                // If backend doesn't return scores (totalScore=0), treat as undefined → blue marker
-                const matchScore =
-                  rawScore !== undefined && rawScore > 0 ? rawScore : undefined;
+                if (!medalRank) return null;
                 const r = 5 / Math.pow(zoom, 0.8);
                 const medalSize = 30 / Math.pow(zoom, 0.8);
-
-                // 클릭된 국가에 속한 도시라면 3D 상면으로 이동
                 const isCityInClickedCountry =
                   clickedName &&
                   (COUNTRY_NAME_KO[clickedName] === city.countryName ||
-                    (clickedName === "South Korea" &&
-                      city.countryName === "한국") ||
-                    (clickedName === "United Kingdom" &&
-                      city.countryName === "영국"));
-
+                    (clickedName === "South Korea" && city.countryName === "한국") ||
+                    (clickedName === "United Kingdom" && city.countryName === "영국"));
                 let markerTransform = "";
                 if (isCityInClickedCountry) {
                   const visualHeight = 8 / Math.pow(zoom, 0.4);
                   const totalH = visualHeight / zoom;
-                  const xOffset = totalH * 0.4;
-                  const yOffset = -totalH;
-                  markerTransform = `translate(${xOffset}, ${yOffset})`;
+                  markerTransform = `translate(${totalH * 0.4}, ${-totalH})`;
                 }
+                return (
+                  <Marker key={`medal-${city.cityId}-${slotIndex}`} coordinates={[city.longitude, city.latitude]}>
+                    <g transform={markerTransform} style={{ pointerEvents: "none" }}>
+                      <image
+                        href={MEDAL_IMGS[medalRank]}
+                        x={-medalSize / 2}
+                        y={-(r + medalSize)}
+                        width={medalSize}
+                        height={medalSize}
+                      />
+                    </g>
+                  </Marker>
+                );
+              })}
 
+              {/* ── 레이어 2 (middle): 비추천 도시 포인트 ── */}
+              {cities.map((city) => {
+                const isMatched = !isRecommendActive || matchedCityIds.has(city.cityId);
+                if (isMatched) return null;
+                const isSelected = city.cityId === selectedCityId;
+                const r = 5 / Math.pow(zoom, 0.8);
+                const isCityInClickedCountry =
+                  clickedName &&
+                  (COUNTRY_NAME_KO[clickedName] === city.countryName ||
+                    (clickedName === "South Korea" && city.countryName === "한국") ||
+                    (clickedName === "United Kingdom" && city.countryName === "영국"));
+                let markerTransform = "";
+                if (isCityInClickedCountry) {
+                  const visualHeight = 8 / Math.pow(zoom, 0.4);
+                  const totalH = visualHeight / zoom;
+                  markerTransform = `translate(${totalH * 0.4}, ${-totalH})`;
+                }
                 return (
                   <Marker
-                    key={`${city.cityId}-${slotIndex}`}
+                    key={`dot-${city.cityId}-${slotIndex}`}
                     coordinates={[city.longitude, city.latitude]}
-                    onClick={() =>
-                      openRightPanel(city.cityId, city.imgUrl, {
-                        lat: city.latitude,
-                        lng: city.longitude,
-                      })
-                    }
+                    onClick={() => openRightPanel(city.cityId, city.imgUrl, { lat: city.latitude, lng: city.longitude })}
                   >
                     <g transform={markerTransform}>
-                      {/* 터치/클릭 타겟 확장 (투명) */}
                       <circle
-                        r={Math.max(r * 2.5, 12 / zoom)}
+                        r={Math.max(r * 1.3, 6 / zoom)}
                         fill="transparent"
                         style={{ cursor: "pointer" }}
-                        onMouseEnter={(e) =>
-                          setTooltip({
-                            name: city.cityName,
-                            x: e.clientX,
-                            y: e.clientY,
-                          })
-                        }
+                        onMouseEnter={(e) => setTooltip({ name: city.cityName, x: e.clientX, y: e.clientY })}
                         onMouseMove={(e) => handleTooltipMove(city.cityName, e)}
                         onMouseLeave={() => setTooltip(null)}
                       />
-                      <circle
-                        r={r}
-                        fill={
-                          isMatched ? getMarkerColor(matchScore) : "#CBD5E1"
-                        }
-                        stroke="#fff"
-                        strokeWidth={1 / zoom}
-                        style={{ cursor: "pointer", pointerEvents: "none" }}
-                      />
-                      {medalRank && (
-                        <image
-                          href={MEDAL_IMGS[medalRank]}
+                      {isSelected && (
+                        <circle r={r * 2} fill="none" stroke="#f59e0b" strokeWidth={1.5 / zoom} strokeOpacity={0.6} style={{ pointerEvents: "none" }} />
+                      )}
+                      <circle r={r} fill={isSelected ? "#f59e0b" : "#CBD5E1"} stroke="#fff" strokeWidth={1 / zoom} style={{ pointerEvents: "none" }} />
+                    </g>
+                  </Marker>
+                );
+              })}
+
+              {/* ── 레이어 1 (top): 추천 도시 포인트 ── */}
+              {cities.map((city) => {
+                const isMatched = !isRecommendActive || matchedCityIds.has(city.cityId);
+                if (!isMatched) return null;
+                const medalRank = medalRankMap.get(city.cityId);
+                const isSelected = city.cityId === selectedCityId;
+                const markerScore =
+                  isSelected && selectedCityScore !== null
+                    ? selectedCityScore
+                    : recommendScoreMap.get(city.cityName);
+                const r = 5 / Math.pow(zoom, 0.8);
+                const isCityInClickedCountry =
+                  clickedName &&
+                  (COUNTRY_NAME_KO[clickedName] === city.countryName ||
+                    (clickedName === "South Korea" && city.countryName === "한국") ||
+                    (clickedName === "United Kingdom" && city.countryName === "영국"));
+                let markerTransform = "";
+                if (isCityInClickedCountry) {
+                  const visualHeight = 8 / Math.pow(zoom, 0.4);
+                  const totalH = visualHeight / zoom;
+                  markerTransform = `translate(${totalH * 0.4}, ${-totalH})`;
+                }
+                const medalSize = 30 / Math.pow(zoom, 0.8);
+                return (
+                  <Marker
+                    key={`dot-${city.cityId}-${slotIndex}`}
+                    coordinates={[city.longitude, city.latitude]}
+                    onClick={() => openRightPanel(city.cityId, city.imgUrl, { lat: city.latitude, lng: city.longitude })}
+                  >
+                    <g transform={markerTransform}>
+                      {medalRank ? (
+                        <rect
                           x={-medalSize / 2}
                           y={-(r + medalSize)}
                           width={medalSize}
-                          height={medalSize}
-                          style={{ pointerEvents: "none" }}
+                          height={medalSize + r * 2.5}
+                          fill="transparent"
+                          style={{ cursor: "pointer" }}
+                          onMouseEnter={(e) => setTooltip({ name: city.cityName, x: e.clientX, y: e.clientY })}
+                          onMouseMove={(e) => handleTooltipMove(city.cityName, e)}
+                          onMouseLeave={() => setTooltip(null)}
+                        />
+                      ) : (
+                        <circle
+                          r={Math.max(r * 1.3, 6 / zoom)}
+                          fill="transparent"
+                          style={{ cursor: "pointer" }}
+                          onMouseEnter={(e) => setTooltip({ name: city.cityName, x: e.clientX, y: e.clientY })}
+                          onMouseMove={(e) => handleTooltipMove(city.cityName, e)}
+                          onMouseLeave={() => setTooltip(null)}
                         />
                       )}
+                      {isSelected && (
+                        <circle r={r * 2} fill="none" stroke="#f59e0b" strokeWidth={1.5 / zoom} strokeOpacity={0.6} style={{ pointerEvents: "none" }} />
+                      )}
+                      <circle
+                        r={r}
+                        fill={isSelected ? "#f59e0b" : getMarkerColor(markerScore)}
+                        stroke="#fff"
+                        strokeWidth={1 / zoom}
+                        style={{ pointerEvents: "none" }}
+                      />
                     </g>
                   </Marker>
                 );
@@ -1123,6 +1330,65 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           ))}
         </ZoomableGroup>
       </ComposableMap>
+      {/* ── 범례 (우측 패널과 겹치지 않게 동적 offset) ── */}
+      {visualMode === "cost" && (
+        <div style={{ position: "absolute", bottom: 72,
+          right: isRightPanelOpen ? (isRightPanelCollapsed ? 48 : 348) : 16,
+          background: "rgba(255,255,255,0.93)", borderRadius: 8, padding: "8px 12px",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.18)", zIndex: 50, transition: "right 0.3s ease" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#334155", marginBottom: 5 }}>1일 물가 (원)</div>
+          {costThresholds.map(({ label, color }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: color, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: "#475569" }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {visualMode === "danger" && (
+        <div style={{ position: "absolute", bottom: 72,
+          right: isRightPanelOpen ? (isRightPanelCollapsed ? 48 : 348) : 16,
+          background: "rgba(255,255,255,0.93)", borderRadius: 8, padding: "8px 12px",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.18)", zIndex: 50, transition: "right 0.3s ease" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#334155", marginBottom: 5 }}>여행 위험도</div>
+          {[
+            { label: "안전",         color: "#10b981" },
+            { label: "여행유의",     color: "#f59e0b" },
+            { label: "여행주의",     color: "#f97316" },
+            { label: "여행자제/금지", color: "#ef4444" },
+          ].map(({ label, color }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+              <div style={{ width: 12, height: 12, borderRadius: "50%", background: color, flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: "#475569" }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── 시각화 모드 토글 (하단 중앙) ── */}
+      <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, zIndex: 50 }}>
+        {(["cost", "danger"] as const).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setVisualMode((prev) => prev === mode ? "none" : mode)}
+            style={{
+              padding: "5px 14px",
+              borderRadius: 6,
+              border: "1px solid rgba(0,0,0,0.15)",
+              background: visualMode === mode ? "#1e293b" : "rgba(255,255,255,0.9)",
+              color: visualMode === mode ? "#fff" : "#334155",
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {mode === "cost" ? "🌍 물가" : "⚠️ 위험도"}
+          </button>
+        ))}
+      </div>
+
       {/* 줌 컨트롤 버튼 */}
       <div
         style={{
