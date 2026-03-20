@@ -22,6 +22,30 @@ DEFAULT_RADIUS_METERS = 10000
 DEFAULT_LIMIT = 20
 
 
+def verify_redis_connection(redis_client):
+    """Ping Redis once so connection failures are visible before the batch runs."""
+    connection_pool = getattr(redis_client, "connection_pool", None)
+    connection_kwargs = getattr(connection_pool, "connection_kwargs", {}) or {}
+
+    try:
+        redis_client.ping()
+        print(
+            "REDIS OK "
+            f"host={connection_kwargs.get('host', 'unknown')} "
+            f"port={connection_kwargs.get('port', 'unknown')} "
+            f"db={connection_kwargs.get('db', 'unknown')}"
+        )
+    except Exception as exc:
+        print(
+            "REDIS FAIL "
+            f"host={connection_kwargs.get('host', 'unknown')} "
+            f"port={connection_kwargs.get('port', 'unknown')} "
+            f"db={connection_kwargs.get('db', 'unknown')} "
+            f"error={exc}"
+        )
+        raise
+
+
 def build_cache_key(city_id, category=DEFAULT_CATEGORY):
     """Build the Redis key Spring Boot will read later."""
     return f"geoapify:places:{category}:city:{city_id}"
@@ -94,6 +118,7 @@ def main():
     db_connection = get_db_connection()
     redis_client = get_redis_client()
     try:
+        verify_redis_connection(redis_client)
         summary = run(
             db_connection=db_connection,
             redis_client=redis_client,
