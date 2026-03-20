@@ -17,7 +17,8 @@ import {
 } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import { useCreateBookmark } from "@/hooks/bookmark/useCreateBookmark";
-import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
+import { useCountryFlagMap, useCountryIdMap } from "@/hooks/country/useCountryFlagMap";
+import { useCityList } from "@/hooks/city/useCityList";
 import defaultCityImg from "@/assets/no-picture.png";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
@@ -110,10 +111,11 @@ interface BookmarkButtonProps {
 
 function BookmarkButton({ city }: BookmarkButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
+  const { selectedCityImgUrl } = useUiStore();
 
   return (
     <button
-      onClick={() => createBookmark({ cityId: city.cityId, json: city })}
+      onClick={() => createBookmark({ cityId: city.cityId, json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null } })}
       disabled={isPending}
       aria-label="저장하기"
       className={cn(
@@ -185,8 +187,20 @@ export function DestinationHeroCard({
   const [imgError, setImgError] = useState(false);
   const { closeCityModal, selectedCityImgUrl } = useUiStore();
   const { data: flagMap } = useCountryFlagMap();
+  const { data: idMap } = useCountryIdMap();
+  const { data: cities } = useCityList();
   const countryName = city.danger?.countryName ?? city.countryName;
   const flagUrl = flagMap?.get(countryName);
+
+  const cityMeta = cities?.find((c) => c.cityId === city.cityId);
+  const enrichedCity: typeof city = {
+    ...city,
+    imgUrl: city.imgUrl || selectedCityImgUrl || cityMeta?.imgUrl || "",
+    countryName: countryName || cityMeta?.countryName || "",
+    countryId: city.countryId || idMap?.get(countryName) || 0,
+    latitude: city.latitude || cityMeta?.latitude || 0,
+    longitude: city.longitude || cityMeta?.longitude || 0,
+  };
 
   // tagScore 내림차순 정렬 후 상위 10개
   const displayKeywords = city.tags
@@ -258,7 +272,7 @@ export function DestinationHeroCard({
         {/* 매칭 스코어 + 하트 버튼 (추천 도시만) */}
         {city.score?.finalScore !== undefined &&
           city.score.finalScore !== null && (
-            <MatchCard score={city.score.finalScore} city={city} />
+            <MatchCard score={city.score.finalScore} city={enrichedCity} />
           )}
 
         {/* Glassmorphism keyword tags */}
