@@ -4,7 +4,7 @@
 !.env.local.example
 
 README.md
-_pycache__/
+__pycache__/
 
 geoapify_api.json
 
