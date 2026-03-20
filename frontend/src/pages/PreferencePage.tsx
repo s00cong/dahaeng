@@ -234,8 +234,12 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
     );
   };
 
-  // 선택 완료 → 서버에 tagIds 전송
+  // 선택 완료 → 서버에 tagIds 전송 + preferenceStore에 태그 이름 저장
   const handleSubmit = () => {
+    const tagNames = tagList
+      .filter((t) => selectedTagIds.includes(t.tagId))
+      .map((t) => t.tagName);
+    usePreferenceStore.getState().setSelectedTags(tagNames);
     mutate(selectedTagIds);
   };
 
