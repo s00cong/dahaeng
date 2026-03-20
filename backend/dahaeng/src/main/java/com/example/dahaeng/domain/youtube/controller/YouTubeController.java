@@ -85,7 +85,10 @@ public class YouTubeController {
         if (principal == null) throw new CustomException(ErrorCode.LOGIN_REQUIRED);
 
         List<YouTubePlaylistDto> playlists = queryService.getPlaylists(principal.getId());
-        return ResponseEntity.ok(Map.of("playlists", playlists));
+        return ResponseEntity.ok(Map.of(
+                "totalCount", playlists.size(),
+                "playlists", playlists
+        ));
     }
 
     @GetMapping("/subscriptions")
@@ -93,7 +96,10 @@ public class YouTubeController {
         if (principal == null) throw new CustomException(ErrorCode.LOGIN_REQUIRED);
 
         List<YouTubeSubscriptionDto> subscriptions = queryService.getSubscriptions(principal.getId());
-        return ResponseEntity.ok(Map.of("subscriptions", subscriptions));
+        return ResponseEntity.ok(Map.of(
+                "totalCount", subscriptions.size(),
+                "subscriptions", subscriptions
+        ));
     }
 
     @GetMapping("/liked-videos")
@@ -101,7 +107,10 @@ public class YouTubeController {
         if (principal == null) throw new CustomException(ErrorCode.LOGIN_REQUIRED);
 
         List<YouTubeVideoDto> videos = queryService.getLikedVideos(principal.getId());
-        return ResponseEntity.ok(Map.of("likedVideos", videos));
+        return ResponseEntity.ok(Map.of(
+                "totalCount", videos.size(),
+                "likedVideos", videos
+        ));
     }
 
     private String resolveEffectiveStatus(YouTubeQueryService.SyncStatusResponse status) {
