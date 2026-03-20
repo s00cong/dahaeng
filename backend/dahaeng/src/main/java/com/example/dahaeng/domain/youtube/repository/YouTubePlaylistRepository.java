@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface YouTubePlaylistRepository extends JpaRepository<YouTubePlaylist, Long> {
     List<YouTubePlaylist> findByAccountId(Long accountId);
     Optional<YouTubePlaylist> findByYoutubePlaylistId(String youtubePlaylistId);
+    void deleteByAccountId(Long accountId);
 }
