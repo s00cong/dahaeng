@@ -22,4 +22,16 @@ public interface FlightSummaryRepository extends JpaRepository<FlightSummary, Lo
     Optional<FlightSummary> findByCityIdAndYearMonthWithCity(@Param("cityId") Long cityId,
             @Param("yearMonth") String yearMonth);
 
+    @Query("""
+            select fs
+            from FlightSummary fs
+            join fetch fs.city
+            where fs.yearMonth = :yearMonth
+              and fs.city.id in :cityIds
+            """)
+    List<FlightSummary> findAllByYearMonthAndCityIdsWithCity(
+            @Param("yearMonth") String yearMonth,
+            @Param("cityIds") List<Long> cityIds
+    );
+
 }
