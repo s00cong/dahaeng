@@ -49,7 +49,7 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 		"""
 		select new com.example.dahaeng.domain.bookmark.dto.util.CityBookmarkCountDto(
 			b.city.id,
-			count(b.city.id)		
+			count(b.city.id)
 		)
 		from Bookmark b
 		where b.member.id = :memberId
