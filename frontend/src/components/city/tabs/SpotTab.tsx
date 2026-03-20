@@ -51,7 +51,7 @@ function SectionHeader({ icon, title, sub }: { icon: React.ReactNode; title: str
 
 type TouristSpot = NonNullable<CityDetail["touristSpot"]>[number];
 
-function TouristSpotCard({ spot }: { spot: TouristSpot }) {
+function TouristSpotCard({ spot, cityName }: { spot: TouristSpot; cityName: string }) {
   const tags = spot.tags ?? [];
   const spotScore = spot.spotScore != null ? Math.round(spot.spotScore * 100) : null;
 
@@ -60,8 +60,14 @@ function TouristSpotCard({ spot }: { spot: TouristSpot }) {
       ? spot.description
       : null;
 
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${spot.name} ${cityName}`)}`;
+
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all">
+    <a
+      href={mapUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer">
       {/* 이름 + 종합 점수 */}
       <div className="flex items-start justify-between gap-1">
         <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2">{spot.name}</p>
@@ -100,13 +106,16 @@ function TouristSpotCard({ spot }: { spot: TouristSpot }) {
           })}
         </div>
       )}
-    </div>
+    </a>
   );
 }
 
 // ── 2. Places 카드 (/api/{cityId}/places) ────────────────────────────────────
 
 function PlaceCard({ place }: { place: Place }) {
+  const mapQuery = place.address ?? place.name;
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all">
       {/* 이름 */}
@@ -136,22 +145,24 @@ function PlaceCard({ place }: { place: Place }) {
       )}
 
       {/* 링크 버튼 */}
-      {(place.socialUrl || place.websiteUrl) && (
-        <div className="flex gap-1.5 mt-1">
-          {place.socialUrl && (
-            <a href={place.socialUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 hover:text-blue-600 transition-colors text-[10px] text-muted-foreground">
-              <Share2 className="size-2.5" />SNS
-            </a>
-          )}
-          {place.websiteUrl && (
-            <a href={place.websiteUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 hover:text-blue-600 transition-colors text-[10px] text-muted-foreground">
-              <Globe className="size-2.5" />웹사이트
-            </a>
-          )}
-        </div>
-      )}
+      <div className="flex gap-1.5 mt-1 flex-wrap">
+        <a href={mapUrl} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 hover:text-blue-600 transition-colors text-[10px] text-muted-foreground">
+          <MapPin className="size-2.5" />지도
+        </a>
+        {place.socialUrl && (
+          <a href={place.socialUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 hover:text-blue-600 transition-colors text-[10px] text-muted-foreground">
+            <Share2 className="size-2.5" />SNS
+          </a>
+        )}
+        {place.websiteUrl && (
+          <a href={place.websiteUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-blue-300 hover:text-blue-600 transition-colors text-[10px] text-muted-foreground">
+            <Globe className="size-2.5" />웹사이트
+          </a>
+        )}
+      </div>
     </div>
   );
 }
@@ -301,6 +312,7 @@ function GeoapifySpotCard({ spot }: { spot: GeoapifySpot }) {
   const subName = spot.nameKo
     ? (spot.name !== spot.nameKo ? spot.name : undefined)
     : (spot.nameEn && spot.name !== spot.nameEn ? spot.name : undefined);
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}`;
 
   return (
     <div className="flex flex-col rounded-xl border border-border bg-white overflow-hidden hover:border-violet-200 hover:shadow-sm transition-all">
@@ -396,22 +408,24 @@ function GeoapifySpotCard({ spot }: { spot: GeoapifySpot }) {
         )}
 
         {/* 링크 */}
-        {(spot.website || spot.wikipedia) && (
-          <div className="flex gap-1.5 mt-1">
-            {spot.website && (
-              <a href={spot.website} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
-                <Globe className="size-2.5" />웹사이트
-              </a>
-            )}
-            {spot.wikipedia && (
-              <a href={spot.wikipedia} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
-                <BookOpen className="size-2.5" />위키
-              </a>
-            )}
-          </div>
-        )}
+        <div className="flex gap-1.5 mt-1 flex-wrap">
+          <a href={mapUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
+            <MapPin className="size-2.5" />지도
+          </a>
+          {spot.website && (
+            <a href={spot.website} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
+              <Globe className="size-2.5" />웹사이트
+            </a>
+          )}
+          {spot.wikipedia && (
+            <a href={spot.wikipedia} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
+              <BookOpen className="size-2.5" />위키
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -422,11 +436,37 @@ function GeoapifySpotCard({ spot }: { spot: GeoapifySpot }) {
 function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature }) {
   const p = feature.properties;
   const category = p.categories?.[0] ?? null;
+  const mapQuery = p.formatted ? `${p.name} ${p.formatted}` : p.name;
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-orange-200 hover:shadow-sm transition-all">
-      {/* 카테고리 뱃지 */}
-      {category && (
+    <div className="flex flex-col rounded-xl border border-border bg-white overflow-hidden hover:border-orange-200 hover:shadow-sm transition-all">
+      {/* 이미지 */}
+      {p.imageUrl && (
+        <div className="relative h-28 bg-slate-200 shrink-0">
+          <img
+            src={p.imageUrl}
+            alt={p.name}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const wrapper = e.currentTarget.parentElement as HTMLElement;
+              if (wrapper) wrapper.style.display = 'none';
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          {category && (
+            <span className="absolute bottom-1.5 left-2 text-[9px] font-medium text-white bg-orange-500/80 rounded-full px-1.5 py-0.5 truncate">
+              {category.replace(/_/g, ' ')}
+            </span>
+          )}
+        </div>
+      )}
+
+      <div className="p-3 flex flex-col gap-2">
+      {/* 카테고리 뱃지 (이미지 없을 때) */}
+      {!p.imageUrl && category && (
         <span className="self-start text-[9px] font-medium text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-1.5 py-0.5 truncate">
           {category.replace(/_/g, ' ')}
         </span>
@@ -459,22 +499,25 @@ function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature })
       )}
 
       {/* 링크 */}
-      {(p.website || p.wiki_and_media?.wikipedia) && (
-        <div className="flex gap-1.5 mt-1">
-          {p.website && (
-            <a href={p.website} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-orange-300 hover:text-orange-600 transition-colors text-[10px] text-muted-foreground">
-              <Globe className="size-2.5" />웹사이트
-            </a>
-          )}
-          {p.wiki_and_media?.wikipedia && (
-            <a href={p.wiki_and_media.wikipedia} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-orange-300 hover:text-orange-600 transition-colors text-[10px] text-muted-foreground">
-              <BookOpen className="size-2.5" />위키
-            </a>
-          )}
-        </div>
-      )}
+      <div className="flex gap-1.5 mt-1 flex-wrap">
+        <a href={mapUrl} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-orange-300 hover:text-orange-600 transition-colors text-[10px] text-muted-foreground">
+          <MapPin className="size-2.5" />지도
+        </a>
+        {p.website && (
+          <a href={p.website} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-orange-300 hover:text-orange-600 transition-colors text-[10px] text-muted-foreground">
+            <Globe className="size-2.5" />웹사이트
+          </a>
+        )}
+        {p.wiki_and_media?.wikipedia && (
+          <a href={p.wiki_and_media.wikipedia} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-orange-300 hover:text-orange-600 transition-colors text-[10px] text-muted-foreground">
+            <BookOpen className="size-2.5" />위키
+          </a>
+        )}
+      </div>
+      </div>
     </div>
   );
 }
@@ -507,6 +550,10 @@ interface MapMarker {
   type: "ai" | "place" | "nearby";
   tagName?: string;
   score?: number;
+  imageUrl?: string;
+  description?: string;
+  address?: string;
+  category?: string;
 }
 
 // ── 관광지 지도 컴포넌트 ──────────────────────────────────────────────────────
@@ -558,15 +605,69 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
             offset={32}
             onClose={() => setPopup(null)}
             closeButton={false}
+            maxWidth="220px"
           >
-            <div className="p-1.5 min-w-[120px]">
-              <p className="text-[11px] font-bold text-slate-800 leading-snug">{popup.name}</p>
-              {popup.tagName && (
-                <p className="text-[10px] text-blue-600 mt-0.5">#{popup.tagName}</p>
+            <div className="flex flex-col rounded-lg overflow-hidden w-[200px]">
+              {/* 이미지 */}
+              {popup.imageUrl && (
+                <div className="relative h-24 bg-slate-200 shrink-0">
+                  <img
+                    src={popup.imageUrl}
+                    alt={popup.name}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  {popup.category && (
+                    <span className="absolute bottom-1.5 left-2 text-[9px] font-medium text-white bg-orange-500/80 rounded-full px-1.5 py-0.5">
+                      {popup.category.replace(/_/g, ' ')}
+                    </span>
+                  )}
+                </div>
               )}
-              {popup.score != null && (
-                <p className="text-[10px] text-amber-600 font-bold mt-0.5">{popup.score}점</p>
-              )}
+
+              <div className="p-2.5 flex flex-col gap-1.5">
+                {/* 타입 배지 */}
+                <div className="flex items-center gap-1.5">
+                  {popup.type === "ai" ? (
+                    <span className="text-[9px] font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5">AI 추천</span>
+                  ) : (
+                    !popup.imageUrl && popup.category && (
+                      <span className="text-[9px] font-medium text-orange-600 bg-orange-50 border border-orange-100 rounded-full px-1.5 py-0.5">
+                        {popup.category.replace(/_/g, ' ')}
+                      </span>
+                    )
+                  )}
+                  {popup.score != null && (
+                    <span className="flex items-center gap-0.5 text-[10px] text-amber-600 font-bold ml-auto">
+                      <Star className="size-2.5 fill-amber-400 text-amber-400" />{popup.score}점
+                    </span>
+                  )}
+                </div>
+
+                {/* 이름 */}
+                <p className="text-[11px] font-bold text-slate-800 leading-snug line-clamp-2">{popup.name}</p>
+
+                {/* 태그 */}
+                {popup.tagName && (
+                  <span className="text-[10px] text-blue-600">#{popup.tagName}</span>
+                )}
+
+                {/* 설명 */}
+                {popup.description && (
+                  <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">{popup.description}</p>
+                )}
+
+                {/* 주소 */}
+                {popup.address && (
+                  <div className="flex items-start gap-1 text-[10px] text-slate-400">
+                    <MapPin className="size-2.5 shrink-0 mt-0.5" />
+                    <span className="line-clamp-1">{popup.address}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </Popup>
         )}
@@ -609,6 +710,10 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
     const markers: MapMarker[] = [];
     touristSpots?.forEach((s, i) => {
       if (s.lat != null && s.lon != null) {
+        const descriptionText =
+          s.description && s.description !== "Overture Place" && s.description !== s.name
+            ? s.description
+            : undefined;
         markers.push({
           id: `ai-${i}`,
           lat: s.lat,
@@ -617,13 +722,24 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
           type: "ai",
           tagName: s.tags?.[0]?.name,
           score: s.spotScore != null ? Math.round(s.spotScore * 100) : undefined,
+          description: descriptionText,
         });
       }
     });
     nearbyAttractions?.forEach((f, i) => {
-      const { lat: fLat, lon: fLon, name } = f.properties;
-      if (fLat != null && fLon != null) {
-        markers.push({ id: `nearby-${i}`, lat: fLat, lon: fLon, name, type: "nearby" });
+      const p = f.properties;
+      if (p.lat != null && p.lon != null) {
+        markers.push({
+          id: `nearby-${i}`,
+          lat: p.lat,
+          lon: p.lon,
+          name: p.name,
+          type: "nearby",
+          imageUrl: p.imageUrl,
+          description: p.description ?? undefined,
+          address: p.formatted ?? undefined,
+          category: p.categories?.[0] ?? undefined,
+        });
       }
     });
     return markers;
@@ -679,7 +795,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                 />
                 <div className="grid grid-cols-2 gap-2.5">
                   {touristSpots.map((spot, i) => (
-                    <TouristSpotCard key={i} spot={spot} />
+                    <TouristSpotCard key={i} spot={spot} cityName={city.cityName} />
                   ))}
                 </div>
               </section>
