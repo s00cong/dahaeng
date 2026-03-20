@@ -81,10 +81,11 @@ public record RecommendCityDetailResponse(
 
     public record TouristSpotResponse(
             String name,
-            String description,
             Double lat,
             Double lon,
-            String imageUrl,
+            String address,
+            String websiteUrl,
+            String socialUrl,
             List<String> tags,
             Double spotScore,
             Map<String, Double> tagScores

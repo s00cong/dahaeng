@@ -17,8 +17,9 @@ public class DummyPlaceEnrichmentService implements PlaceEnrichmentService {
                 spot.getPlaceName(),
                 selectedTags,
                 tagScores,
-                spot.getDescription(),
-                null,
+                spot.getAddress(),
+                spot.getWebsiteUrl(),
+                spot.getSocialUrl(),
                 new RecommendCitiesResponse.Location(spot.getLat(), spot.getLon())
         );
     }
