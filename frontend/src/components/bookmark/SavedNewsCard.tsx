@@ -13,6 +13,9 @@ interface SavedNewsCardProps {
 }
 
 function NewsItemCard({ item }: { item: NewsAtSavedItem }) {
+  const domain = item.url ? (() => { try { return new URL(item.url).hostname; } catch { return null; } })() : null;
+  const faviconSrc = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : null;
+
   return (
     <a
       href={item.url}
@@ -27,9 +30,20 @@ function NewsItemCard({ item }: { item: NewsAtSavedItem }) {
           <img
             src={item.urlToImage}
             alt=""
+            referrerPolicy="no-referrer"
             className="w-full h-full object-cover"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            onError={(e) => {
+              const img = e.currentTarget;
+              if (faviconSrc) {
+                img.src = faviconSrc;
+                img.className = 'w-8 h-8 object-contain';
+              } else {
+                img.style.display = 'none';
+              }
+            }}
           />
+        ) : faviconSrc ? (
+          <img src={faviconSrc} alt={domain ?? ''} className="w-8 h-8 object-contain" />
         ) : (
           <ImageOff className="size-5 text-slate-300" />
         )}

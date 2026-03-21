@@ -29,7 +29,8 @@ export function UnifiedNavBar() {
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const { openRightPanel, isCityModalOpen, setGlobeCountryTarget } = useUiStore();
+  const { openRightPanel, isCityModalOpen, setGlobeCountryTarget } =
+    useUiStore();
   const { data: cities } = useCityList();
 
   const citySource = cities ?? [];
@@ -58,7 +59,8 @@ export function UnifiedNavBar() {
     );
   }, [query, countryList]);
 
-  const hasResults = countrySuggestions.length > 0 || citySuggestions.length > 0;
+  const hasResults =
+    countrySuggestions.length > 0 || citySuggestions.length > 0;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -139,7 +141,11 @@ export function UnifiedNavBar() {
             style={{ maxWidth: "320px" }}
           >
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 pointer-events-none" style={{ color: '#60a5fa' }} />
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 size-4 pointer-events-none z-10"
+                color="#334155"
+                strokeWidth={2}
+              />
               <input
                 type="text"
                 value={query}
@@ -159,7 +165,13 @@ export function UnifiedNavBar() {
                     <p className="px-4 pt-2 pb-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                       나라
                     </p>
-                    <ul className={countrySuggestions.length > 5 ? "overflow-y-auto max-h-[160px]" : ""}>
+                    <ul
+                      className={
+                        countrySuggestions.length > 5
+                          ? "overflow-y-auto max-h-[160px]"
+                          : ""
+                      }
+                    >
                       {countrySuggestions.map((country) => (
                         <li
                           key={country.en}
@@ -171,19 +183,35 @@ export function UnifiedNavBar() {
                           className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm"
                         >
                           <Flag className="size-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium text-slate-800">{country.ko}</span>
-                          <span className="text-slate-400 text-xs ml-auto">{country.en}</span>
+                          <span className="font-medium text-slate-800">
+                            {country.ko}
+                          </span>
+                          <span className="text-slate-400 text-xs ml-auto">
+                            {country.en}
+                          </span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
                 {citySuggestions.length > 0 && (
-                  <div className={countrySuggestions.length > 0 ? "border-t border-slate-100" : ""}>
+                  <div
+                    className={
+                      countrySuggestions.length > 0
+                        ? "border-t border-slate-100"
+                        : ""
+                    }
+                  >
                     <p className="px-4 pt-2 pb-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
                       도시
                     </p>
-                    <ul className={citySuggestions.length > 5 ? "overflow-y-auto max-h-[160px]" : ""}>
+                    <ul
+                      className={
+                        citySuggestions.length > 5
+                          ? "overflow-y-auto max-h-[160px]"
+                          : ""
+                      }
+                    >
                       {citySuggestions.map((city) => (
                         <li
                           key={city.cityId}
@@ -198,8 +226,12 @@ export function UnifiedNavBar() {
                           className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm"
                         >
                           <MapPin className="size-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium text-slate-800">{city.cityName}</span>
-                          <span className="text-slate-400 text-xs ml-auto">{city.countryName}</span>
+                          <span className="font-medium text-slate-800">
+                            {city.cityName}
+                          </span>
+                          <span className="text-slate-400 text-xs ml-auto">
+                            {city.countryName}
+                          </span>
                         </li>
                       ))}
                     </ul>

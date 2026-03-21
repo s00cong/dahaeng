@@ -1,6 +1,7 @@
 package com.example.dahaeng.domain.bookmark.entity;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.example.dahaeng.domain.city.entity.City;
 import com.example.dahaeng.domain.member.entity.Member;
@@ -34,6 +35,9 @@ public class Bookmark extends BaseEntity {
 
 	@Column(columnDefinition = "TEXT")
 	private String json;
+
+	@Column(name = "recommend_id")
+	private UUID recommendId;
 
 	public void delete() {
 		if (isDeleted()) {
