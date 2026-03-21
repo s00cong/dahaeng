@@ -100,6 +100,79 @@ function fixAntimeridian(fc: GeoJSON.FeatureCollection): GeoJSON.FeatureCollecti
   };
 }
 
+// ── 줌 레벨 UI ────────────────────────────────────────────────────────────────
+const ZOOM_STEPS = [
+  { zoom: 1,   label: "세계" },
+  { zoom: 2,   label: "대륙" },
+  { zoom: 3,   label: "국가" },
+  { zoom: 4,   label: "지역" },
+  { zoom: 5,   label: "도시" },
+] as const;
+
+function getZoomLabel(z: number): string {
+  if (z < 1.5) return "세계";
+  if (z < 2.5) return "대륙";
+  if (z < 3.5) return "국가";
+  if (z < 4.5) return "지역";
+  return "도시";
+}
+
+function ZoomControl({ zoom, onZoom, left }: { zoom: number; onZoom: (z: number) => void; left: number }) {
+  const MIN = 1;
+  const MAX = 5;
+  const pct = ((zoom - MIN) / (MAX - MIN)) * 100;
+
+  return (
+    <div style={{
+      position: "absolute", bottom: 24, left, zIndex: 50, transition: "left 0.3s ease",
+      background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)",
+      borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.14)",
+      padding: "8px 12px", display: "flex", flexDirection: "column", gap: 6, minWidth: 180,
+    }}>
+      {/* 상단: 현재 단계 라벨 + 줌 수치 */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#1e40af" }}>
+          {getZoomLabel(zoom)}
+        </span>
+        <span style={{ fontSize: 11, color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>
+          {zoom.toFixed(1)}
+        </span>
+      </div>
+
+      {/* 슬라이더 */}
+      <input
+        type="range"
+        min={MIN} max={MAX} step={0.1}
+        value={zoom}
+        onChange={(e) => onZoom(Number(e.target.value))}
+        style={{ width: "100%", accentColor: "#3b82f6", cursor: "pointer" }}
+      />
+
+      {/* 하단: 단계 라벨들 */}
+      <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
+        {ZOOM_STEPS.map(({ zoom: sz, label }) => {
+          const stepPct = ((sz - MIN) / (MAX - MIN)) * 100;
+          const isActive = Math.abs(pct - stepPct) < 8;
+          return (
+            <button
+              key={label}
+              onClick={() => onZoom(sz)}
+              style={{
+                background: "none", border: "none", padding: 0, cursor: "pointer",
+                fontSize: 10, fontWeight: isActive ? 700 : 400,
+                color: isActive ? "#1e40af" : "#94a3b8",
+                transition: "color 0.2s, font-weight 0.2s",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const COUNTRY_FLY_TO: Record<string, { center: [number, number]; zoom: number }> = {
   Russia: { center: [90, 62], zoom: 2 },
 };
@@ -121,6 +194,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     setGlobeCountryTarget,
     isRightPanelOpen,
     isRightPanelCollapsed,
+    isLeftSidebarCollapsed,
   } = useUiStore();
 
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -138,8 +212,11 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
 
   const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null);
   const [visualMode, setVisualMode] = useState<"none" | "cost" | "danger">("none");
+  const [currentZoom, setCurrentZoom] = useState(1.5);
   const medalMarkersRef = useRef<maplibregl.Marker[]>([]);
   const countriesDataRef = useRef<GeoJSON.FeatureCollection | null>(null);
+  // 맵 핀포인트 직접 클릭 시 flyTo 스킵 플래그
+  const skipCityFlyRef = useRef(false);
 
   const { data: citiesFromApi } = useCityList();
   const cities = citiesFromApi ?? [];
@@ -181,12 +258,14 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       center: [10, 20],
       zoom: 1.5,
       minZoom: 1,
-      maxZoom: 18,
+      maxZoom: 5,
       renderWorldCopies: true,
       attributionControl: false,
     });
 
     mapRef.current = map;
+
+    map.on("zoom", () => setCurrentZoom(map.getZoom()));
 
     map.on("load", async () => {
       map.resize();
@@ -290,6 +369,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           staleTime: 5 * 60 * 1000,
         });
 
+        skipCityFlyRef.current = true;
         openRightPanel(cityId, imgUrl, { lat, lng });
 
         // 핀포인트가 속한 나라 감지 → 나라 선택 + 행정구역 폴리곤 표시
@@ -531,7 +611,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         ? Math.min((city.estimatedBudget / 7) / 200000, 1) 
         : visualMode === "danger" ? city.riskLevel / 4 : 0.5;
 
-      let color = !isMatched ? "#CBD5E1" : city.cityId === selectedCityId ? "#f59e0b" : getMarkerColor(score);
+      let color = city.cityId === selectedCityId ? "#f59e0b" : !isMatched ? "#CBD5E1" : getMarkerColor(score);
       return {
         type: "Feature",
         geometry: { type: "Point", coordinates: [city.longitude, city.latitude] },
@@ -589,7 +669,11 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !selectedCityCoords) return;
-    map.flyTo({ center: [selectedCityCoords.lng, selectedCityCoords.lat], zoom: 6, duration: 800 });
+    if (skipCityFlyRef.current) {
+      skipCityFlyRef.current = false;
+      return;
+    }
+    map.flyTo({ center: [selectedCityCoords.lng, selectedCityCoords.lat], zoom: 3.7, duration: 1500 });
   }, [selectedCityCoords, mapReady]);
 
   // ── 5. 추천 결과 Top3 메달 마커 ─────────────────────────────────────────────
@@ -621,6 +705,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   }, [isRecommendActive, medalRankMap, cities, mapReady]);
 
   const legendRight = isRightPanelOpen ? (isRightPanelCollapsed ? 48 : 348) : 16;
+  const zoomLeft = isLeftSidebarCollapsed ? 32 : 308;
 
   return (
     <div style={{ width, height, position: "relative" }}>
@@ -671,6 +756,9 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           </button>
         ))}
       </div>
+
+      {/* 줌 레벨 컨트롤 */}
+      <ZoomControl zoom={currentZoom} onZoom={(z: number) => mapRef.current?.setZoom(z)} left={zoomLeft} />
     </div>
   );
 }
