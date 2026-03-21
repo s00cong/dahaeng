@@ -251,6 +251,8 @@ export const costApi = {
         costCompare: data.costCompare,
         expectedTargetDailyBudget: data.expectedTargetDailyBudget,
         itemComparison: data.itemComparison,
+        localCostCompare: data.localCostCompare,
+        affordabilityCompare: data.affordabilityCompare,
       });
     } catch {
       return {
