@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import { cityApi } from "@/api/city.api";
 import { queryKeys } from "@/utils/queryKeys";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 import { COUNTRY_NAME_ISO3 } from "@/data/countryNameIso3";
 import medal1Img from "@/assets/medal1.png";
 import medal2Img from "@/assets/medal2.png";
@@ -174,7 +175,14 @@ function ZoomControl({ zoom, onZoom, left }: { zoom: number; onZoom: (z: number)
 }
 
 const COUNTRY_FLY_TO: Record<string, { center: [number, number]; zoom: number }> = {
-  Russia: { center: [90, 62], zoom: 2 },
+  Russia:                      { center: [90,   62],  zoom: 2 },
+  "United States of America":  { center: [-98,  39],  zoom: 3 },
+  Canada:                      { center: [-96,  60],  zoom: 3 },
+  France:                      { center: [2,    46],  zoom: 4 },
+  "United Kingdom":            { center: [-2,   54],  zoom: 4 },
+  Norway:                      { center: [15,   65],  zoom: 3 },
+  Indonesia:                   { center: [118, -2],   zoom: 3 },
+  Antarctica:                  { center: [0,   -90],  zoom: 2 },
 };
 
 const MAP_STYLE: maplibregl.StyleSpecification = {
@@ -210,7 +218,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   clickedNameRef.current = clickedName;
   const currentAdminIsoRef = useRef<string | null>(null);
 
-  const [tooltip, setTooltip] = useState<{ name: string; x: number; y: number } | null>(null);
+  const [tooltip, setTooltip] = useState<{ name: string; sub?: string; x: number; y: number } | null>(null);
   const [visualMode, setVisualMode] = useState<"none" | "cost" | "danger">("none");
   const [currentZoom, setCurrentZoom] = useState(1.5);
   const medalMarkersRef = useRef<maplibregl.Marker[]>([]);
@@ -440,8 +448,9 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           hoveredIdRef.current = null;
         }
         map.getCanvas().style.cursor = "pointer";
-        const name = e.features[0].properties?.cityName as string;
-        setTooltip({ name, x: e.originalEvent.clientX, y: e.originalEvent.clientY });
+        const enName = e.features[0].properties?.cityName as string;
+        const koName = CITY_NAME_KO[enName];
+        setTooltip({ name: koName ?? enName, sub: koName ? enName : undefined, x: e.originalEvent.clientX, y: e.originalEvent.clientY });
       });
 
       map.on("mouseleave", "city-hitbox", () => {
@@ -713,8 +722,9 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       
       {/* 툴팁 */}
       {tooltip && (
-        <div style={{ position: "fixed", left: tooltip.x + 12, top: tooltip.y - 28, background: "rgba(15,23,42,0.85)", color: "#fff", fontSize: 12, padding: "4px 10px", borderRadius: 6, pointerEvents: "none", zIndex: 9999 }}>
-          {tooltip.name}
+        <div style={{ position: "fixed", left: tooltip.x + 12, top: tooltip.y - 36, background: "rgba(15,23,42,0.85)", color: "#fff", fontSize: 12, padding: "5px 10px", borderRadius: 6, pointerEvents: "none", zIndex: 9999, lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 600 }}>{tooltip.name}</div>
+          {tooltip.sub && <div style={{ fontSize: 11, opacity: 0.7 }}>{tooltip.sub}</div>}
         </div>
       )}
 

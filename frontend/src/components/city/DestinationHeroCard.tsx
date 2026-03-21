@@ -22,6 +22,7 @@ import { useCityList } from "@/hooks/city/useCityList";
 import defaultCityImg from "@/assets/no-picture.png";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 
 interface DestinationHeroCardProps {
   city: CityDetail;
@@ -258,8 +259,11 @@ export function DestinationHeroCard({
       <div className="relative z-10 p-6 flex flex-col gap-5">
         {/* City name + subtext */}
         <div>
-          <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md">
-            {city.cityName}
+          <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md flex items-baseline gap-2">
+            {CITY_NAME_KO[city.cityName] ?? city.cityName}
+            {CITY_NAME_KO[city.cityName] && (
+              <span className="text-sm font-normal text-white/60">{city.cityName}</span>
+            )}
           </h2>
           <p className="text-sm text-white/70 mt-1 flex items-center gap-1.5">
             {flagUrl && (
