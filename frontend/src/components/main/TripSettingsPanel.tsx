@@ -47,8 +47,8 @@ export function TripSettingsPanel() {
     setRecommendRequest,
   } = useUiStore();
 
-  const [budgetInput, setBudgetInput] = useState<string>("10,000,000");
-  const [durationInput, setDurationInput] = useState<string>("2");
+  const [budgetInput, setBudgetInput] = useState<string>("");
+  const [durationInput, setDurationInput] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(
     new Date().getMonth() + 1,
@@ -107,8 +107,8 @@ export function TripSettingsPanel() {
   const handleReset = useCallback(() => {
     const now = new Date();
 
-    setBudgetInput("10,000,000");
-    setDurationInput("2");
+    setBudgetInput("");
+    setDurationInput("");
     setSelectedYear(now.getFullYear());
     setSelectedMonth(now.getMonth() + 1);
 

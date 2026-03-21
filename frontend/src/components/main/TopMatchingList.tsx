@@ -7,7 +7,7 @@ import { TopMatchingCard } from "./TopMatchingCard";
 import { cn } from "@/lib/utils";
 import type { CityListItem } from "@/schemas/city.schema";
 
-const TOP_N = 5;
+const TOP_N = 3;
 
 export function TopMatchingList() {
   const { data: citiesFromApi, isLoading } = useCityList();
@@ -54,7 +54,7 @@ export function TopMatchingList() {
           </h2>
         </div>
         <span className="text-[10px] text-slate-400 font-medium">
-          TOP {TOP_N}
+          상위 3개
         </span>
       </div>
 
