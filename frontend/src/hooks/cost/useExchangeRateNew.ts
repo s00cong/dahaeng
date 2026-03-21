@@ -11,6 +11,6 @@ export const useExchangeRateNew = (currency: string) =>
   useQuery({
     queryKey: queryKeys.cost.exchangeNew(currency),
     queryFn: () => costApi.getExchangeRateNew(currency),
-    enabled: !!currency,
+    enabled: !!currency && currency !== 'KRW',
     staleTime: 30 * 60 * 1000,
   });

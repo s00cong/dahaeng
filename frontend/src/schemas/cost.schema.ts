@@ -213,7 +213,7 @@ export const CostCompareSchema = z.object({
     breakdown: z.object({
       food: z.number(),
       transport: z.number(),
-      accommodation: z.number(),
+      accommodation: z.number().optional(),
     }),
     calculationNotes: z.array(z.string()),
   }),
@@ -223,5 +223,21 @@ export const CostCompareSchema = z.object({
     target: z.string(),
     items: z.array(CompareItemSchema),
   }),
+  localCostCompare: z.object({
+    currency: z.string(),
+    baseLocalDailyCost: z.number(),
+    targetLocalDailyCost: z.number(),
+    localDailyCostGap: z.number(),
+    localDailyCostGapPercent: z.number(),
+  }).optional(),
+  affordabilityCompare: z.object({
+    currency: z.string(),
+    baseDailyIncome: z.number(),
+    targetDailyIncome: z.number(),
+    baseLocalCostBurdenPercent: z.number(),
+    targetLocalCostBurdenPercent: z.number(),
+    burdenGapPercentPoint: z.number(),
+    targetMoreAffordable: z.boolean(),
+  }).optional(),
 });
 export type CostCompare = z.infer<typeof CostCompareSchema>;

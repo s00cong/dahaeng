@@ -57,9 +57,10 @@ class RecommendFacadeTest {
         );
 
         RecommendCitySummaryResponse response = recommendFacade.recommend(
-                new RecommendCitiesRequest(List.of("food"), 500000.0, 2, 4)
+                new RecommendCitiesRequest(List.of("food"), 500000.0, 2, 4, null)
         );
 
+        assertThat(response.recommendId()).isNotNull();
         assertThat(response.recommendations())
                 .extracting(RecommendCitySummaryResponse.RecommendationItem::name)
                 .doesNotContain("Seoul")

@@ -36,8 +36,9 @@ const dangerToRiskLevel = (
     | null
     | undefined,
 ): number => {
-  if (!danger || danger.items.length === 0) return 1;
+  if (!danger || danger.items.length === 0) return 0;
   const levels = danger.items.map((item) => item.level);
+  if (levels.some((l) => l.includes("금지") || l.includes("철수"))) return 5;
   if (levels.some((l) => l.includes("자제"))) return 4;
   if (levels.some((l) => l.includes("주의"))) return 3;
   if (levels.some((l) => l.includes("유의"))) return 2;

@@ -25,6 +25,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +40,13 @@ public class RecommendFacade {
     private final ExchangeRepository exchangeRepository;
 
     public RecommendCitySummaryResponse recommend(RecommendCitiesRequest request) {
+        RecommendCitiesRequest requestWithRecommendId = new RecommendCitiesRequest(
+                request.selectedTags(),
+                request.userDailyBudget(),
+                request.travelDays(),
+                request.month(),
+                UUID.randomUUID()
+        );
         String yearMonth = YearMonth.of(YearMonth.now().getYear(), request.month()).toString();
         List<String> selectedTags = RecommendTagNormalizer.normalize(request.selectedTags());
         Exchange usdExchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(Currency.USD).orElse(null);
@@ -86,7 +94,7 @@ public class RecommendFacade {
                 ))
                 .toList();
 
-        return RecommendCitySummaryResponse.of(request, recommendations);
+        return RecommendCitySummaryResponse.of(requestWithRecommendId, recommendations);
     }
 
     private CityRankResult score(

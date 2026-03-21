@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { useParams, Link } from '@tanstack/react-router';
+import { Route } from '@/routes/_authenticated/cost.$countryId';
 import { ChevronRight, AlertCircle, Globe } from 'lucide-react';
 import { motion, type Variants } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useCostDetail } from '@/hooks/cost/useCostDetail';
-import { useExchangeRateNew } from '@/hooks/cost/useExchangeRateNew';
 import { costApi, SEOUL_CITY_ID } from '@/api/cost.api';
 import { useQuery } from '@tanstack/react-query';
-import { ExchangeRateCombinedSection } from '@/components/cost/ExchangeRateCombinedSection';
 import { SalaryPopulationSection } from '@/components/cost/SalaryPopulationSection';
 import { SeoulCompareSection } from '@/components/cost/SeoulCompareSection';
 import { CostDetailTable } from '@/components/cost/CostDetailTable';
+import { ExchangeRateCombinedSection } from '@/components/cost/ExchangeRateCombinedSection';
 import { useCostDetail as useSeoulDetail } from '@/hooks/cost/useCostDetail';
+import { useFlightTrend } from '@/hooks/flight/useFlightTrend';
+import { useCityDetail } from '@/hooks/city/useCityDetail';
+import { useExchangeRateNew } from '@/hooks/cost/useExchangeRateNew';
 
 // ─── 애니메이션 ───────────────────────────────────────────────────
 const pageVariants: Variants = {
@@ -81,28 +84,39 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 // ─── 메인 페이지 ─────────────────────────────────────────────────
 const CountryCostDetailPage = () => {
-  // 라우트 파라미터는 cityId (CostPage 카드 클릭 시 도시 ID 전달)
-  const { countryId: cityIdParam } = useParams({ from: '/_authenticated/cost/$countryId' });
-  const cityId = Number(cityIdParam);
+  const { countryId: idParam } = useParams({ from: '/_authenticated/cost/$countryId' });
+  const { targetType } = Route.useSearch();
+  const targetId = Number(idParam);
 
-  const { data, isLoading, isError, refetch } = useCostDetail('city', cityId);
-  const currency = data?.target.currency ?? '';
+  const { data, isLoading, isError, refetch } = useCostDetail(targetType, targetId);
 
-  const { data: exchangeRateData, isLoading: isExchangeLoading } = useExchangeRateNew(currency);
-
-  // 서울 대비 비교 (도시 단위)
+  // 서울 대비 비교
+  const compareTargetType = targetType === 'country' ? 'COUNTRY' : 'CITY';
   const { data: compareData, isLoading: isCompareLoading } = useQuery({
-    queryKey: ['cost', 'compare', 'city', cityId],
-    queryFn: () => costApi.getCostCompare('CITY', SEOUL_CITY_ID, cityId),
-    enabled: cityId > 0 && cityId !== SEOUL_CITY_ID,
+    queryKey: ['cost', 'compare', compareTargetType, targetId],
+    queryFn: () => costApi.getCostCompare(compareTargetType, SEOUL_CITY_ID, targetId),
+    enabled: targetId > 0 && targetId !== SEOUL_CITY_ID,
     staleTime: 60 * 60 * 1000,
   });
 
   // 서울 생활비 (비교 테이블용)
   const { data: seoulDetail } = useSeoulDetail('city', SEOUL_CITY_ID);
 
-  const krwPerTarget = exchangeRateData?.krw_per_1target
-    ? Math.round(exchangeRateData.krw_per_1target)
+  // city 타입일 때 city API 추가 호출 → exchangeRate.currency 획득
+  const { data: cityDetail } = useCityDetail(
+    targetType === 'city' ? targetId : null,
+    false,
+  );
+  const foreignCurrency = cityDetail?.exchangeRate?.currency ?? null;
+  const { data: exchangeRateData, isLoading: isExchangeLoading } = useExchangeRateNew(foreignCurrency ?? '');
+
+  // 6개월 항공 추이 → avg_hotel_price 평균 / 2 (city 타입일 때만)
+  const { data: flightTrend } = useFlightTrend(targetType === 'city' ? targetId : null);
+  const avgHotelPerDay = flightTrend?.trend_data?.length
+    ? Math.round(
+        flightTrend.trend_data.reduce((sum, t) => sum + t.avg_hotel_price, 0) /
+        flightTrend.trend_data.length / 2,
+      )
     : undefined;
 
   return (
@@ -120,7 +134,7 @@ const CountryCostDetailPage = () => {
           <ChevronRight className="size-3.5" />
           <Link to="/cost" className="hover:text-foreground transition-colors no-underline">글로벌 물가</Link>
           <ChevronRight className="size-3.5" />
-          <span className="text-foreground font-medium">{data?.target.name ?? `도시 #${cityId}`}</span>
+          <span className="text-foreground font-medium">{data?.target.name ?? `#${targetId}`}</span>
         </nav>
 
         {/* ── 로딩 ─────────────────────────────────────────────────── */}
@@ -145,7 +159,7 @@ const CountryCostDetailPage = () => {
         {data && (
           <div className="flex flex-col gap-6">
 
-            {/* A. 도시 히어로 */}
+            {/* A. 도시/국가 히어로 */}
             <CityHeroSection
               name={data.target.name}
               imgUrl={data.target.img_url}
@@ -153,14 +167,16 @@ const CountryCostDetailPage = () => {
               parentRegion={data.target.parentRegion}
             />
 
-            {/* B. 환율 정보 */}
-            <section aria-label="환율 정보">
-              <ExchangeRateCombinedSection
-                currency={currency}
-                exchangeRateData={exchangeRateData}
-                isLoading={isExchangeLoading}
-              />
-            </section>
+            {/* B. 환율 정보 — city 타입이고 외화 코드가 있을 때만 */}
+            {foreignCurrency && (
+              <section aria-label="환율 정보">
+                <ExchangeRateCombinedSection
+                  currency={foreignCurrency}
+                  exchangeRateData={exchangeRateData}
+                  isLoading={isExchangeLoading}
+                />
+              </section>
+            )}
 
             {/* C. 세후 월급 + 인구 */}
             <section aria-label="급여 및 인구">
@@ -170,23 +186,23 @@ const CountryCostDetailPage = () => {
               />
             </section>
 
-            {/* D. 서울 대비 비교 */}
-            {cityId !== SEOUL_CITY_ID && (
+            {/* C. 서울 대비 비교 */}
+            {targetId !== SEOUL_CITY_ID && (
               <section aria-label="서울 대비 물가 비교">
                 <SeoulCompareSection
                   data={compareData}
                   isLoading={isCompareLoading}
+                  hotelPerDay={avgHotelPerDay}
                 />
               </section>
             )}
 
-            {/* E. 전체 물가 상세표 */}
+            {/* D. 전체 물가 상세표 — 백엔드가 KRW 환산값으로 내려주므로 krwPerTarget 불필요 */}
             <section aria-label="전체 물가 상세">
               <CostDetailTable
                 data={data}
                 isLoading={isLoading}
                 seoulLivingCost={seoulDetail?.living_cost}
-                krwPerTarget={krwPerTarget}
               />
             </section>
 

@@ -1,6 +1,5 @@
 package com.example.dahaeng.domain.bookmark.service;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -54,11 +53,11 @@ public class BookmarkService {
 
 		Bookmark bookmark = bookmarkRepository
 			.findFirstByIdAndMemberAndIsDeletedFalse(bookmarkId, member)
-			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "유효하지 않은 북마크 아이디입니다."));
+			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "북마크를 찾을 수 없습니다."));
 
 		Exchange exchange = exchangeRepository
 			.findFirstByCurrencyOrderByEventDateDesc(bookmark.getCity().getCountry().getCurrency())
-			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "유효하지 않은 환율 아이디입니다."));
+			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "환율 정보를 찾을 수 없습니다."));
 
 		return new BookmarkDetailResponse(
 			bookmark.getId(),
@@ -72,19 +71,18 @@ public class BookmarkService {
 		Member member = validMember(memberId);
 
 		bookmarkRepository
-			.findFirstByCityIdAndMemberAndIsDeletedFalseOrderByCreatedAtDesc(request.cityId(), member)
+			.findFirstByCityIdAndRecommendIdAndMemberAndIsDeletedFalse(request.cityId(), request.recommendId(), member)
 			.ifPresent((bookmark) -> {
-				if (bookmark.getCreatedAt().toLocalDate().equals(LocalDate.now())) {
-					throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 생성된 북마크입니다.");
-				}
+				throw new CustomException(ErrorCode.INVALID_REQUEST, "같은 추천 결과에서 이미 북마크한 도시입니다.");
 			});
 
 		City city = cityRepository.findById(request.cityId())
-			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "유효하지 않은 도시 아이디입니다."));
+			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "도시를 찾을 수 없습니다."));
 
 		Bookmark bookmark = Bookmark.builder()
 			.member(member)
 			.city(city)
+			.recommendId(request.recommendId())
 			.json(mapper.writeValueAsString(request.json()))
 			.build();
 
@@ -109,7 +107,7 @@ public class BookmarkService {
 
 		Bookmark bookmark = bookmarkRepository
 			.findFirstByIdAndMemberAndIsDeletedFalse(id, member)
-			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "유효하지 않은 북마크 아이디입니다."));
+			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "북마크를 찾을 수 없습니다."));
 
 		bookmark.delete();
 
@@ -140,7 +138,7 @@ public class BookmarkService {
 			.map(cityCount -> {
 				CityLatestBookmarkDto latest = latestByCityId.get(cityCount.cityId());
 				if (latest == null) {
-					throw new CustomException(ErrorCode.NOT_FOUND, "북마크한 도시를 찾지 못합니다.");
+					throw new CustomException(ErrorCode.NOT_FOUND, "북마크 최신 데이터를 찾을 수 없습니다.");
 				}
 				return new BookmarkTop5Response(
 					latest.bookmarkId(),
@@ -163,6 +161,6 @@ public class BookmarkService {
 
 	private Member validMember(Long memberId) {
 		return memberRepository.findById(memberId)
-			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "사용자 정보가 없습니다."));
+			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."));
 	}
 }

@@ -4,9 +4,11 @@ import com.example.dahaeng.domain.country.dto.response.CountryDangerResponse;
 import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 
 import java.util.List;
+import java.util.UUID;
 
 public record RecommendCitySummaryResponse(
         RequestContext requestContext,
+        UUID recommendId,
         List<RecommendationItem> recommendations
 ) {
     public static RecommendCitySummaryResponse of(RecommendCitiesRequest request, List<RecommendationItem> recommendations) {
@@ -17,6 +19,7 @@ public record RecommendCitySummaryResponse(
                         request.travelDays(),
                         request.month()
                 ),
+                request.recommendId(),
                 recommendations
         );
     }

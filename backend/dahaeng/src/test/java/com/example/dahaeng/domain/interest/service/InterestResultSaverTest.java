@@ -47,6 +47,9 @@ class InterestResultSaverTest {
     @Mock
     private MemberTagRepository memberTagRepository;
 
+    @Mock
+    private TravelTagEvidenceService travelTagEvidenceService;
+
     @InjectMocks
     private InterestResultSaver saver;
 

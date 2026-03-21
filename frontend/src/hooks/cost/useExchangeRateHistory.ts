@@ -14,6 +14,6 @@ export const useExchangeRateHistory = (
   useQuery({
     queryKey: queryKeys.cost.exchangeHistory(targetCurrency, type),
     queryFn: () => costApi.getExchangeRateHistory(targetCurrency, type),
-    enabled: !!targetCurrency,
+    enabled: !!targetCurrency && targetCurrency !== 'KRW',
     staleTime: 30 * 60 * 1000,
   });

@@ -41,8 +41,8 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
 // ─── 카드 스켈레톤 ────────────────────────────────────────────────
 function TopCardSkeleton() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-      {[1, 2, 3].map((i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}
+    <div className="grid grid-cols-2 sm:grid-cols-5 gap-5">
+      {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}
     </div>
   );
 }
@@ -61,6 +61,13 @@ const CostPage = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchType, setSearchType] = useState<'CONTINENT' | 'COUNTRY'>('COUNTRY');
   const [sortDir, setSortDir] = useState<'ASC' | 'DESC'>('ASC');
+
+  // ranking 기반 TOP 5 (한국인 인기 여행지)
+  const { data: topCards, isLoading: isTopLoading } = useQuery({
+    queryKey: ['cost', 'card', 'TOP'],
+    queryFn: () => costApi.getCostCard(),
+    staleTime: 60 * 60 * 1000,
+  });
 
   // 저렴한 순 — type=COUNTRY + 빈 keyword → 전체 도시 ASC
   const { data: cheapCards, isLoading: isCheapLoading } = useQuery({
@@ -94,9 +101,6 @@ const CostPage = () => {
   };
 
   const isSearchMode = searchKeyword !== '';
-
-  // TOP 3: 저렴한 도시 상위 3개
-  const top3 = (cheapCards ?? []).slice(0, 3);
 
   return (
     <motion.div
@@ -242,36 +246,39 @@ const CostPage = () => {
         {/* ── 기본 섹션 ─────────────────────────────────────────── */}
         {!isSearchMode && (
           <>
-            {/* TOP 3 저렴한 도시 대형 카드 */}
-            <section aria-label="저렴한 여행지 TOP 3">
+            {/* TOP 5 한국인 인기 여행지 */}
+            <section aria-label="한국인 인기 여행지 TOP 5">
               <SectionHeader
                 icon={<Star className="size-5 text-amber-500 fill-amber-400" />}
-                title="물가가 저렴한 여행지 TOP 3"
+                title="한국인이 많이 찾는 여행지 TOP 5"
               />
-              {isCheapLoading ? (
+              {isTopLoading ? (
                 <TopCardSkeleton />
-              ) : top3.length > 0 ? (
+              ) : (topCards ?? []).length > 0 ? (
                 <motion.div
-                  className="grid grid-cols-1 sm:grid-cols-3 gap-5"
+                  className="grid grid-cols-2 sm:grid-cols-5 gap-5"
                   variants={containerVariants}
                   initial="hidden"
                   animate="visible"
                 >
-                  {top3.map((dest, idx) => (
+                  {(topCards ?? []).map((dest) => (
                     <motion.div key={dest.id} variants={itemVariants}>
                       <DestinationCard
                         countryId={dest.id}
+                        targetType="country"
                         name={dest.name}
                         city=""
                         imgUrl={dest.imgUrl ?? ''}
                         avgCost={`하루 ₩${dest.dailyBudget.toLocaleString()}`}
-                        rank={idx + 1}
+                        rank={dest.rank}
                       />
                     </motion.div>
                   ))}
                 </motion.div>
               ) : (
-                <p className="text-sm text-muted-foreground py-8 text-center">데이터를 불러올 수 없습니다.</p>
+                <div className="flex items-center justify-center h-24 rounded-2xl border border-dashed border-border text-sm text-muted-foreground">
+                  데이터가 없습니다
+                </div>
               )}
             </section>
 

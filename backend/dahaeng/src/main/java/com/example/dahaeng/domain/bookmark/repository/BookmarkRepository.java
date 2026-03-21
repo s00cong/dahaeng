@@ -2,6 +2,7 @@ package com.example.dahaeng.domain.bookmark.repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -96,6 +97,12 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 
 	Optional<Bookmark> findFirstByCityIdAndMemberAndIsDeletedFalseOrderByCreatedAtDesc(
 		@Param("cityId") Long cityId,
+		@Param("member") Member member
+	);
+
+	Optional<Bookmark> findFirstByCityIdAndRecommendIdAndMemberAndIsDeletedFalse(
+		@Param("cityId") Long cityId,
+		@Param("recommendId") UUID recommendId,
 		@Param("member") Member member
 	);
 }
