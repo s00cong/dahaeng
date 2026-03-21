@@ -190,11 +190,17 @@ def main():
             .parquet(args.silver_path)
         )
 
-        df_structured = df_joined.withColumn(
+        _df_daily_min = df_joined.groupBy(
+            "numeric_city_id", "year_month", "collected_date", "target_date", "direction"
+        ).agg(
+            F.min("price").cast("integer").alias("price")
+        )
+
+        df_structured = _df_daily_min.withColumn(
             "price_info",
             F.struct(
                 F.col("target_date").alias("date"),
-                F.col("price").cast("integer").alias("price"),
+                F.col("price"),
             ),
         )
 

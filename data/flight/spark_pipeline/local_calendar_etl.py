@@ -29,7 +29,7 @@ from local_flight_summary_etl import load_mapping_indexes
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_MAPPING_PATH = BASE_DIR.parent / "trip_com" / "city_airport_mapping.json"
-DEFAULT_MONGO_DB = "dahang"
+DEFAULT_MONGO_DB = "dahaeng"
 TARGET_MONGO_COLLECTION = "flight_price_calendar"
 
 
