@@ -85,6 +85,7 @@ public class BookmarkService {
 		Bookmark bookmark = Bookmark.builder()
 			.member(member)
 			.city(city)
+			.recommendId(request.recommendId())
 			.json(mapper.writeValueAsString(request.json()))
 			.build();
 
