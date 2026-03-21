@@ -2,6 +2,8 @@ import { axiosInstance } from './axiosInstance';
 
 export type NearbyAttractionProperties = {
   name: string;
+  nameKo?: string;
+  nameEn?: string;
   categories: string[] | null;
   website: string | null;
   opening_hours: string | null;
@@ -80,6 +82,14 @@ export const nearbyAttractionsApi = {
     try {
       const { data } = await axiosInstance.get<NearbyAttractionsGeoJSON>(`/api/${cityId}/nearby-attractions`);
       const features = data?.features ?? [];
+
+      // name_international에서 한국어/영어 이름 추출
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      features.forEach((feature: any) => {
+        const ni = feature.properties?.name_international;
+        if (ni?.ko) feature.properties.nameKo = ni.ko as string;
+        if (ni?.en) feature.properties.nameEn = ni.en as string;
+      });
 
       // 이미지 해석: wiki_and_media.image → resolveImageField, wikipedia → fetchWikipediaThumbnail
       await Promise.allSettled(

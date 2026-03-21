@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 
 interface DestinationCardProps {
   countryId: number;
+  targetType?: 'city' | 'country';
   name: string;
   city: string;
   imgUrl: string;
@@ -16,6 +17,7 @@ interface DestinationCardProps {
 
 export function DestinationCard({
   countryId,
+  targetType = 'city',
   name,
   city,
   imgUrl,
@@ -26,7 +28,7 @@ export function DestinationCard({
   const [imgError, setImgError] = useState(false);
 
   const handleClick = () => {
-    void navigate({ to: '/cost/$countryId', params: { countryId } });
+    void navigate({ to: '/cost/$countryId', params: { countryId }, search: { targetType } });
   };
 
   return (

@@ -9,6 +9,7 @@ import {
   Search,
   Building2,
   Globe,
+  Wallet,
 } from 'lucide-react';
 import {
   BarChart,
@@ -171,14 +172,47 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { name:
   );
 }
 
+// ─── 부담률 레벨 ──────────────────────────────────────────────────
+function getBurdenLevel(burden: number) {
+  if (burden < 30) return {
+    label: '매우 여유로움 😊',
+    barColor: 'bg-emerald-400',
+    bgColor: 'bg-emerald-50 border-emerald-100',
+    pillColor: 'bg-emerald-100 text-emerald-700',
+  };
+  if (burden < 50) return {
+    label: '여유로운 편 🙂',
+    barColor: 'bg-blue-400',
+    bgColor: 'bg-blue-50 border-blue-100',
+    pillColor: 'bg-blue-100 text-blue-700',
+  };
+  if (burden < 70) return {
+    label: '보통 😐',
+    barColor: 'bg-amber-400',
+    bgColor: 'bg-amber-50 border-amber-100',
+    pillColor: 'bg-amber-100 text-amber-700',
+  };
+  if (burden < 100) return {
+    label: '빡빡한 편 😤',
+    barColor: 'bg-orange-400',
+    bgColor: 'bg-orange-50 border-orange-100',
+    pillColor: 'bg-orange-100 text-orange-700',
+  };
+  return {
+    label: '매우 빡빡함 😰',
+    barColor: 'bg-rose-500',
+    bgColor: 'bg-rose-50 border-rose-100',
+    pillColor: 'bg-rose-100 text-rose-700',
+  };
+}
+
 // ─── 비교 결과 ───────────────────────────────────────────────────
 function CompareResult({ data }: { data: CostCompare }) {
-  const { costCompare, itemComparison } = data;
+  const { costCompare, itemComparison, localCostCompare, affordabilityCompare } = data;
   const gap = costCompare.dailyBudgetGap;
   const cheaper = gap < 0;
   const maxBudget = Math.max(costCompare.baseDailyBudget, costCompare.targetDailyBudget);
 
-  // recharts용 데이터 변환
   const chartData = itemComparison.items.map((item) => ({
     name: `${ITEM_EMOJI[item.itemKey] ?? ''} ${ITEM_KO[item.itemKey] ?? item.itemName}`,
     [data.base.name]: item.basePrice,
@@ -195,12 +229,19 @@ function CompareResult({ data }: { data: CostCompare }) {
       className="mt-6 flex flex-col gap-5"
     >
       {/* ── 메인 서머리 카드 ── */}
-      <div className="relative rounded-2xl p-6 overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600">
-        {/* 배경 장식 */}
+      <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600">
+        {/* 배경 이미지 */}
+        {data.target.img_url && (
+          <img
+            src={data.target.img_url}
+            alt={data.target.name}
+            className="absolute inset-0 w-full h-full object-cover opacity-20"
+          />
+        )}
         <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
         <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full bg-white/10" />
 
-        <div className="relative">
+        <div className="relative p-6">
           <div className="flex items-center gap-2 mb-1">
             {cheaper ? <TrendingDown className="size-5 text-white/80" /> : <TrendingUp className="size-5 text-white/80" />}
             <span className="text-white/80 text-sm font-medium">{data.target.name} 기준</span>
@@ -215,32 +256,103 @@ function CompareResult({ data }: { data: CostCompare }) {
           <p className="text-white/70 text-sm mt-1">
             하루 기준 <strong className="text-white">₩{Math.abs(gap).toLocaleString()}</strong> {cheaper ? '절약' : '추가 지출'}
           </p>
-        </div>
 
-        {/* 두 금액 */}
-        <div className="relative mt-5 grid grid-cols-2 gap-4">
-          <div className="bg-white/15 rounded-xl p-3">
-            <p className="text-white/70 text-xs mb-1">{data.base.name}</p>
-            <p className="text-white text-xl font-black">₩{costCompare.baseDailyBudget.toLocaleString()}</p>
-            <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white/70 rounded-full"
-                style={{ width: `${(costCompare.baseDailyBudget / maxBudget) * 100}%` }}
-              />
+          {/* 두 금액 */}
+          <div className="mt-5 grid grid-cols-2 gap-4">
+            <div className="bg-white/15 rounded-xl p-3">
+              {data.base.img_url && (
+                <img src={data.base.img_url} alt={data.base.name} className="w-full h-12 object-cover rounded-lg mb-2 opacity-80" />
+              )}
+              <p className="text-white/70 text-xs mb-1">{data.base.name}</p>
+              <p className="text-white text-xl font-black">₩{costCompare.baseDailyBudget.toLocaleString()}</p>
+              <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white/70 rounded-full"
+                  style={{ width: `${(costCompare.baseDailyBudget / maxBudget) * 100}%` }}
+                />
+              </div>
             </div>
-          </div>
-          <div className="bg-white/25 rounded-xl p-3">
-            <p className="text-white/70 text-xs mb-1">{data.target.name}</p>
-            <p className="text-white text-xl font-black">₩{costCompare.targetDailyBudget.toLocaleString()}</p>
-            <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white rounded-full"
-                style={{ width: `${(costCompare.targetDailyBudget / maxBudget) * 100}%` }}
-              />
+            <div className="bg-white/25 rounded-xl p-3">
+              {data.target.img_url && (
+                <img src={data.target.img_url} alt={data.target.name} className="w-full h-12 object-cover rounded-lg mb-2 opacity-80" />
+              )}
+              <p className="text-white/70 text-xs mb-1">{data.target.name}</p>
+              <p className="text-white text-xl font-black">₩{costCompare.targetDailyBudget.toLocaleString()}</p>
+              <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white rounded-full"
+                  style={{ width: `${(costCompare.targetDailyBudget / maxBudget) * 100}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── 현지인 부담률 ── */}
+      {affordabilityCompare && (
+        <div className="bg-card rounded-2xl border border-border/60 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Wallet className="size-4 text-slate-500" />
+            <p className="text-sm font-bold text-foreground">현지인 생활비 부담률</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            {[
+              { name: data.base.name, burden: affordabilityCompare.baseLocalCostBurdenPercent, income: affordabilityCompare.baseDailyIncome },
+              { name: data.target.name, burden: affordabilityCompare.targetLocalCostBurdenPercent, income: affordabilityCompare.targetDailyIncome },
+            ].map((item) => {
+              const level = getBurdenLevel(item.burden);
+              return (
+                <div key={item.name} className={cn('rounded-xl p-3 border', level.bgColor)}>
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">{item.name}</p>
+                  <p className="text-lg font-black text-foreground">{item.burden.toFixed(1)}%</p>
+                  <div className="mt-1.5 h-2 bg-black/10 rounded-full overflow-hidden">
+                    <div
+                      className={cn('h-full rounded-full transition-all', level.barColor)}
+                      style={{ width: `${Math.min(item.burden, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">일수입 ₩{item.income.toLocaleString()}</p>
+                  <span className={cn('inline-block mt-2 text-[10px] font-bold px-2 py-0.5 rounded-full', level.pillColor)}>
+                    {level.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className={cn(
+            'text-xs font-medium rounded-lg px-3 py-2 text-center',
+            affordabilityCompare.targetMoreAffordable ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700',
+          )}>
+            {data.target.name}이(가) {data.base.name}보다{' '}
+            {affordabilityCompare.targetMoreAffordable ? '생활비 부담이 낮습니다' : '생활비 부담이 높습니다'}
+            {' '}({Math.abs(affordabilityCompare.burdenGapPercentPoint).toFixed(1)}%p 차이)
+          </p>
+        </div>
+      )}
+
+      {/* ── 현지 물가 비교 ── */}
+      {localCostCompare && (
+        <div className="bg-card rounded-2xl border border-border/60 p-5">
+          <p className="text-sm font-bold text-foreground mb-3">
+            현지 통화 기준 물가
+            <span className="ml-2 text-xs text-muted-foreground font-normal">({localCostCompare.currency})</span>
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-muted/40 p-3 text-center">
+              <p className="text-xs text-muted-foreground mb-1">{data.base.name}</p>
+              <p className="text-base font-black">{localCostCompare.baseLocalDailyCost.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl bg-muted/40 p-3 text-center">
+              <p className="text-xs text-muted-foreground mb-1">{data.target.name}</p>
+              <p className="text-base font-black">{localCostCompare.targetLocalDailyCost.toLocaleString()}</p>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            {localCostCompare.localDailyCostGap > 0 ? '+' : ''}{localCostCompare.localDailyCostGap.toLocaleString()} ({localCostCompare.localDailyCostGapPercent > 0 ? '+' : ''}{localCostCompare.localDailyCostGapPercent.toFixed(1)}%)
+          </p>
+        </div>
+      )}
 
       {/* ── 항목별 비교 차트 ── */}
       <div className="bg-card rounded-2xl border border-border/60 p-5">
@@ -365,10 +477,10 @@ export function CostCompareSection() {
     staleTime: 60 * 60 * 1000,
   });
 
-  // 국가 목록
+  // 국가 목록 (모든 대륙 병렬 조회)
   const { data: countryList } = useQuery({
-    queryKey: ['cost', 'search', 'CONTINENT', '', 'ASC'],
-    queryFn: () => costApi.getCostSearch('CONTINENT', '', 'ASC'),
+    queryKey: ['cost', 'search', 'ALL_COUNTRIES'],
+    queryFn: () => costApi.getAllCountries(),
     staleTime: 60 * 60 * 1000,
   });
 

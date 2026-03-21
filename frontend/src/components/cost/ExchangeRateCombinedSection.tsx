@@ -23,7 +23,7 @@ dayjs.locale('ko');
 
 interface ExchangeRateCombinedSectionProps {
   currency: string;
-  exchangeRateData: ExchangeRateNew | undefined;
+  exchangeRateData: ExchangeRateNew | null | undefined;
   isLoading: boolean;
 }
 
