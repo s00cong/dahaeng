@@ -658,8 +658,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
       const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
       const flyTo = COUNTRY_FLY_TO[globeCountryTarget];
-      if (flyTo) map.flyTo({ center: flyTo.center, zoom: flyTo.zoom, duration: 800 });
-      else map.flyTo({ center: [centerLng, centerLat], zoom: 4, duration: 800 });
+      if (flyTo) map.flyTo({ center: flyTo.center, zoom: flyTo.zoom, duration: 1600 });
+      else map.flyTo({ center: [centerLng, centerLat], zoom: 4, duration: 1600 });
     }
 
     setGlobeCountryTarget(null);
@@ -673,7 +673,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       skipCityFlyRef.current = false;
       return;
     }
-    map.flyTo({ center: [selectedCityCoords.lng, selectedCityCoords.lat], zoom: 3.7, duration: 1500 });
+    map.flyTo({ center: [selectedCityCoords.lng, selectedCityCoords.lat], zoom: 3.7, duration: 1600 });
   }, [selectedCityCoords, mapReady]);
 
   // ── 5. 추천 결과 Top3 메달 마커 ─────────────────────────────────────────────
