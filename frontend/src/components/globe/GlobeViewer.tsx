@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useMemo, useState } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { feature as topoFeature } from "topojson-client";
@@ -33,30 +33,40 @@ function getMarkerColor(score: number | null | undefined): string {
   return "#f59e0b";
 }
 
-const COST_COLORS_8 = [
-  "#047857", "#10b981", "#6ee7b7", "#bef264",
-  "#fbbf24", "#fb923c", "#ef4444", "#7f1d1d",
+// ── 단계구분도(Choropleth) 색상 ────────────────────────────────────────────────
+const COST_CHOROPLETH = [
+  { max: 30000,    color: "#059669", label: "3만 미만" },
+  { max: 60000,    color: "#10b981", label: "3~6만" },
+  { max: 100000,   color: "#84cc16", label: "6~10만" },
+  { max: 150000,   color: "#fbbf24", label: "10~15만" },
+  { max: 200000,   color: "#f97316", label: "15~20만" },
+  { max: Infinity, color: "#ef4444", label: "20만 초과" },
 ] as const;
 
-function calcCostThresholds(costs: number[]): { max: number; color: string; label: string }[] {
-  const sorted = [...costs].sort((a, b) => a - b);
-  const n = sorted.length;
-  if (n === 0) return [];
-  const p = (pct: number) => sorted[Math.min(Math.floor((pct / 100) * n), n - 1)];
-  const fmt = (v: number) => `${Math.round(v / 10000)}만`;
-  const pcts = [12.5, 25, 37.5, 50, 62.5, 75, 87.5];
-  const thresholds = pcts.map(p);
-  return [
-    { max: thresholds[0], color: COST_COLORS_8[0], label: `${fmt(sorted[0])} 미만` },
-    { max: thresholds[1], color: COST_COLORS_8[1], label: `${fmt(thresholds[0])} ~ ${fmt(thresholds[1])}` },
-    { max: thresholds[2], color: COST_COLORS_8[2], label: `${fmt(thresholds[1])} ~ ${fmt(thresholds[2])}` },
-    { max: thresholds[3], color: COST_COLORS_8[3], label: `${fmt(thresholds[2])} ~ ${fmt(thresholds[3])}` },
-    { max: thresholds[4], color: COST_COLORS_8[4], label: `${fmt(thresholds[3])} ~ ${fmt(thresholds[4])}` },
-    { max: thresholds[5], color: COST_COLORS_8[5], label: `${fmt(thresholds[4])} ~ ${fmt(thresholds[5])}` },
-    { max: thresholds[6], color: COST_COLORS_8[6], label: `${fmt(thresholds[5])} ~ ${fmt(thresholds[6])}` },
-    { max: Infinity,      color: COST_COLORS_8[7], label: `${fmt(thresholds[6])} 초과` },
-  ];
+const DANGER_CHOROPLETH = [
+  { max: 0,        color: "#10b981", label: "안전" },
+  { max: 2,        color: "#fbbf24", label: "여행유의" },
+  { max: 3,        color: "#f97316", label: "여행주의" },
+  { max: 4,        color: "#ef4444", label: "여행자제" },
+  { max: Infinity, color: "#dc2626", label: "여행금지·철수" },
+] as const;
+
+function getChoroplethColor(value: number, mode: "cost" | "danger"): string {
+  const steps = mode === "cost" ? COST_CHOROPLETH : DANGER_CHOROPLETH;
+  for (const step of steps) {
+    if (value <= step.max) return step.color;
+  }
+  return steps[steps.length - 1].color;
 }
+
+// city.countryName → GeoJSON name 별칭 (불일치 보정)
+const COUNTRY_ALIAS: Record<string, string> = {
+  "united states": "United States of America",
+  "usa":           "United States of America",
+  "u.s.a.":        "United States of America",
+  "czech republic":"Czechia",
+  "uae":           "United Arab Emirates",
+};
 
 // ── GeoJSON 좌표 전체 추출 (나라 bbox 계산용) ────────────────────────────────
 function getAllCoords(geom: GeoJSON.Geometry): number[][] {
@@ -213,7 +223,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const selectedIdRef = useRef<number | null>(null);
 
   const [clickedName, setClickedName] = useState<string | null>(null);
-  const [clickedIso, setClickedIso] = useState<string | null>(null);
+  const [, setClickedIso] = useState<string | null>(null);
   const clickedNameRef = useRef<string | null>(null);
   clickedNameRef.current = clickedName;
   const currentAdminIsoRef = useRef<string | null>(null);
@@ -223,6 +233,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const [currentZoom, setCurrentZoom] = useState(1.5);
   const medalMarkersRef = useRef<maplibregl.Marker[]>([]);
   const countriesDataRef = useRef<GeoJSON.FeatureCollection | null>(null);
+  const countryGeoIdMapRef = useRef<Map<string, number>>(new Map());
   // 맵 핀포인트 직접 클릭 시 flyTo 스킵 플래그
   const skipCityFlyRef = useRef(false);
 
@@ -251,10 +262,6 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     return map;
   }, [cities, recommendResults, isRecommendActive]);
 
-  const costThresholds = useMemo(() => {
-    const costs = cities.map((c) => c.estimatedBudget / 7).filter((v) => v > 0);
-    return calcCostThresholds(costs);
-  }, [cities]);
 
   // ── 1. 지도 초기화 ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -289,6 +296,13 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       const countries = fixAntimeridian(rawCountries);
       countriesDataRef.current = countries;
 
+      // GeoJSON name(소문자) → generateId 인덱스(=feature-state id) 맵 빌드
+      countries.features.forEach((f, i) => {
+        if (f.properties?.name) {
+          countryGeoIdMapRef.current.set((f.properties.name as string).toLowerCase(), i);
+        }
+      });
+
       map.addSource("countries", { type: "geojson", data: countries, generateId: true });
       map.addLayer({
         id: "country-fill",
@@ -299,7 +313,12 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             "case",
             ["boolean", ["feature-state", "selected"], false], "#bfdbfe",
             ["boolean", ["feature-state", "hover"], false], "#e2e8ef",
-            "#F1F5F9",
+            ["case", ["!=", ["get", "choroplethColor"], null], ["get", "choroplethColor"], "#F1F5F9"],
+          ],
+          "fill-opacity": [
+            "case",
+            ["!=", ["get", "choroplethColor"], null], 0.72,
+            1,
           ],
         },
       });
@@ -638,20 +657,61 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     const source = map.getSource("cities") as maplibregl.GeoJSONSource | undefined;
     source?.setData({ type: "FeatureCollection", features });
 
-    // 레이어 가시성 조절
-    if (map.getLayer("city-heatmap")) {
-      map.setLayoutProperty("city-heatmap", "visibility", visualMode !== "none" ? "visible" : "none");
-    }
-    if (map.getLayer("city-circles")) {
-      map.setLayoutProperty("city-circles", "visibility", visualMode !== "none" ? "none" : "visible");
-    }
-  }, [cities, mapReady, isRecommendActive, matchedCityIds, recommendScoreMap, selectedCityId, visualMode]);
+  }, [cities, mapReady, isRecommendActive, matchedCityIds, recommendScoreMap, selectedCityId]);
 
   useEffect(() => {
     if (mapRef.current) mapRef.current.resize();
   }, [width, height]);
 
-  // ── 3. 나라 검색 → 글로브 카메라 이동 ──────────────────────────────────────
+  // ── 3. Choropleth 단계구분도 ──────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !countriesDataRef.current) return;
+
+    const source = map.getSource("countries") as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+
+    if (visualMode === "none" || cities.length === 0) {
+      // choroplethColor 제거 → 기본색으로 복원
+      const resetFeatures = countriesDataRef.current.features.map((f) => ({
+        ...f,
+        properties: { ...(f.properties ?? {}), choroplethColor: null },
+      }));
+      source.setData({ ...countriesDataRef.current, features: resetFeatures });
+      return;
+    }
+
+    // 나라별 통계 집계 (key: 소문자 GeoJSON name)
+    const statsMap = new Map<string, { total: number; count: number; maxDanger: number }>();
+    cities.forEach((city) => {
+      const lower = city.countryName.toLowerCase();
+      const canonical = (COUNTRY_ALIAS[lower] ?? city.countryName).toLowerCase();
+      const key = statsMap.has(canonical) ? canonical : (statsMap.has(lower) ? lower : canonical);
+      const s = statsMap.get(key) ?? { total: 0, count: 0, maxDanger: 0 };
+      statsMap.set(key, {
+        total: s.total + city.estimatedBudget / 7,
+        count: s.count + 1,
+        maxDanger: Math.max(s.maxDanger, city.riskLevel),
+      });
+    });
+
+    // 각 feature에 choroplethColor 프로퍼티 주입 후 setData
+    const updatedFeatures = countriesDataRef.current.features.map((f) => {
+      const geoName = ((f.properties?.name as string) ?? "").toLowerCase();
+      const aliasName = (COUNTRY_ALIAS[geoName] ?? "").toLowerCase();
+      const stats = statsMap.get(geoName) ?? statsMap.get(aliasName);
+      if (!stats) return { ...f, properties: { ...(f.properties ?? {}), choroplethColor: null } };
+      const value = visualMode === "cost" ? stats.total / stats.count : stats.maxDanger;
+      return {
+        ...f,
+        properties: { ...(f.properties ?? {}), choroplethColor: getChoroplethColor(value, visualMode) },
+      };
+    });
+
+    source.setData({ ...countriesDataRef.current, features: updatedFeatures });
+  }, [visualMode, cities, mapReady]);
+
+  // ── 4. 나라 검색 → 글로브 카메라 이동 ──────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !globeCountryTarget || !countriesDataRef.current) return;
@@ -728,30 +788,15 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         </div>
       )}
 
-      {/* 시각화 모드 범례 (Legend) */}
-      {visualMode === "cost" && (
+      {/* 시각화 모드 범례 */}
+      {visualMode !== "none" && (
         <div style={{ position: "absolute", bottom: 72, right: legendRight, background: "rgba(255,255,255,0.93)", borderRadius: 8, padding: "8px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.18)", zIndex: 50, transition: "right 0.3s ease" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#334155", marginBottom: 5 }}>1일 물가 (원)</div>
-          {costThresholds.map(({ label, color }) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-              <div style={{ width: 12, height: 12, borderRadius: "50%", background: color, flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: "#475569" }}>{label}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {visualMode === "danger" && (
-        <div style={{ position: "absolute", bottom: 72, right: legendRight, background: "rgba(255,255,255,0.93)", borderRadius: 8, padding: "8px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.18)", zIndex: 50, transition: "right 0.3s ease" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#334155", marginBottom: 5 }}>여행 위험도</div>
-          {[
-            { label: "안전", color: "#10b981" },
-            { label: "여행유의", color: "#f59e0b" },
-            { label: "여행주의", color: "#f97316" },
-            { label: "여행자제/금지", color: "#ef4444" }
-          ].map(({ label, color }) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-              <div style={{ width: 12, height: 12, borderRadius: "50%", background: color, flexShrink: 0 }} />
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+            {visualMode === "cost" ? "나라별 1일 평균 물가" : "나라별 여행 위험도"}
+          </div>
+          {(visualMode === "cost" ? COST_CHOROPLETH : DANGER_CHOROPLETH).map(({ label, color }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+              <div style={{ width: 14, height: 14, borderRadius: 3, background: color, flexShrink: 0, opacity: 0.72, border: "1px solid rgba(0,0,0,0.08)" }} />
               <span style={{ fontSize: 11, color: "#475569" }}>{label}</span>
             </div>
           ))}
