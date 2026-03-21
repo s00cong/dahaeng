@@ -41,6 +41,7 @@ import com.example.dahaeng.domain.recommend.service.RecommendationScoreCalculato
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +57,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class CityService {
     private final CityRepository cityRepository;
     private final FlightSummaryRepository flightSummaryRepository;
@@ -130,8 +132,10 @@ public class CityService {
     }
 
     public RecommendCityDetailResponse getRecommendCityDetail(Long id, RecommendCitiesRequest request) {
+        long totalStart = System.nanoTime();
         validateRecommendDetailRequest(request);
 
+        long basicDataStart = System.nanoTime();
         City city = cityRepository.findById(id)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "도시 정보를 찾을 수 없습니다."));
         String targetYearMonth = resolveYearMonth(request);
@@ -164,14 +168,21 @@ public class CityService {
                 danger != null ? danger.getAttentionPartial() : null,
                 city.getNews_penalty_score()
         );
+        long basicDataMs = elapsedMs(basicDataStart);
 
+        long placesStart = System.nanoTime();
         List<RecommendCitiesResponse.RecommendedPlace> places = buildRecommendedPlaces(id, selectedTags);
+        long placesMs = elapsedMs(placesStart);
+
+        long newsStart = System.nanoTime();
         RecommendCitiesResponse.NewsInsight newsInsight = newsSearchService.searchAndSummarize(
                 city.getCityName(),
                 city.getCountry().getCountryName(),
                 scoreBreakdown.newsPenaltyScore()
         );
+        long newsMs = elapsedMs(newsStart);
 
+        long narrationStart = System.nanoTime();
         String recommendationReason = narrationService.generateReason(
                 new CityRankResult(
                         city.getId(),
@@ -197,6 +208,7 @@ public class CityService {
                 selectedTags,
                 newsInsight.summary()
         );
+        long narrationMs = elapsedMs(narrationStart);
 
         List<RecommendCityDetailResponse.TagResponse> tags = cityTags.stream()
                 .map(cityTag -> new RecommendCityDetailResponse.TagResponse(
@@ -237,7 +249,7 @@ public class CityService {
                 ))
                 .toList();
 
-        return new RecommendCityDetailResponse(
+        RecommendCityDetailResponse response = new RecommendCityDetailResponse(
                 city.getCityName(),
                 new RecommendCityDetailResponse.Score(
                         round(scoreBreakdown.finalScore()),
@@ -275,6 +287,19 @@ public class CityService {
                 tags,
                 touristSpots
         );
+
+        log.info(
+                "recommendCityDetail cityId={} recommendId={} basicDataMs={} placesMs={} newsMs={} narrationMs={} totalMs={}",
+                id,
+                request.recommendId(),
+                basicDataMs,
+                placesMs,
+                newsMs,
+                narrationMs,
+                elapsedMs(totalStart)
+        );
+
+        return response;
     }
 
     public NotRecommendCityDetailResponse getNotRecommendCityDetail(Long id) {
@@ -524,7 +549,8 @@ public class CityService {
                 || request.userDailyBudget() == null
                 || request.travelDays() == null
                 || request.travelDays() <= 0
-                || request.month() == null) {
+                || request.month() == null
+                || request.recommendId() == null) {
             throw new CustomException(
                     ErrorCode.INVALID_REQUEST,
                     "recommend=true 상세 조회에는 userDailyBudget, travelDays, month가 필요합니다."
@@ -538,6 +564,10 @@ public class CityService {
 
     private double round4(double value) {
         return Math.round(value * 10000.0) / 10000.0;
+    }
+
+    private long elapsedMs(long startNano) {
+        return (System.nanoTime() - startNano) / 1_000_000;
     }
 
     private Exchange getLatestUsdExchange() {
