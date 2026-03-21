@@ -1,10 +1,12 @@
 package com.example.dahaeng.domain.interest.service;
 
 import com.example.dahaeng.domain.interest.dto.ExtractedInterestFeatures;
+import com.example.dahaeng.domain.interest.dto.EvidenceKeywordResponse;
 import com.example.dahaeng.domain.interest.dto.InterestAnalyzeResultResponse;
 import com.example.dahaeng.domain.interest.dto.InterestKeywordResponse;
 import com.example.dahaeng.domain.interest.dto.InterestAnalysisResult;
 import com.example.dahaeng.domain.interest.dto.InterestTagResponse;
+import com.example.dahaeng.domain.interest.dto.SourceBadgeResponse;
 import com.example.dahaeng.domain.interest.dto.TravelTagScore;
 import com.example.dahaeng.domain.interest.repository.YoutubeInterestKeywordRepository;
 import com.example.dahaeng.domain.youtube.repository.YouTubeTravelTagRepository;
@@ -29,6 +31,7 @@ public class InterestAnalysisService {
     private final InterestResultSaver saver;
     private final YouTubeTravelTagRepository youTubeTravelTagRepository;
     private final YoutubeInterestKeywordRepository youtubeInterestKeywordRepository;
+    private final TravelTagEvidenceService travelTagEvidenceService;
 
     public InterestAnalysisResult analyze(Long accountId) {
         log.info(">>> [COORDINATOR] Starting orchestrated analysis for account: {}", accountId);
@@ -54,7 +57,7 @@ public class InterestAnalysisService {
     }
 
     private void saveFinalResults(ExtractedInterestFeatures features, List<TravelTagScore> validatedTags) {
-        saver.save(features.getAccountId(), features.getAllKeywords(), validatedTags);
+        saver.save(features.getAccountId(), features.getAllKeywords(), features.getTop30ForAi(), validatedTags);
 
         log.info(">>> [Phase 3] All results successfully persisted to DB.");
     }
@@ -65,6 +68,11 @@ public class InterestAnalysisService {
                         .tagId(tag.getTag() != null ? tag.getTag().getId() : null)
                         .categoryName(resolveCategoryName(tag))
                         .tagName(resolveTagName(tag))
+                        .score(tag.getScore())
+                        .confidence(tag.getConfidence())
+                        .reason(tag.getReason())
+                        .evidenceKeywords(readEvidenceKeywords(tag.getEvidenceKeywordsJson()))
+                        .sourceBadges(readSourceBadges(tag.getSourceBadgesJson()))
                         .build())
                 .toList();
     }
@@ -99,5 +107,13 @@ public class InterestAnalysisService {
             return tag.getTag().getName();
         }
         return tag.getTagName();
+    }
+
+    private List<EvidenceKeywordResponse> readEvidenceKeywords(String json) {
+        return travelTagEvidenceService.readEvidenceKeywordsJson(json);
+    }
+
+    private List<SourceBadgeResponse> readSourceBadges(String json) {
+        return travelTagEvidenceService.readSourceBadgesJson(json);
     }
 }

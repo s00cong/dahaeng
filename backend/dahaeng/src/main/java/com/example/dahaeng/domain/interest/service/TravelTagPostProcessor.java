@@ -19,6 +19,7 @@ public class TravelTagPostProcessor {
     private static final double MIN_CONFIDENCE_THRESHOLD = 0.3; 
     private static final double MIN_SCORE_THRESHOLD = 0.3;      
     private static final int MAX_REASON_LENGTH = 150;
+    private static final int MAX_EVIDENCE_KEYWORDS = 5;
 
     public List<TravelTagScore> process(List<TravelTagScore> tags) {
         if (tags == null) return Collections.emptyList();
@@ -58,6 +59,7 @@ public class TravelTagPostProcessor {
             if (t.getReason() != null && t.getReason().length() > MAX_REASON_LENGTH) {
                 t.setReason(t.getReason().substring(0, MAX_REASON_LENGTH));
             }
+            t.setEvidenceKeywordIds(normalizeEvidenceKeywordIds(t.getEvidenceKeywordIds()));
             processed.add(t);
         }
 
@@ -76,5 +78,17 @@ public class TravelTagPostProcessor {
 
     private boolean isValidRange(Double v) {
         return v != null && v >= 0.0 && v <= 1.0;
+    }
+
+    private List<Integer> normalizeEvidenceKeywordIds(List<Integer> evidenceKeywordIds) {
+        if (evidenceKeywordIds == null || evidenceKeywordIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return evidenceKeywordIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .limit(MAX_EVIDENCE_KEYWORDS)
+                .collect(Collectors.toList());
     }
 }

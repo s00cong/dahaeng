@@ -1,6 +1,8 @@
 package com.example.dahaeng.domain.interest.service;
 
 import com.example.dahaeng.domain.interest.dto.InterestKeywordCandidate;
+import com.example.dahaeng.domain.interest.dto.EvidenceKeywordResponse;
+import com.example.dahaeng.domain.interest.dto.SourceBadgeResponse;
 import com.example.dahaeng.domain.interest.dto.TravelTagScore;
 import com.example.dahaeng.domain.interest.enums.InterestSourceType;
 import com.example.dahaeng.domain.member.entity.Member;
@@ -39,13 +41,15 @@ public class InterestResultSaver {
     private final YouTubeTravelTagRepository travelTagRepository;
     private final TagRepository tagRepository;
     private final MemberTagRepository memberTagRepository;
+    private final TravelTagEvidenceService travelTagEvidenceService;
 
     @Transactional
     public void save(Long accountId,
                      List<InterestKeywordCandidate> keywords,
+                     List<InterestKeywordCandidate> aiKeywords,
                      List<TravelTagScore> travelTags) {
         saveKeywords(accountId, keywords);
-        saveTravelTags(accountId, travelTags);
+        saveTravelTags(accountId, travelTags, aiKeywords);
     }
 
     @Transactional
@@ -72,7 +76,7 @@ public class InterestResultSaver {
     }
 
     @Transactional
-    public void saveTravelTags(Long accountId, List<TravelTagScore> travelTags) {
+    public void saveTravelTags(Long accountId, List<TravelTagScore> travelTags, List<InterestKeywordCandidate> aiKeywords) {
         YouTubeAccount account = getAccount(accountId);
         travelTagRepository.deleteByAccount_Id(accountId);
 
@@ -80,7 +84,7 @@ public class InterestResultSaver {
 
         if (travelTags != null && !travelTags.isEmpty()) {
             List<YouTubeTravelTag> tagEntities = travelTags.stream()
-                    .map(t -> toYouTubeTravelTag(account, t, now))
+                    .map(t -> toYouTubeTravelTag(account, t, aiKeywords, now))
                     .filter(java.util.Objects::nonNull)
                     .toList();
             travelTagRepository.saveAllAndFlush(tagEntities);
@@ -92,13 +96,23 @@ public class InterestResultSaver {
         }
     }
 
+    @Transactional
+    public void saveTravelTags(Long accountId, List<TravelTagScore> travelTags) {
+        saveTravelTags(accountId, travelTags, List.of());
+    }
+
     private YouTubeAccount getAccount(Long accountId) {
         return accountRepository.findById(accountId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "Linked account not found."));
     }
 
-    private YouTubeTravelTag toYouTubeTravelTag(YouTubeAccount account, TravelTagScore tagScore, LocalDateTime now) {
+    private YouTubeTravelTag toYouTubeTravelTag(YouTubeAccount account,
+                                                TravelTagScore tagScore,
+                                                List<InterestKeywordCandidate> aiKeywords,
+                                                LocalDateTime now) {
         Tag tag = findTag(tagScore);
+        List<EvidenceKeywordResponse> evidenceKeywords = travelTagEvidenceService.buildEvidenceKeywords(tagScore, aiKeywords);
+        List<SourceBadgeResponse> sourceBadges = travelTagEvidenceService.buildSourceBadges(evidenceKeywords);
         return YouTubeTravelTag.builder()
                 .account(account)
                 .tag(tag)
@@ -107,6 +121,8 @@ public class InterestResultSaver {
                 .score(tagScore.getScore())
                 .confidence(tagScore.getConfidence())
                 .reason(tagScore.getReason())
+                .evidenceKeywordsJson(travelTagEvidenceService.writeEvidenceKeywordsJson(evidenceKeywords))
+                .sourceBadgesJson(travelTagEvidenceService.writeSourceBadgesJson(sourceBadges))
                 .analyzedAt(now)
                 .build();
     }
