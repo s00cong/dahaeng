@@ -12,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -26,9 +27,10 @@ public class NewsApiSearchService implements NewsSearchService {
 
     @Override
     public RecommendCitiesResponse.NewsInsight searchAndSummarize(String city, String country, double newsPenaltyScore) {
+        long totalStart = System.nanoTime();
         if (externalApiProperties.newsapi() == null || !StringUtils.hasText(externalApiProperties.newsapi().key())) {
             return new RecommendCitiesResponse.NewsInsight(
-                    city + " 관련 뉴스 API 키가 없어 뉴스를 불러오지 못했습니다.",
+                    city + " 관련 뉴스 API 설정이 없어 뉴스를 조회하지 못했습니다.",
                     List.of()
             );
         }
@@ -46,35 +48,68 @@ public class NewsApiSearchService implements NewsSearchService {
 
         NewsApiResponse response;
         try {
+            long newsApiStart = System.nanoTime();
             response = restClient.get()
                     .uri(uri)
                     .header("X-Api-Key", externalApiProperties.newsapi().key())
                     .retrieve()
                     .body(NewsApiResponse.class);
+            log.info("newsSearch api city={} country={} newsApiMs={}", city, country, elapsedMs(newsApiStart));
         } catch (Exception e) {
             log.warn("News API request failed for city={}, country={}: {}", city, country, e.getMessage(), e);
             return new RecommendCitiesResponse.NewsInsight(
-                    city + " 관련 뉴스를 불러오지 못했습니다.",
+                    city + " 관련 뉴스를 조회하지 못했습니다.",
                     List.of()
             );
         }
+
+        log.info(
+                "newsSearch response city={} country={} status={} totalResults={} code={} message={}",
+                city,
+                country,
+                response != null ? safe(response.status()) : null,
+                response != null ? response.totalResults() : null,
+                response != null ? safe(response.code()) : null,
+                response != null ? safe(response.message()) : null
+        );
 
         List<ArticleItem> rawArticles = response == null || response.articles() == null
                 ? List.of()
                 : response.articles().stream().limit(5).toList();
 
-        List<RecommendCitiesResponse.Article> articles = rawArticles.stream()
-                .map(article -> new RecommendCitiesResponse.Article(
-                        safe(article.title()),
-                        safe(article.url()),
-                        article.urlToImage(),
-                        safe(article.description()),
-                        safe(article.content()),
-                        safe(article.publishedAt())
-                ))
-                .toList();
+        log.info(
+                "newsSearch articles city={} country={} fetchedCount={}",
+                city,
+                country,
+                rawArticles.size()
+        );
 
+        List<String> translatedTopTitles = translateTopTitles(rawArticles);
+        List<RecommendCitiesResponse.Article> articles = new ArrayList<>();
+        for (int i = 0; i < rawArticles.size(); i++) {
+            ArticleItem article = rawArticles.get(i);
+            String title = i < translatedTopTitles.size() ? translatedTopTitles.get(i) : safe(article.title());
+            articles.add(new RecommendCitiesResponse.Article(
+                    title,
+                    safe(article.url()),
+                    article.urlToImage(),
+                    safe(article.description()),
+                    safe(article.content()),
+                    safe(article.publishedAt())
+            ));
+        }
+
+        long summaryStart = System.nanoTime();
         String summary = summarizeArticles(city, country, newsPenaltyScore, rawArticles);
+        long summaryMs = elapsedMs(summaryStart);
+        log.info(
+                "newsSearch city={} country={} articles={} summaryMs={} totalMs={}",
+                city,
+                country,
+                rawArticles.size(),
+                summaryMs,
+                elapsedMs(totalStart)
+        );
         return new RecommendCitiesResponse.NewsInsight(summary, articles);
     }
 
@@ -96,20 +131,20 @@ public class NewsApiSearchService implements NewsSearchService {
                 .orElse("");
 
         String mode = newsPenaltyScore <= -8
-                ? "안전 이슈 중심으로 뉴스 흐름을 요약해 주세요."
-                : "관광과 여행 분위기 중심으로 뉴스 흐름을 요약해 주세요.";
+                ? "부정 뉴스 관점에서 여행 리스크를 중심으로 요약해 주세요."
+                : "여행자 관점에서 최근 이슈와 분위기를 중심으로 요약해 주세요.";
 
         try {
             String content = chatClientBuilder.build()
                     .prompt()
-                    .system("당신은 여행 추천 서비스를 위한 뉴스 요약 보조자입니다. 사용자에게 보여줄 짧고 명확한 요약문을 작성하세요.")
+                    .system("당신은 여행 뉴스 요약가입니다. 뉴스 기사 목록을 바탕으로 한국어 2문장 이내로 간결하게 요약해 주세요.")
                     .user("""
                             도시: %s
                             국가: %s
-                            요청: %s
+                            요약 방향: %s
 
-                            아래 기사들을 참고해서 2문장 이내로 한국어 요약을 작성하세요.
-                            과장 없이 실제 여행 판단에 도움이 되도록 작성하세요.
+                            아래 기사 목록을 바탕으로 핵심만 짧게 요약해 주세요.
+                            과장 없이, 여행자가 이해하기 쉽게 써 주세요.
 
                             %s
                             """.formatted(city, country, mode, articleBlock))
@@ -119,7 +154,41 @@ public class NewsApiSearchService implements NewsSearchService {
             return StringUtils.hasText(content) ? content.trim() : city + " 관련 뉴스 요약을 생성하지 못했습니다.";
         } catch (Exception e) {
             log.warn("News summary generation failed for city={}, country={}: {}", city, country, e.getMessage(), e);
-            return city + " 관련 뉴스 " + articles.size() + "건을 찾았지만 요약 생성에는 실패했습니다.";
+            return city + " 관련 뉴스 " + articles.size() + "건을 찾았지만 요약 생성에 실패했습니다.";
+        }
+    }
+
+    private List<String> translateTopTitles(List<ArticleItem> articles) {
+        List<String> originalTitles = articles.stream()
+                .limit(3)
+                .map(article -> safe(article.title()))
+                .toList();
+
+        if (originalTitles.isEmpty()) {
+            return List.of();
+        }
+
+        try {
+            String content = chatClientBuilder.build()
+                    .prompt()
+                    .system("Translate the given English news titles into natural Korean. Return exactly the same number of lines in the same order, without numbering or extra explanation.")
+                    .user(String.join("\n", originalTitles))
+                    .call()
+                    .content();
+
+            if (!StringUtils.hasText(content)) {
+                return originalTitles;
+            }
+
+            List<String> translatedTitles = content.lines()
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .toList();
+
+            return translatedTitles.size() == originalTitles.size() ? translatedTitles : originalTitles;
+        } catch (Exception e) {
+            log.warn("News title translation failed: {}", e.getMessage());
+            return originalTitles;
         }
     }
 
@@ -127,7 +196,17 @@ public class NewsApiSearchService implements NewsSearchService {
         return value == null ? "" : value;
     }
 
-    public record NewsApiResponse(String status, Integer totalResults, List<ArticleItem> articles) {}
+    private long elapsedMs(long startNano) {
+        return (System.nanoTime() - startNano) / 1_000_000;
+    }
+
+    public record NewsApiResponse(
+            String status,
+            Integer totalResults,
+            String code,
+            String message,
+            List<ArticleItem> articles
+    ) {}
 
     public record ArticleItem(
             String title,

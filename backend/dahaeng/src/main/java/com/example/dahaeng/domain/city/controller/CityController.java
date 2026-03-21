@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/city")
@@ -31,10 +32,11 @@ public class CityController {
             @RequestParam(value = "selectedTags", required = false) List<String> selectedTags,
             @RequestParam(value = "userDailyBudget", required = false) Double userDailyBudget,
             @RequestParam(value = "travelDays", required = false) Integer travelDays,
-            @RequestParam(value = "month", required = false) Integer month
+            @RequestParam(value = "month", required = false) Integer month,
+            @RequestParam(value = "recommendId", required = false) UUID recommendId
     ) {
         if (recommend) {
-            RecommendCitiesRequest request = new RecommendCitiesRequest(selectedTags, userDailyBudget, travelDays, month);
+            RecommendCitiesRequest request = new RecommendCitiesRequest(selectedTags, userDailyBudget, travelDays, month, recommendId);
             RecommendCityDetailResponse recommendCityDetailResponse = cityService.getRecommendCityDetail(id, request);
             return ResponseEntity.ok(recommendCityDetailResponse);
         }
