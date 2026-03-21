@@ -8,6 +8,7 @@ import { useCityDetail } from "@/hooks/city/useCityDetail";
 import { useCityList } from "@/hooks/city/useCityList";
 import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
 import defaultCityImg from "@/assets/no-picture.png";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 
 // 패널 폭 300px, 탭 24px, 간격 8px
 const PANEL_W = 300;
@@ -138,8 +139,11 @@ export function RightPanel() {
                   <Skeleton className="h-6 w-32 bg-white/30" />
                 ) : (
                   <>
-                    <h2 className="text-lg font-bold text-white leading-tight truncate">
-                      {city?.cityName ?? "도시 정보"}
+                    <h2 className="text-lg font-bold text-white leading-tight truncate flex items-baseline gap-1.5">
+                      {city?.cityName ? (CITY_NAME_KO[city.cityName] ?? city.cityName) : "도시 정보"}
+                      {city?.cityName && CITY_NAME_KO[city.cityName] && (
+                        <span className="text-xs font-normal text-white/60">{city.cityName}</span>
+                      )}
                     </h2>
                     <div className="flex items-center gap-1 mt-0.5">
                       {flagUrl && (

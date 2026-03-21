@@ -15,12 +15,6 @@ import {
   type CostCompare,
 } from '@/schemas/cost.schema';
 import {
-  DUMMY_EXCHANGE_RATE,
-  DUMMY_EXCHANGE_RATE_HISTORY_D,
-  DUMMY_EXCHANGE_RATE_HISTORY_W,
-  DUMMY_EXCHANGE_RATE_HISTORY_M,
-  DUMMY_COST_DETAIL,
-  DUMMY_SEOUL_COST_DETAIL,
   DUMMY_COST_COMPARE,
 } from '@/data/cost.dummy';
 import { z } from 'zod';
@@ -36,11 +30,6 @@ export type CostCardItem = {
   dailyBudget: number; // KRW
 };
 
-const DUMMY_HISTORY_MAP = {
-  d: DUMMY_EXCHANGE_RATE_HISTORY_D,
-  w: DUMMY_EXCHANGE_RATE_HISTORY_W,
-  m: DUMMY_EXCHANGE_RATE_HISTORY_M,
-};
 
 // ── API 응답 스키마 정의 (공통 래퍼 적용) ───────────────────────────────────
 const CountryCostApiSchema = ApiResponseSchema(CountryCostSchema);
@@ -77,7 +66,7 @@ export const costApi = {
   // ── New endpoints (Costapi.md) ─────────────────────────────────────────────
 
   // GET /api/exchange-rate?currency=XXX
-  getExchangeRateNew: async (currency: string): Promise<ExchangeRateNew> => {
+  getExchangeRateNew: async (currency: string): Promise<ExchangeRateNew | null> => {
     try {
       const { data } = await axiosInstance.get('/api/exchange-rate', { params: { currency } });
       return ExchangeRateNewSchema.parse({
@@ -91,7 +80,7 @@ export const costApi = {
         updatedAt: data.updatedAt ? String(data.updatedAt) : undefined,
       });
     } catch {
-      return { ...DUMMY_EXCHANGE_RATE, target: currency };
+      return null;
     }
   },
 
@@ -99,15 +88,14 @@ export const costApi = {
   getExchangeRateHistory: async (
     targetCurrency: string,
     type: 'D' | 'W' | 'M',
-  ): Promise<ExchangeRateHistory> => {
+  ): Promise<ExchangeRateHistory | null> => {
     try {
       const { data } = await axiosInstance.get('/api/exchange-rate/history', {
         params: { targetCurrency, type },
       });
       return ExchangeRateHistorySchema.parse(data);
     } catch {
-      const dummy = DUMMY_HISTORY_MAP[type.toLowerCase() as 'd' | 'w' | 'm'];
-      return { ...dummy, targetCurrency };
+      return null;
     }
   },
 
@@ -186,12 +174,8 @@ export const costApi = {
           updated_at: lc.updatedAt,
         },
       });
-    } catch {
-      if (targetId === SEOUL_CITY_ID) return DUMMY_SEOUL_COST_DETAIL;
-      return {
-        ...DUMMY_COST_DETAIL,
-        target: { ...DUMMY_COST_DETAIL.target, id: targetId },
-      };
+    } catch (e) {
+      throw e;
     }
   },
 
@@ -235,6 +219,36 @@ export const costApi = {
     }
   },
 
+  // 모든 국가 목록 (6개 대륙 병렬 조회 후 합산)
+  getAllCountries: async (): Promise<CostCardItem[]> => {
+    const continents = ['asia', 'europe', 'north america', 'south america', 'africa', 'oceania'];
+    const results = await Promise.all(
+      continents.map((c) =>
+        axiosInstance
+          .get('/api/cost/card', { params: { mode: 'SEARCH', type: 'CONTINENT', keyword: c, sort: 'ASC' } })
+          .then(({ data }) =>
+            (data.cards as CostCardItem[]).map((item, i) => ({
+              rank: i + 1,
+              id: item.id,
+              name: item.name,
+              imgUrl: (item as any).imgUrl ?? null,
+              dailyBudget: item.dailyBudget,
+            })),
+          )
+          .catch(() => [] as CostCardItem[]),
+      ),
+    );
+    const seen = new Set<number>();
+    return results
+      .flat()
+      .filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  },
+
   // GET /api/cost/compare?targetType=CITY&baseId=12&targetId=XXX
   getCostCompare: async (
     targetType: 'COUNTRY' | 'CITY',
@@ -251,6 +265,8 @@ export const costApi = {
         costCompare: data.costCompare,
         expectedTargetDailyBudget: data.expectedTargetDailyBudget,
         itemComparison: data.itemComparison,
+        localCostCompare: data.localCostCompare,
+        affordabilityCompare: data.affordabilityCompare,
       });
     } catch {
       return {

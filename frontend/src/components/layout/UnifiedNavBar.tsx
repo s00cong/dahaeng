@@ -15,6 +15,35 @@ import { useCityList } from "@/hooks/city/useCityList";
 import { useUiStore } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
+
+// ── 퍼지 매칭 유틸 ────────────────────────────────────────────────────────────
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+  return dp[m][n];
+}
+
+function fuzzyMatch(query: string, target: string): boolean {
+  if (target.includes(query)) return true;
+  const qLen = query.length;
+  if (qLen < 2) return false;
+  // 슬라이딩 윈도우로 target의 부분 문자열과 비교
+  const threshold = qLen <= 3 ? 1 : 2;
+  const windowSize = qLen + threshold;
+  for (let i = 0; i <= target.length - qLen + threshold; i++) {
+    const sub = target.slice(i, i + windowSize);
+    if (levenshtein(query, sub) <= threshold) return true;
+  }
+  return levenshtein(query, target) <= threshold;
+}
 
 export function UnifiedNavBar() {
   const pathname = useLocation({ select: (l) => l.pathname });
@@ -37,12 +66,16 @@ export function UnifiedNavBar() {
 
   const citySuggestions = useMemo(() => {
     if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return citySource.filter(
-      (c) =>
-        c.cityName.toLowerCase().includes(q) ||
-        c.countryName.toLowerCase().includes(q),
-    );
+    const q = query.trim().toLowerCase();
+    return citySource.filter((c) => {
+      const enName = c.cityName.toLowerCase();
+      const koName = (CITY_NAME_KO[c.cityName] ?? "").toLowerCase();
+      const koCountry = c.countryName.toLowerCase();
+      // 정확 포함 우선
+      if (enName.includes(q) || koName.includes(q) || koCountry.includes(q)) return true;
+      // 퍼지 매칭 (한국어/영어 모두)
+      return fuzzyMatch(q, koName) || fuzzyMatch(q, enName);
+    });
   }, [query, citySource]);
 
   // 나라 목록 (한국어명 → 영어명)
@@ -53,10 +86,11 @@ export function UnifiedNavBar() {
 
   const countrySuggestions = useMemo(() => {
     if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return countryList.filter(
-      (c) => c.ko.includes(q) || c.en.toLowerCase().includes(q),
-    );
+    const q = query.trim().toLowerCase();
+    return countryList.filter((c) => {
+      if (c.ko.includes(q) || c.en.toLowerCase().includes(q)) return true;
+      return fuzzyMatch(q, c.ko) || fuzzyMatch(q, c.en.toLowerCase());
+    });
   }, [query, countryList]);
 
   const hasResults =
@@ -175,7 +209,8 @@ export function UnifiedNavBar() {
                       {countrySuggestions.map((country) => (
                         <li
                           key={country.en}
-                          onMouseDown={() => {
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
                             setGlobeCountryTarget(country.en);
                             setQuery(country.ko);
                             setSearchOpen(false);
@@ -215,7 +250,8 @@ export function UnifiedNavBar() {
                       {citySuggestions.map((city) => (
                         <li
                           key={city.cityId}
-                          onMouseDown={() => {
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
                             openRightPanel(city.cityId, city.imgUrl, {
                               lat: city.latitude,
                               lng: city.longitude,
