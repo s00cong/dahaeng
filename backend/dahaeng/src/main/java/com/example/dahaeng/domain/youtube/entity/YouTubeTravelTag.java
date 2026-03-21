@@ -42,6 +42,12 @@ public class YouTubeTravelTag extends BaseEntity {
     @Column(name = "reason", length = 500)
     private String reason;
 
+    @Column(name = "evidence_keywords_json", columnDefinition = "TEXT")
+    private String evidenceKeywordsJson;
+
+    @Column(name = "source_badges_json", columnDefinition = "TEXT")
+    private String sourceBadgesJson;
+
     @Column(name = "analyzed_at", nullable = false)
     private LocalDateTime analyzedAt;
 }
