@@ -18,8 +18,16 @@ function MarqueeText({ text, className }: { text: string; className?: string }) 
     const container = containerRef.current;
     const textEl = textRef.current;
     if (!container || !textEl) return;
-    const diff = textEl.scrollWidth - container.clientWidth;
-    setDistance(diff > 0 ? diff : 0);
+
+    const measure = () => {
+      const diff = textEl.scrollWidth - container.clientWidth;
+      setDistance(diff > 0 ? diff : 0);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(container);
+    return () => ro.disconnect();
   }, [text]);
 
   const duration = 2 + distance / 35;
