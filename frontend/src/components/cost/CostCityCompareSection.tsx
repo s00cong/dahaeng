@@ -135,11 +135,12 @@ function CompareResult({ data }: { data: CostCompare }) {
   const { costCompare, expectedTargetDailyBudget: exp, itemComparison } = data;
   const gap = costCompare.dailyBudgetGap;
   const cheaper = gap < 0;
+  const accommodation = exp.breakdown.accommodation ?? 0;
 
-  const totalBudget = exp.breakdown.food + exp.breakdown.transport + exp.breakdown.accommodation;
+  const totalBudget = exp.breakdown.food + exp.breakdown.transport + accommodation;
   const foodPct = totalBudget > 0 ? (exp.breakdown.food / totalBudget) * 100 : 0;
   const transportPct = totalBudget > 0 ? (exp.breakdown.transport / totalBudget) * 100 : 0;
-  const accommodationPct = totalBudget > 0 ? (exp.breakdown.accommodation / totalBudget) * 100 : 0;
+  const accommodationPct = totalBudget > 0 ? (accommodation / totalBudget) * 100 : 0;
 
   return (
     <motion.div
@@ -211,7 +212,7 @@ function CompareResult({ data }: { data: CostCompare }) {
           <div>
             <div className="w-2.5 h-2.5 bg-purple-400 rounded-full mx-auto mb-1" />
             <p className="text-muted-foreground">숙박</p>
-            <p className="font-semibold text-foreground">₩{exp.breakdown.accommodation.toLocaleString()}</p>
+            <p className="font-semibold text-foreground">₩{accommodation.toLocaleString()}</p>
           </div>
         </div>
       </div>

@@ -9,10 +9,9 @@ export const useGoogleLogin = () =>
   useMutation({
     mutationFn: authApi.getGoogleLoginUrl,
     onSuccess: (data) => {
-      const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
       const loginUrl = data.loginUrl.startsWith('http')
         ? data.loginUrl
-        : `${baseUrl}${data.loginUrl}`;
+        : new URL(data.loginUrl, window.location.origin).toString();
       window.location.href = loginUrl;
     },
   });
