@@ -3,6 +3,7 @@ package com.example.dahaeng.domain.city.dto.response;
 
 import java.util.Map;
 import java.util.List;
+import java.util.UUID;
 
 import com.example.dahaeng.domain.country.dto.response.CountryDangerResponse;
 
@@ -10,6 +11,7 @@ public record RecommendCityDetailResponse(
     String name,
     Score score,
     String recommendationReason,
+    boolean isRecommended,
     LivingCostFor1Day livingCostFor1Day,
     AirTicketAndHotel airTicketAndHotel,
     ExchangeRate exchangeRate,
