@@ -116,7 +116,14 @@ function BookmarkButton({ city }: BookmarkButtonProps) {
 
   return (
     <button
-      onClick={() => createBookmark({ cityId: city.cityId, json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null } })}
+      onClick={() => {
+        if (!city.recommendId) return;
+        createBookmark({
+          cityId: city.cityId,
+          recommendId: city.recommendId,
+          json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null },
+        });
+      }}
       disabled={isPending}
       aria-label="저장하기"
       className={cn(

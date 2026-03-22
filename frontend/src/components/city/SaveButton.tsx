@@ -11,8 +11,10 @@ export function SaveButton({ city }: SaveButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
 
   const handleSave = () => {
+    if (!city.recommendId) return;
     createBookmark({
       cityId: city.cityId,
+      recommendId: city.recommendId,
       json: city,
     });
   };

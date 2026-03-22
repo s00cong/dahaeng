@@ -106,6 +106,7 @@ export type ExchangeRate = z.infer<typeof ExchangeRateSchema>;
 // cityId, countryId, countryName, imgUrl, latitude, longitude는 api.ts에서 보완
 export const CityDetailSchema = z.object({
   cityId: z.number(),
+  recommendId: z.string().uuid().optional(),
   cityName: z.string(),
   countryId: z.number(),
   countryName: z.string(),
@@ -130,6 +131,7 @@ export const RecommendRequestSchema = z.object({
   userDailyBudget: z.number().positive(),
   travelDays: z.number().int().positive(),
   month: z.number().int().min(1).max(12),
+  recommendId: z.string().uuid(),
 });
 export type RecommendRequest = z.infer<typeof RecommendRequestSchema>;
 

@@ -34,6 +34,7 @@ interface UiState {
     userDailyBudget: number;
     travelDays: number;
     month: number;
+    recommendId: string;
   } | null;
 
   // 도시 상세 모달 (전체 화면)
@@ -69,6 +70,7 @@ interface UiState {
     userDailyBudget: number;
     travelDays: number;
     month: number;
+    recommendId: string;
   }) => void;
   setSelectedCityScore: (score: number | null) => void;
 

@@ -18,8 +18,8 @@ export const useRecommend = () => {
       setRecommendLoading(true);
     },
     onSuccess: (data, variables) => {
-      setRecommendResults(data);
-      setRecommendRequest(variables);
+      setRecommendResults(data.recommendations);
+      setRecommendRequest({ ...variables, recommendId: data.recommendId });
     },
     onSettled: () => {
       setRecommendLoading(false);

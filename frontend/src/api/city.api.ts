@@ -198,6 +198,7 @@ export const cityApi = {
       userDailyBudget: number;
       travelDays: number;
       month: number;
+      recommendId: string;
     },
   ): Promise<CityDetail> => {
     try {
@@ -212,6 +213,7 @@ export const cityApi = {
       const city = BackendRecommendDetailSchema.parse(data);
       return {
         cityId,
+        recommendId: recommendParams?.recommendId,
         cityName: city.name,
         countryId: 0,
         countryName: "",
@@ -277,6 +279,7 @@ export const cityApi = {
     month: number;
   }) => {
     const BackendRecommendResponseSchema = z.object({
+      recommendId: z.string().uuid(),
       requestContext: z.object({
         selectedTags: z.array(z.string()),
         userDailyBudget: z.number(),
@@ -304,12 +307,15 @@ export const cityApi = {
     });
     const { data } = await axiosInstance.post("/api/recommend", body);
     const parsed = BackendRecommendResponseSchema.parse(data);
-    return parsed.recommendations.map((item, index) => ({
-      rank: index + 1,
-      country: item.danger?.countryName ?? "",
-      city: item.name,
-      totalScore: item.scores?.total ?? 0,
-      reason: null,
-    }));
+    return {
+      recommendId: parsed.recommendId,
+      recommendations: parsed.recommendations.map((item, index) => ({
+        rank: index + 1,
+        country: item.danger?.countryName ?? "",
+        city: item.name,
+        totalScore: item.scores?.total ?? 0,
+        reason: null,
+      })),
+    };
   },
 };
