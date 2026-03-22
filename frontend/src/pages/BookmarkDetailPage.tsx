@@ -78,7 +78,7 @@ const BookmarkDetailPage = () => {
 
               {/* 2열 대시보드 그리드 */}
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[55fr_45fr]">
-                {/* 좌측 열: AI 추천 이유 + 항공권 + 주요 이슈 */}
+                {/* 좌측 열: AI 추천 이유 + 항공권 */}
                 <div className="flex flex-col gap-5">
                   <RecommendReasonCard data={data} />
                   <SavedFlightPriceCard
@@ -86,11 +86,11 @@ const BookmarkDetailPage = () => {
                     savedAirTicket={data.savedAirTicket}
                     savedHotel={data.savedHotel}
                   />
-                  <SavedNewsCard news={data.newsAtSaved} summation={data.newsSummation} />
                 </div>
 
-                {/* 우측 열: 환율 + 해외 물가 */}
+                {/* 우측 열: 주요 이슈 + 환율 + 해외 물가 */}
                 <div className="flex flex-col gap-5 pb-8">
+                  <SavedNewsCard news={data.newsAtSaved} summation={data.newsSummation} />
                   <ExchangeRateCard exchange={data.exchangeAtSaved} />
                   <CostSummaryCard cityId={data.cityId} />
                 </div>
