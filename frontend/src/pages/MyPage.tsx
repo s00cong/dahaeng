@@ -134,7 +134,9 @@ function YoutubeModal({
       setIsLoading(true);
       try {
         const { loginUrl } = await authApi.getYoutubeConsentUrl();
-        window.location.href = loginUrl;
+        window.location.href = loginUrl.startsWith("http")
+          ? loginUrl
+          : new URL(loginUrl, window.location.origin).toString();
       } catch {
         onConfirm();
       } finally {
