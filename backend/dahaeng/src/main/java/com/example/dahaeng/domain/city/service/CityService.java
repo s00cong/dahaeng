@@ -1,5 +1,6 @@
 package com.example.dahaeng.domain.city.service;
 
+import com.example.dahaeng.domain.bookmark.repository.BookmarkRepository;
 import com.example.dahaeng.domain.city.dto.response.AllCitiesResponse;
 import com.example.dahaeng.domain.city.dto.response.CityResponse;
 import com.example.dahaeng.domain.city.dto.response.NotRecommendCityDetailResponse;
@@ -73,6 +74,7 @@ public class CityService {
     private final NewsSearchService newsSearchService;
     private final RecommendationNarrationService narrationService;
     private final PlaceEnrichmentService placeEnrichmentService;
+    private final BookmarkRepository bookmarkRepository;
 
     public List<AllCitiesResponse> getAllCities() {
         String targetYearMonth = currentYearMonth();
@@ -250,42 +252,43 @@ public class CityService {
                 .toList();
 
         RecommendCityDetailResponse response = new RecommendCityDetailResponse(
-                city.getCityName(),
-                new RecommendCityDetailResponse.Score(
-                        round(scoreBreakdown.finalScore()),
-                        round(scoreBreakdown.budgetScore()),
-                        round(scoreBreakdown.safetyScore()),
-                        round(scoreBreakdown.tagScore()),
-                        round(scoreBreakdown.newsPenaltyScore())
+            city.getCityName(),
+            new RecommendCityDetailResponse.Score(
+                round(scoreBreakdown.finalScore()),
+                round(scoreBreakdown.budgetScore()),
+                round(scoreBreakdown.safetyScore()),
+                round(scoreBreakdown.tagScore()),
+                round(scoreBreakdown.newsPenaltyScore())
+            ),
+            recommendationReason,
+            bookmarkRepository.existsByIsDeletedFalseAndCityIdAndRecommendId(id, request.recommendId()),
+            new RecommendCityDetailResponse.LivingCostFor1Day(
+                new RecommendCityDetailResponse.Food(
+                    dailyLivingCost.food().total(),
+                    dailyLivingCost.food().breakfast(),
+                    dailyLivingCost.food().lunch(),
+                    dailyLivingCost.food().dinner(),
+                    dailyLivingCost.food().cappuccino(),
+                    dailyLivingCost.food().cokePepsi()
                 ),
-                recommendationReason,
-                new RecommendCityDetailResponse.LivingCostFor1Day(
-                        new RecommendCityDetailResponse.Food(
-                                dailyLivingCost.food().total(),
-                                dailyLivingCost.food().breakfast(),
-                                dailyLivingCost.food().lunch(),
-                                dailyLivingCost.food().dinner(),
-                                dailyLivingCost.food().cappuccino(),
-                                dailyLivingCost.food().cokePepsi()
-                        ),
-                        new RecommendCityDetailResponse.Transportation(
-                                dailyLivingCost.transportation().total(),
-                                dailyLivingCost.transportation().localTransportTicket(),
-                                dailyLivingCost.transportation().ticketCount()
-                        ),
-                        dailyLivingCost.hotel(),
-                        dailyLivingCost.total()
+                new RecommendCityDetailResponse.Transportation(
+                    dailyLivingCost.transportation().total(),
+                    dailyLivingCost.transportation().localTransportTicket(),
+                    dailyLivingCost.transportation().ticketCount()
                 ),
-                new RecommendCityDetailResponse.AirTicketAndHotel(avgFlightPrice, dailyLivingCost.hotel()),
-                new RecommendCityDetailResponse.ExchangeRate(
-                        city.getCountry().getCurrency().name(),
-                        exchange != null ? exchange.getKrwPerDisplayUnit() : null,
-                        exchange != null && exchange.getEventDate() != null ? exchange.getEventDate().toString() : null
-                ),
-                new RecommendCityDetailResponse.News(newsInsight.summary(), newsItems),
-                dangerService.dangers(city.getCountry().getId()),
-                tags,
-                touristSpots
+                dailyLivingCost.hotel(),
+                dailyLivingCost.total()
+            ),
+            new RecommendCityDetailResponse.AirTicketAndHotel(avgFlightPrice, dailyLivingCost.hotel()),
+            new RecommendCityDetailResponse.ExchangeRate(
+                city.getCountry().getCurrency().name(),
+                exchange != null ? exchange.getKrwPerDisplayUnit() : null,
+                exchange != null && exchange.getEventDate() != null ? exchange.getEventDate().toString() : null
+            ),
+            new RecommendCityDetailResponse.News(newsInsight.summary(), newsItems),
+            dangerService.dangers(city.getCountry().getId()),
+            tags,
+            touristSpots
         );
 
         log.info(
@@ -553,7 +556,7 @@ public class CityService {
                 || request.recommendId() == null) {
             throw new CustomException(
                     ErrorCode.INVALID_REQUEST,
-                    "recommend=true 상세 조회에는 userDailyBudget, travelDays, month가 필요합니다."
+                    "recommend=true 상세 조회에는 recommendId, userDailyBudget, travelDays, month가 필요합니다."
             );
         }
     }
