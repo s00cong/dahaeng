@@ -755,6 +755,22 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       (f) => f.properties?.name === globeCountryTarget,
     );
 
+    // 같은 나라 재선택 시 취소
+    if (globeCountryTarget === clickedNameRef.current) {
+      if (selectedIdRef.current !== null) {
+        map.setFeatureState({ source: "countries", id: selectedIdRef.current }, { selected: false });
+        selectedIdRef.current = null;
+      }
+      setClickedName(null);
+      setClickedIso(null);
+      if (map.getLayer("admin-fill")) map.removeLayer("admin-fill");
+      if (map.getLayer("admin-border")) map.removeLayer("admin-border");
+      if (map.getSource("admin")) map.removeSource("admin");
+      currentAdminIsoRef.current = null;
+      setGlobeCountryTarget(null);
+      return;
+    }
+
     if (feature?.geometry) {
       const coords = getAllCoords(feature.geometry);
       const lngs = coords.map((c) => c[0]);
@@ -764,6 +780,42 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       const flyTo = COUNTRY_FLY_TO[globeCountryTarget];
       if (flyTo) map.flyTo({ center: flyTo.center, zoom: flyTo.zoom, duration: 1600 });
       else map.flyTo({ center: [centerLng, centerLat], zoom: 4, duration: 1600 });
+
+      // 이전 선택 해제 + 새 나라 선택
+      if (selectedIdRef.current !== null) {
+        map.setFeatureState({ source: "countries", id: selectedIdRef.current }, { selected: false });
+      }
+      const featureId = countryGeoIdMapRef.current.get(globeCountryTarget.toLowerCase());
+      if (featureId !== undefined) {
+        selectedIdRef.current = featureId;
+        map.setFeatureState({ source: "countries", id: featureId }, { selected: true });
+      }
+      setClickedName(globeCountryTarget);
+      const iso = COUNTRY_NAME_ISO3[globeCountryTarget] ?? null;
+      setClickedIso(iso);
+
+      // 행정구역 레이어 로드
+      if (iso) {
+        if (map.getLayer("admin-fill")) map.removeLayer("admin-fill");
+        if (map.getLayer("admin-border")) map.removeLayer("admin-border");
+        if (map.getSource("admin")) map.removeSource("admin");
+
+        (async () => {
+          try {
+            const topo = await fetch(`/geo_10m/countries/${iso}.topo.json`).then(r => r.json());
+            const objKey = Object.keys(topo.objects)[0];
+            const adminGeo = topoFeature(topo, topo.objects[objKey]) as any;
+
+            map.addSource("admin", { type: "geojson", data: adminGeo, generateId: true });
+            map.addLayer({ id: "admin-fill", type: "fill", source: "admin", paint: { "fill-color": ["case", ["boolean", ["feature-state", "hover"], false], "rgba(99,179,237,0.3)", "rgba(0,0,0,0.001)"] } }, "city-circles");
+            map.addLayer({ id: "admin-border", type: "line", source: "admin", paint: { "line-color": "#b0bfcc", "line-width": 0.5 } }, "city-circles");
+
+            currentAdminIsoRef.current = iso;
+          } catch (err) {
+            console.error("Failed to load admin regions:", err);
+          }
+        })();
+      }
     }
 
     setGlobeCountryTarget(null);
@@ -835,6 +887,18 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const legendRight = isRightPanelOpen ? (isRightPanelCollapsed ? 48 : 348) : 16;
   const zoomLeft = isLeftSidebarCollapsed ? 32 : 308;
 
+  // 겹침 감지
+  const ZOOM_W = 196;   // 줌 컨트롤 너비
+  const BTN_W = 176;    // 물가/위험도 버튼 총 너비 (버튼 2개 + gap)
+  const LEFT_PANEL_RIGHT = isLeftSidebarCollapsed ? 0 : 308;   // 왼쪽 패널 오른쪽 끝
+  const RIGHT_PANEL_LEFT = (isRightPanelOpen && !isRightPanelCollapsed) ? width - 320 : width; // 오른쪽 패널 왼쪽 끝
+
+  const btnLeft = width / 2 - BTN_W / 2;
+  const btnRight = width / 2 + BTN_W / 2;
+
+  const hideZoom = zoomLeft + ZOOM_W + 8 > btnLeft;         // 줌이 버튼과 겹침
+  const hideButtons = btnLeft < LEFT_PANEL_RIGHT + 8 || btnRight > RIGHT_PANEL_LEFT - 8; // 버튼이 패널과 겹침
+
   return (
     <div style={{ width, height, position: "relative" }}>
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
@@ -863,16 +927,18 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       )}
 
       {/* 시각화 모드 토글 버튼 */}
-      <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, zIndex: 50 }}>
-        {(["cost", "danger"] as const).map((mode) => (
-          <button key={mode} onClick={() => setVisualMode((prev) => prev === mode ? "none" : mode)} style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: visualMode === mode ? "#1e40af" : "rgba(255,255,255,0.85)", color: visualMode === mode ? "#fff" : "#475569", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
-            {mode === "cost" ? "💰 물가" : "⚠️ 위험도"}
-          </button>
-        ))}
-      </div>
+      {!hideButtons && (
+        <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, zIndex: 50 }}>
+          {(["cost", "danger"] as const).map((mode) => (
+            <button key={mode} onClick={() => setVisualMode((prev) => prev === mode ? "none" : mode)} style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: visualMode === mode ? "#1e40af" : "rgba(255,255,255,0.85)", color: visualMode === mode ? "#fff" : "#475569", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+              {mode === "cost" ? "💰 물가" : "⚠️ 위험도"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 줌 레벨 컨트롤 */}
-      <ZoomControl zoom={currentZoom} onZoom={(z: number) => mapRef.current?.setZoom(z)} left={zoomLeft} />
+      {!hideZoom && <ZoomControl zoom={currentZoom} onZoom={(z: number) => mapRef.current?.setZoom(z)} left={zoomLeft} />}
     </div>
   );
 }

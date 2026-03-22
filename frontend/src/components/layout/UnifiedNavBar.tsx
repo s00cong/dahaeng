@@ -141,8 +141,7 @@ export function UnifiedNavBar() {
         {isMain && (
           <div
             ref={wrapperRef}
-            className="hidden md:flex flex-col flex-1 mx-6 relative overflow-visible"
-            style={{ maxWidth: "320px" }}
+            className="hidden md:flex flex-col flex-1 mx-4 lg:mx-6 relative overflow-visible max-w-[200px] lg:max-w-[280px] xl:max-w-[320px]"
           >
             <div className="relative">
               <Search
@@ -188,10 +187,10 @@ export function UnifiedNavBar() {
                           className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm"
                         >
                           <Flag className="size-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium text-slate-800">
+                          <span className="font-medium text-slate-800 truncate flex-1 min-w-0">
                             {country.ko}
                           </span>
-                          <span className="text-slate-400 text-xs ml-auto">
+                          <span className="text-slate-400 text-xs ml-auto shrink-0 whitespace-nowrap">
                             {country.en}
                           </span>
                         </li>
@@ -232,13 +231,13 @@ export function UnifiedNavBar() {
                           className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm"
                         >
                           <MapPin className="size-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium text-slate-800 flex items-baseline gap-1">
-                            {CITY_NAME_KO[city.cityName] ?? city.cityName}
+                          <span className="font-medium text-slate-800 flex items-baseline gap-1 min-w-0 flex-1">
+                            <span className="truncate">{CITY_NAME_KO[city.cityName] ?? city.cityName}</span>
                             {CITY_NAME_KO[city.cityName] && (
-                              <span className="text-[10px] text-slate-400 font-normal">{city.cityName}</span>
+                              <span className="text-[10px] text-slate-400 font-normal shrink-0">{city.cityName}</span>
                             )}
                           </span>
-                          <span className="text-slate-400 text-xs ml-auto shrink-0">
+                          <span className="text-slate-400 text-xs ml-auto shrink-0 whitespace-nowrap">
                             {COUNTRY_NAME_KO[city.countryName] ?? city.countryName}
                           </span>
                         </li>

@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Plane, Wallet, Shield, ChevronRight, ChevronLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +12,6 @@ import defaultCityImg from "@/assets/no-picture.png";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 
-// 패널 폭 300px, 탭 24px, 간격 8px
-const PANEL_W = 300;
 const TAB_W = 24;
 const GAP = 8;
 
@@ -67,16 +66,26 @@ export function RightPanel() {
   const { data: flagMap } = useCountryFlagMap();
   const flagUrl = flagMap?.get(city?.danger?.countryName ?? "");
 
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelWidth, setPanelWidth] = useState(300);
+
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setPanelWidth(el.getBoundingClientRect().width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const handleOpenDetail = () => {
     openCityModal("recommend");
   };
 
-  // 확장: x = -12 (right-3 효과)
-  // 접힘: x = PANEL_W + GAP (패널 화면 밖, 탭만 보임)
-  // 초기/종료: x = PANEL_W + GAP + TAB_W + 40 (완전히 화면 밖)
   const expandedX = -12;
-  const collapsedX = PANEL_W + GAP;
-  const hiddenX = PANEL_W + GAP + TAB_W + 40;
+  const collapsedX = panelWidth + GAP;
+  const hiddenX = panelWidth + GAP + TAB_W + 40;
 
   return (
     <AnimatePresence>
@@ -112,9 +121,10 @@ export function RightPanel() {
 
           {/* 패널 콘텐츠 */}
           <div
+            ref={panelRef}
             className="h-full rounded-2xl bg-white/90 backdrop-blur-md shadow-xl
-                       flex flex-col overflow-hidden"
-            style={{ width: PANEL_W }}
+                       flex flex-col overflow-hidden
+                       w-60 md:w-64 lg:w-[300px]"
           >
             {/* ── 헤더 영역 ── */}
             <div className="relative h-36 shrink-0 overflow-hidden rounded-t-2xl bg-slate-200">
