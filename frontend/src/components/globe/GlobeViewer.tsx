@@ -193,6 +193,11 @@ const COUNTRY_FLY_TO: Record<string, { center: [number, number]; zoom: number }>
   Norway:                      { center: [15,   65],  zoom: 3 },
   Indonesia:                   { center: [118, -2],   zoom: 3 },
   Antarctica:                  { center: [0,   -90],  zoom: 2 },
+  "New Zealand":               { center: [172,  -41],  zoom: 4 },
+  Fiji:                        { center: [178,  -18],  zoom: 5 },
+  Samoa:                       { center: [-172, -14],  zoom: 6 },
+  Kiribati:                    { center: [-157,   2],  zoom: 5 },
+  Tonga:                       { center: [-175, -20],  zoom: 6 },
 };
 
 const MAP_STYLE: maplibregl.StyleSpecification = {

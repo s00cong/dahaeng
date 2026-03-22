@@ -4,6 +4,7 @@ import { RefreshCw, ChevronRight } from 'lucide-react';
 import { useBookmarkDetail } from '@/hooks/bookmark/useBookmarkDetail';
 import LoadingSpinner from '@/components/common/LoadingSpinner';
 import QueryErrorFallback from '@/components/common/QueryErrorFallback';
+import { CITY_NAME_KO } from '@/data/cityNameKo';
 import { Button } from '@/components/ui/button';
 import { BookmarkHeroSection } from '@/components/bookmark/BookmarkHeroSection';
 import { SavedFlightPriceCard } from '@/components/bookmark/SavedFlightPriceCard';
@@ -61,7 +62,7 @@ const BookmarkDetailPage = () => {
                     저장된 도시
                   </Link>
                   <ChevronRight className="size-3.5" aria-hidden="true" />
-                  <span className="text-white font-medium">{data.cityName}</span>
+                  <span className="text-white font-medium">{CITY_NAME_KO[data.cityName] ?? data.cityName}</span>
                 </nav>
 
                 <Button

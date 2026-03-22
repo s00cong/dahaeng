@@ -9,6 +9,7 @@ import { useCityList } from "@/hooks/city/useCityList";
 import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
 import defaultCityImg from "@/assets/no-picture.png";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 
 // 패널 폭 300px, 탭 24px, 간격 8px
 const PANEL_W = 300;
@@ -149,9 +150,16 @@ export function RightPanel() {
                       {flagUrl && (
                         <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
                       )}
-                      <span className="text-xs text-white/80">
-                        {city?.danger?.countryName ?? "나라 정보"}
-                      </span>
+                      {(() => {
+                        const en = city?.danger?.countryName;
+                        const ko = en ? COUNTRY_NAME_KO[en] : undefined;
+                        return (
+                          <span className="text-xs text-white/80 flex items-baseline gap-1">
+                            {ko ?? en ?? "나라 정보"}
+                            {ko && <span className="text-[10px] text-white/50">{en}</span>}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </>
                 )}
