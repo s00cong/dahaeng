@@ -17,7 +17,7 @@ export const useCityDetail = (
       userDailyBudget: number;
       travelDays: number;
       month: number;
-      recommendId: string;
+      recommendId?: string;
     };
   },
 ) =>

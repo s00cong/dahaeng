@@ -112,18 +112,11 @@ interface BookmarkButtonProps {
 
 function BookmarkButton({ city }: BookmarkButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
-  const { selectedCityImgUrl } = useUiStore();
+  const { selectedCityImgUrl, recommendRequest } = useUiStore();
 
   return (
     <button
-      onClick={() => {
-        if (!city.recommendId) return;
-        createBookmark({
-          cityId: city.cityId,
-          recommendId: city.recommendId,
-          json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null },
-        });
-      }}
+      onClick={() => createBookmark({ cityId: city.cityId, recommendId: recommendRequest!.recommendId!, json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null } })}
       disabled={isPending}
       aria-label="저장하기"
       className={cn(

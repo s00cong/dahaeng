@@ -232,6 +232,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const [visualMode, setVisualMode] = useState<"none" | "cost" | "danger">("none");
   const [currentZoom, setCurrentZoom] = useState(1.5);
   const medalMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const selectedMarkerRef = useRef<maplibregl.Marker | null>(null);
   const countriesDataRef = useRef<GeoJSON.FeatureCollection | null>(null);
   const countryGeoIdMapRef = useRef<Map<string, number>>(new Map());
   // 맵 핀포인트 직접 클릭 시 flyTo 스킵 플래그
@@ -286,6 +287,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       map.resize();
 
       const topo = await fetch("/geo/countries-50m.json").then((r) => r.json()) as any;
+
+      // StrictMode에서 cleanup된 이전 map 인스턴스의 콜백이 실행되는 것을 방지
+      if (mapRef.current !== map) return;
+
       const rawCountries = topoFeature(topo, topo.objects.countries) as unknown as GeoJSON.FeatureCollection;
       
       // 남극 제거
@@ -361,10 +366,11 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         type: "circle",
         source: "cities",
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 5, 10, 10],
-          "circle-color": ["get", "color"],
-          "circle-stroke-width": 2,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 6, 5, 9],
+          "circle-color": ["coalesce", ["to-color", ["get", "color"]], "#3b82f6"],
+          "circle-stroke-width": 1.5,
           "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.9,
         },
       });
 
@@ -390,11 +396,24 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         const lat = props?.lat as number;
         const lng = props?.lng as number;
 
-        queryClient.prefetchQuery({
-          queryKey: [...queryKeys.city.detail(cityId), false, null],
-          queryFn: () => cityApi.getDetail(cityId, false),
-          staleTime: 5 * 60 * 1000,
-        });
+        // 클릭 시점의 최신 추천 상태를 읽어 prefetch 방향 결정
+        const { isRecommendActive: recActive, recommendResults: recResults, recommendRequest: recReq } = useUiStore.getState();
+        const cityName = queryClient.getQueryData<{ cityName: string }[]>([...queryKeys.city.list()])?.find((c: any) => c.cityId === cityId)?.cityName;
+        const isRec = recActive && !!cityName && recResults.some((r) => r.city === cityName);
+
+        if (isRec && recReq) {
+          queryClient.prefetchQuery({
+            queryKey: [...queryKeys.city.detail(cityId), true, recReq],
+            queryFn: () => cityApi.getDetail(cityId, true, recReq),
+            staleTime: 5 * 60 * 1000,
+          });
+        } else {
+          queryClient.prefetchQuery({
+            queryKey: [...queryKeys.city.detail(cityId), false, null],
+            queryFn: () => cityApi.getDetail(cityId, false),
+            staleTime: 5 * 60 * 1000,
+          });
+        }
 
         skipCityFlyRef.current = true;
         openRightPanel(cityId, imgUrl, { lat, lng });
@@ -629,35 +648,46 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   // ── 2. 데이터 업데이트 및 리사이즈 ──────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || cities.length === 0) return;
-    const features: GeoJSON.Feature[] = cities.map((city) => {
-      const isMatched = !isRecommendActive || matchedCityIds.has(city.cityId);
-      const score = recommendScoreMap.get(city.cityName);
-      
-      // 히트맵 가중치 계산
-      const heatWeight = visualMode === "cost" 
-        ? Math.min((city.estimatedBudget / 7) / 200000, 1) 
-        : visualMode === "danger" ? city.riskLevel / 4 : 0.5;
+    if (!map || !mapReady) return;
 
-      let color = city.cityId === selectedCityId ? "#f59e0b" : !isMatched ? "#CBD5E1" : getMarkerColor(score);
-      return {
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [city.longitude, city.latitude] },
-        properties: { 
-          cityId: city.cityId, 
-          cityName: city.cityName, 
-          imgUrl: city.imgUrl, // 패널 사진 표시를 위해 필수
-          lat: city.latitude, 
-          lng: city.longitude, 
-          color, 
-          heatWeight 
-        },
-      };
-    });
     const source = map.getSource("cities") as maplibregl.GeoJSONSource | undefined;
-    source?.setData({ type: "FeatureCollection", features });
+    if (!source) return;
 
-  }, [cities, mapReady, isRecommendActive, matchedCityIds, recommendScoreMap, selectedCityId]);
+    if (cities.length === 0) {
+      source.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+
+    const features: GeoJSON.Feature[] = cities
+      // 좌표가 없는 도시(null → 0,0)는 지도에 표시하지 않음
+      .filter((city) => city.latitude !== 0 || city.longitude !== 0)
+      .map((city) => {
+        const isMatched = !isRecommendActive || matchedCityIds.has(city.cityId);
+        const score = recommendScoreMap.get(city.cityName);
+
+        // 히트맵 가중치 계산
+        const heatWeight = visualMode === "cost"
+          ? Math.min((city.estimatedBudget / 7) / 200000, 1)
+          : visualMode === "danger" ? city.riskLevel / 4 : 0.5;
+
+        const color = !isMatched ? "#CBD5E1" : getMarkerColor(score);
+        return {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [city.longitude, city.latitude] },
+          properties: {
+            cityId: city.cityId,
+            cityName: city.cityName,
+            imgUrl: city.imgUrl,
+            lat: city.latitude,
+            lng: city.longitude,
+            color,
+            heatWeight,
+          },
+        };
+      });
+
+    source.setData({ type: "FeatureCollection", features });
+  }, [cities, mapReady, isRecommendActive, matchedCityIds, recommendScoreMap, visualMode]);
 
   useEffect(() => {
     if (mapRef.current) mapRef.current.resize();
@@ -772,6 +802,30 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       medalMarkersRef.current.push(marker);
     });
   }, [isRecommendActive, medalRankMap, cities, mapReady]);
+
+  // ── 6. 선택된 도시 삼각형 마커 ───────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    if (selectedMarkerRef.current) {
+      selectedMarkerRef.current.remove();
+      selectedMarkerRef.current = null;
+    }
+
+    if (!selectedCityId) return;
+
+    const city = cities.find((c) => c.cityId === selectedCityId);
+    if (!city || (city.latitude === 0 && city.longitude === 0)) return;
+
+    const el = document.createElement("div");
+    el.innerHTML = `<svg width="16" height="12" viewBox="0 0 16 12" xmlns="http://www.w3.org/2000/svg"><polygon points="8,12 0,0 16,0" fill="#1e3a5f" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    el.style.pointerEvents = "none";
+
+    selectedMarkerRef.current = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -12] })
+      .setLngLat([city.longitude, city.latitude])
+      .addTo(map);
+  }, [selectedCityId, cities, mapReady]);
 
   const legendRight = isRightPanelOpen ? (isRightPanelCollapsed ? 48 : 348) : 16;
   const zoomLeft = isLeftSidebarCollapsed ? 32 : 308;
