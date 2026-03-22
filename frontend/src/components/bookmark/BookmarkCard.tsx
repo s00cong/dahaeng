@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import dayjs from "@/utils/dayjs";
 import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 import type { BookmarkListItem } from "@/schemas/bookmark.schema";
 
 const CONTINENT_LABEL_MAP: Record<string, string> = {
@@ -53,7 +55,7 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
 
   const continentLabel =
     CONTINENT_LABEL_MAP[item.countryName.toLowerCase()] ??
-    item.countryName.toUpperCase();
+    (COUNTRY_NAME_KO[item.countryName] ?? item.countryName.toUpperCase());
   const badgeClass = getContinentBadgeClass(item.countryName);
 
   return (
@@ -104,7 +106,7 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
           {continentLabel}
         </Badge>
         <h3 className="text-base font-bold text-slate-900 leading-tight">
-          {item.cityName}
+          {CITY_NAME_KO[item.cityName] ?? item.cityName}
         </h3>
         <p className="text-xs text-slate-400 mt-0.5">
           {dayjs(item.createdAt).format("YYYY.MM.DD HH:mm")}

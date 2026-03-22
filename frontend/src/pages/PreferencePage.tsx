@@ -22,6 +22,7 @@ import { useTagList } from "@/hooks/tag/useTagList";
 import { useMemberTags } from "@/hooks/auth/useMemberTags";
 import { youtubeApi } from "@/api/youtube.api";
 import { cn } from "@/lib/utils";
+import { YoutubeLoadingOverlay, type YoutubeLoadStep } from "@/components/common/YoutubeLoadingOverlay";
 
 // ---------------------------------------------------------------------------
 // 카테고리명 → 아이콘 매핑 (백엔드 categoryName 키워드 기반)
@@ -207,7 +208,7 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
   const { data: memberTags = [], isLoading: isMemberTagLoading } = useMemberTags();
 
   const { youtubeAutoSelected, youtubeTagIds, setYoutubeTagIds } = usePreferenceStore();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateStep, setUpdateStep] = useState<YoutubeLoadStep>("idle");
 
   // edit 모드: 서버에서 불러온 기존 태그로 초기화
   // 신규 등록: YouTube 분석 결과가 있으면 초기값, 없으면 빈 배열
@@ -245,16 +246,18 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   // YouTube 추천 태그 업데이트
   const handleYoutubeUpdate = async () => {
-    setIsUpdating(true);
     try {
+      setUpdateStep("sync");
       await youtubeApi.sync();
+      setUpdateStep("analyze");
       await youtubeApi.analyze();
+      setUpdateStep("fetch");
       const { tagIds, tagNames } = await youtubeApi.getInterestTags();
       setYoutubeTagIds(tagIds);
       setSelectedTagIds(tagIds);
       usePreferenceStore.getState().setSelectedTags(tagNames);
     } finally {
-      setIsUpdating(false);
+      setUpdateStep("idle");
     }
   };
 
@@ -279,6 +282,8 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
   const totalTagCount = tagList.length || 25;
 
   return (
+    <>
+    <YoutubeLoadingOverlay step={updateStep} />
     <motion.div
       variants={pageVariants}
       initial="hidden"
@@ -392,15 +397,15 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
                     <button
                       type="button"
                       onClick={handleYoutubeUpdate}
-                      disabled={isUpdating}
+                      disabled={updateStep !== "idle"}
                       className="flex items-center gap-1 text-xs text-white/50 hover:text-white/80 transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      {isUpdating ? (
+                      {updateStep !== "idle" ? (
                         <Loader2 className="size-3 animate-spin" />
                       ) : (
                         <RefreshCw className="size-3" />
                       )}
-                      {isUpdating ? "업데이트 중..." : "업데이트하기"}
+                      {updateStep !== "idle" ? "업데이트 중..." : "업데이트하기"}
                     </button>
                   </div>
                   <p className="text-xs text-white/50 mt-0.5">
@@ -496,6 +501,7 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
         </main>
       </div>
     </motion.div>
+    </>
   );
 };
 

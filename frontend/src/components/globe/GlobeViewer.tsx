@@ -193,6 +193,11 @@ const COUNTRY_FLY_TO: Record<string, { center: [number, number]; zoom: number }>
   Norway:                      { center: [15,   65],  zoom: 3 },
   Indonesia:                   { center: [118, -2],   zoom: 3 },
   Antarctica:                  { center: [0,   -90],  zoom: 2 },
+  "New Zealand":               { center: [172,  -41],  zoom: 4 },
+  Fiji:                        { center: [178,  -18],  zoom: 5 },
+  Samoa:                       { center: [-172, -14],  zoom: 6 },
+  Kiribati:                    { center: [-157,   2],  zoom: 5 },
+  Tonga:                       { center: [-175, -20],  zoom: 6 },
 };
 
 const MAP_STYLE: maplibregl.StyleSpecification = {
@@ -232,6 +237,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   const [visualMode, setVisualMode] = useState<"none" | "cost" | "danger">("none");
   const [currentZoom, setCurrentZoom] = useState(1.5);
   const medalMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const selectedMarkerRef = useRef<maplibregl.Marker | null>(null);
   const countriesDataRef = useRef<GeoJSON.FeatureCollection | null>(null);
   const countryGeoIdMapRef = useRef<Map<string, number>>(new Map());
   // 맵 핀포인트 직접 클릭 시 flyTo 스킵 플래그
@@ -286,6 +292,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       map.resize();
 
       const topo = await fetch("/geo/countries-50m.json").then((r) => r.json()) as any;
+
+      // StrictMode에서 cleanup된 이전 map 인스턴스의 콜백이 실행되는 것을 방지
+      if (mapRef.current !== map) return;
+
       const rawCountries = topoFeature(topo, topo.objects.countries) as unknown as GeoJSON.FeatureCollection;
       
       // 남극 제거
@@ -361,10 +371,11 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         type: "circle",
         source: "cities",
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 5, 10, 10],
-          "circle-color": ["get", "color"],
-          "circle-stroke-width": 2,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 1, 6, 5, 9],
+          "circle-color": ["coalesce", ["to-color", ["get", "color"]], "#3b82f6"],
+          "circle-stroke-width": 1.5,
           "circle-stroke-color": "#ffffff",
+          "circle-opacity": 0.9,
         },
       });
 
@@ -390,11 +401,24 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         const lat = props?.lat as number;
         const lng = props?.lng as number;
 
-        queryClient.prefetchQuery({
-          queryKey: [...queryKeys.city.detail(cityId), false, null],
-          queryFn: () => cityApi.getDetail(cityId, false),
-          staleTime: 5 * 60 * 1000,
-        });
+        // 클릭 시점의 최신 추천 상태를 읽어 prefetch 방향 결정
+        const { isRecommendActive: recActive, recommendResults: recResults, recommendRequest: recReq } = useUiStore.getState();
+        const cityName = queryClient.getQueryData<{ cityName: string }[]>([...queryKeys.city.list()])?.find((c: any) => c.cityId === cityId)?.cityName;
+        const isRec = recActive && !!cityName && recResults.some((r) => r.city === cityName);
+
+        if (isRec && recReq) {
+          queryClient.prefetchQuery({
+            queryKey: [...queryKeys.city.detail(cityId), true, recReq],
+            queryFn: () => cityApi.getDetail(cityId, true, recReq),
+            staleTime: 5 * 60 * 1000,
+          });
+        } else {
+          queryClient.prefetchQuery({
+            queryKey: [...queryKeys.city.detail(cityId), false, null],
+            queryFn: () => cityApi.getDetail(cityId, false),
+            staleTime: 5 * 60 * 1000,
+          });
+        }
 
         skipCityFlyRef.current = true;
         openRightPanel(cityId, imgUrl, { lat, lng });
@@ -629,35 +653,46 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   // ── 2. 데이터 업데이트 및 리사이즈 ──────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady || cities.length === 0) return;
-    const features: GeoJSON.Feature[] = cities.map((city) => {
-      const isMatched = !isRecommendActive || matchedCityIds.has(city.cityId);
-      const score = recommendScoreMap.get(city.cityName);
-      
-      // 히트맵 가중치 계산
-      const heatWeight = visualMode === "cost" 
-        ? Math.min((city.estimatedBudget / 7) / 200000, 1) 
-        : visualMode === "danger" ? city.riskLevel / 4 : 0.5;
+    if (!map || !mapReady) return;
 
-      let color = city.cityId === selectedCityId ? "#f59e0b" : !isMatched ? "#CBD5E1" : getMarkerColor(score);
-      return {
-        type: "Feature",
-        geometry: { type: "Point", coordinates: [city.longitude, city.latitude] },
-        properties: { 
-          cityId: city.cityId, 
-          cityName: city.cityName, 
-          imgUrl: city.imgUrl, // 패널 사진 표시를 위해 필수
-          lat: city.latitude, 
-          lng: city.longitude, 
-          color, 
-          heatWeight 
-        },
-      };
-    });
     const source = map.getSource("cities") as maplibregl.GeoJSONSource | undefined;
-    source?.setData({ type: "FeatureCollection", features });
+    if (!source) return;
 
-  }, [cities, mapReady, isRecommendActive, matchedCityIds, recommendScoreMap, selectedCityId]);
+    if (cities.length === 0) {
+      source.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+
+    const features: GeoJSON.Feature[] = cities
+      // 좌표가 없는 도시(null → 0,0)는 지도에 표시하지 않음
+      .filter((city) => city.latitude !== 0 || city.longitude !== 0)
+      .map((city) => {
+        const isMatched = !isRecommendActive || matchedCityIds.has(city.cityId);
+        const score = recommendScoreMap.get(city.cityName);
+
+        // 히트맵 가중치 계산
+        const heatWeight = visualMode === "cost"
+          ? Math.min((city.estimatedBudget / 7) / 200000, 1)
+          : visualMode === "danger" ? city.riskLevel / 4 : 0.5;
+
+        const color = !isMatched ? "#CBD5E1" : getMarkerColor(score);
+        return {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [city.longitude, city.latitude] },
+          properties: {
+            cityId: city.cityId,
+            cityName: city.cityName,
+            imgUrl: city.imgUrl,
+            lat: city.latitude,
+            lng: city.longitude,
+            color,
+            heatWeight,
+          },
+        };
+      });
+
+    source.setData({ type: "FeatureCollection", features });
+  }, [cities, mapReady, isRecommendActive, matchedCityIds, recommendScoreMap, visualMode]);
 
   useEffect(() => {
     if (mapRef.current) mapRef.current.resize();
@@ -720,6 +755,22 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       (f) => f.properties?.name === globeCountryTarget,
     );
 
+    // 같은 나라 재선택 시 취소
+    if (globeCountryTarget === clickedNameRef.current) {
+      if (selectedIdRef.current !== null) {
+        map.setFeatureState({ source: "countries", id: selectedIdRef.current }, { selected: false });
+        selectedIdRef.current = null;
+      }
+      setClickedName(null);
+      setClickedIso(null);
+      if (map.getLayer("admin-fill")) map.removeLayer("admin-fill");
+      if (map.getLayer("admin-border")) map.removeLayer("admin-border");
+      if (map.getSource("admin")) map.removeSource("admin");
+      currentAdminIsoRef.current = null;
+      setGlobeCountryTarget(null);
+      return;
+    }
+
     if (feature?.geometry) {
       const coords = getAllCoords(feature.geometry);
       const lngs = coords.map((c) => c[0]);
@@ -729,6 +780,42 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       const flyTo = COUNTRY_FLY_TO[globeCountryTarget];
       if (flyTo) map.flyTo({ center: flyTo.center, zoom: flyTo.zoom, duration: 1600 });
       else map.flyTo({ center: [centerLng, centerLat], zoom: 4, duration: 1600 });
+
+      // 이전 선택 해제 + 새 나라 선택
+      if (selectedIdRef.current !== null) {
+        map.setFeatureState({ source: "countries", id: selectedIdRef.current }, { selected: false });
+      }
+      const featureId = countryGeoIdMapRef.current.get(globeCountryTarget.toLowerCase());
+      if (featureId !== undefined) {
+        selectedIdRef.current = featureId;
+        map.setFeatureState({ source: "countries", id: featureId }, { selected: true });
+      }
+      setClickedName(globeCountryTarget);
+      const iso = COUNTRY_NAME_ISO3[globeCountryTarget] ?? null;
+      setClickedIso(iso);
+
+      // 행정구역 레이어 로드
+      if (iso) {
+        if (map.getLayer("admin-fill")) map.removeLayer("admin-fill");
+        if (map.getLayer("admin-border")) map.removeLayer("admin-border");
+        if (map.getSource("admin")) map.removeSource("admin");
+
+        (async () => {
+          try {
+            const topo = await fetch(`/geo_10m/countries/${iso}.topo.json`).then(r => r.json());
+            const objKey = Object.keys(topo.objects)[0];
+            const adminGeo = topoFeature(topo, topo.objects[objKey]) as any;
+
+            map.addSource("admin", { type: "geojson", data: adminGeo, generateId: true });
+            map.addLayer({ id: "admin-fill", type: "fill", source: "admin", paint: { "fill-color": ["case", ["boolean", ["feature-state", "hover"], false], "rgba(99,179,237,0.3)", "rgba(0,0,0,0.001)"] } }, "city-circles");
+            map.addLayer({ id: "admin-border", type: "line", source: "admin", paint: { "line-color": "#b0bfcc", "line-width": 0.5 } }, "city-circles");
+
+            currentAdminIsoRef.current = iso;
+          } catch (err) {
+            console.error("Failed to load admin regions:", err);
+          }
+        })();
+      }
     }
 
     setGlobeCountryTarget(null);
@@ -773,8 +860,44 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     });
   }, [isRecommendActive, medalRankMap, cities, mapReady]);
 
+  // ── 6. 선택된 도시 삼각형 마커 ───────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    if (selectedMarkerRef.current) {
+      selectedMarkerRef.current.remove();
+      selectedMarkerRef.current = null;
+    }
+
+    if (!selectedCityId) return;
+
+    const city = cities.find((c) => c.cityId === selectedCityId);
+    if (!city || (city.latitude === 0 && city.longitude === 0)) return;
+
+    const el = document.createElement("div");
+    el.innerHTML = `<svg width="16" height="12" viewBox="0 0 16 12" xmlns="http://www.w3.org/2000/svg"><polygon points="8,12 0,0 16,0" fill="#1e3a5f" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    el.style.pointerEvents = "none";
+
+    selectedMarkerRef.current = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -12] })
+      .setLngLat([city.longitude, city.latitude])
+      .addTo(map);
+  }, [selectedCityId, cities, mapReady]);
+
   const legendRight = isRightPanelOpen ? (isRightPanelCollapsed ? 48 : 348) : 16;
   const zoomLeft = isLeftSidebarCollapsed ? 32 : 308;
+
+  // 겹침 감지
+  const ZOOM_W = 196;   // 줌 컨트롤 너비
+  const BTN_W = 176;    // 물가/위험도 버튼 총 너비 (버튼 2개 + gap)
+  const LEFT_PANEL_RIGHT = isLeftSidebarCollapsed ? 0 : 308;   // 왼쪽 패널 오른쪽 끝
+  const RIGHT_PANEL_LEFT = (isRightPanelOpen && !isRightPanelCollapsed) ? width - 320 : width; // 오른쪽 패널 왼쪽 끝
+
+  const btnLeft = width / 2 - BTN_W / 2;
+  const btnRight = width / 2 + BTN_W / 2;
+
+  const hideZoom = zoomLeft + ZOOM_W + 8 > btnLeft;         // 줌이 버튼과 겹침
+  const hideButtons = btnLeft < LEFT_PANEL_RIGHT + 8 || btnRight > RIGHT_PANEL_LEFT - 8; // 버튼이 패널과 겹침
 
   return (
     <div style={{ width, height, position: "relative" }}>
@@ -804,16 +927,18 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       )}
 
       {/* 시각화 모드 토글 버튼 */}
-      <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, zIndex: 50 }}>
-        {(["cost", "danger"] as const).map((mode) => (
-          <button key={mode} onClick={() => setVisualMode((prev) => prev === mode ? "none" : mode)} style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: visualMode === mode ? "#1e40af" : "rgba(255,255,255,0.85)", color: visualMode === mode ? "#fff" : "#475569", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
-            {mode === "cost" ? "💰 물가" : "⚠️ 위험도"}
-          </button>
-        ))}
-      </div>
+      {!hideButtons && (
+        <div style={{ position: "absolute", bottom: 24, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, zIndex: 50 }}>
+          {(["cost", "danger"] as const).map((mode) => (
+            <button key={mode} onClick={() => setVisualMode((prev) => prev === mode ? "none" : mode)} style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", background: visualMode === mode ? "#1e40af" : "rgba(255,255,255,0.85)", color: visualMode === mode ? "#fff" : "#475569", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+              {mode === "cost" ? "💰 물가" : "⚠️ 위험도"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 줌 레벨 컨트롤 */}
-      <ZoomControl zoom={currentZoom} onZoom={(z: number) => mapRef.current?.setZoom(z)} left={zoomLeft} />
+      {!hideZoom && <ZoomControl zoom={currentZoom} onZoom={(z: number) => mapRef.current?.setZoom(z)} left={zoomLeft} />}
     </div>
   );
 }

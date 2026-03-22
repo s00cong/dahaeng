@@ -34,7 +34,7 @@ interface UiState {
     userDailyBudget: number;
     travelDays: number;
     month: number;
-    recommendId: string;
+    recommendId?: string;
   } | null;
 
   // 도시 상세 모달 (전체 화면)
@@ -70,9 +70,13 @@ interface UiState {
     userDailyBudget: number;
     travelDays: number;
     month: number;
-    recommendId: string;
+    recommendId?: string;
   }) => void;
   setSelectedCityScore: (score: number | null) => void;
+
+  // 현재 추천 세션에서 북마크한 도시 ID 목록 (새 추천 시 초기화)
+  bookmarkedCityIds: number[];
+  addBookmarkedCity: (cityId: number) => void;
 
   // 나라 검색 → 글로브 카메라 이동 트리거 (영어 나라명)
   globeCountryTarget: string | null;
@@ -126,7 +130,9 @@ export const useUiStore = create<UiState>((set) => ({
   setRecommendActive: (v) => set({ isRecommendActive: v }),
   setRecommendLoading: (v) => set({ isRecommendLoading: v }),
   setRecommendResults: (results) => set({ recommendResults: results }),
-  setRecommendRequest: (req) => set({ recommendRequest: req }),
+  setRecommendRequest: (req) => set({ recommendRequest: req, bookmarkedCityIds: [] }),
+  bookmarkedCityIds: [],
+  addBookmarkedCity: (cityId) => set((s) => ({ bookmarkedCityIds: [...s.bookmarkedCityIds, cityId] })),
   globeCountryTarget: null,
   setGlobeCountryTarget: (name) => set({ globeCountryTarget: name }),
 }));

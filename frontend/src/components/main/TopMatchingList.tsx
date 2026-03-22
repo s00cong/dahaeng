@@ -7,11 +7,12 @@ import { TopMatchingCard } from "./TopMatchingCard";
 import { cn } from "@/lib/utils";
 import type { CityListItem } from "@/schemas/city.schema";
 
-const TOP_N = 5;
+const TOP_N = 3;
 
 export function TopMatchingList() {
   const { data: citiesFromApi, isLoading } = useCityList();
-  const { isRecommendActive, isRecommendLoading, recommendResults } = useUiStore();
+  const { isRecommendActive, isRecommendLoading, recommendResults } =
+    useUiStore();
 
   const cities = citiesFromApi ?? [];
 
@@ -20,7 +21,10 @@ export function TopMatchingList() {
       return recommendResults.slice(0, TOP_N).map((r) => {
         const matched = cities.find((c) => c.cityName === r.city);
         return matched
-          ? { ...matched, matchingScore: r.totalScore > 0 ? r.totalScore : undefined }
+          ? {
+              ...matched,
+              matchingScore: r.totalScore > 0 ? r.totalScore : undefined,
+            }
           : {
               cityId: r.rank,
               cityName: r.city,
@@ -53,9 +57,7 @@ export function TopMatchingList() {
             최고의 매칭 여행지
           </h2>
         </div>
-        <span className="text-[10px] text-slate-400 font-medium">
-          TOP {TOP_N}
-        </span>
+        <span className="text-[12px] text-slate-400 font-medium">Top 3</span>
       </div>
 
       {/* 도시 목록 로딩 스켈레톤 */}
@@ -87,7 +89,9 @@ export function TopMatchingList() {
           aria-label="추천 계산 중"
         >
           <Loader2 className="size-8 text-blue-400 animate-spin" />
-          <p className="text-xs font-medium text-slate-600">추천 여행지 계산 중...</p>
+          <p className="text-xs font-medium text-slate-600">
+            추천 여행지 계산 중...
+          </p>
           <p className="text-[10px] text-slate-400">잠시만 기다려 주세요</p>
         </div>
       )}
@@ -100,34 +104,44 @@ export function TopMatchingList() {
             아직 추천 결과가 없어요
           </p>
           <p className="text-[10px] text-slate-400 leading-relaxed">
-            여행 설정을 입력하고<br />추천 업데이트를 눌러주세요
+            여행 설정을 입력하고
+            <br />
+            추천 업데이트를 눌러주세요
           </p>
         </div>
       )}
 
       {/* 추천 결과 없음 */}
-      {!isLoading && !isRecommendLoading && isRecommendActive && topCities.length === 0 && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
-          <SearchX className="size-8 text-slate-300" aria-hidden="true" />
-          <p className="text-xs font-medium text-slate-600">
-            추천된 도시가 없습니다
-          </p>
-          <p className="text-[10px] text-slate-400 leading-relaxed">
-            설정을 변경하고<br />다시 추천해주세요
-          </p>
-        </div>
-      )}
+      {!isLoading &&
+        !isRecommendLoading &&
+        isRecommendActive &&
+        topCities.length === 0 && (
+          <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+            <SearchX className="size-8 text-slate-300" aria-hidden="true" />
+            <p className="text-xs font-medium text-slate-600">
+              추천된 도시가 없습니다
+            </p>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              설정을 변경하고
+              <br />
+              다시 추천해주세요
+            </p>
+          </div>
+        )}
 
       {/* 목록 */}
-      {!isLoading && !isRecommendLoading && isRecommendActive && topCities.length > 0 && (
-        <ul className="flex flex-col overflow-y-auto flex-1" role="list">
-          {topCities.map((city, index) => (
-            <li key={city.cityId} role="listitem">
-              <TopMatchingCard city={city} rank={index + 1} />
-            </li>
-          ))}
-        </ul>
-      )}
+      {!isLoading &&
+        !isRecommendLoading &&
+        isRecommendActive &&
+        topCities.length > 0 && (
+          <ul className="flex flex-col overflow-y-auto flex-1" role="list">
+            {topCities.map((city, index) => (
+              <li key={city.cityId} role="listitem">
+                <TopMatchingCard city={city} rank={index + 1} />
+              </li>
+            ))}
+          </ul>
+        )}
     </section>
   );
 }

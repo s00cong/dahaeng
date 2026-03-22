@@ -1,5 +1,7 @@
 import type { BookmarkDetail } from "@/schemas/bookmark.schema";
 import { MatchScoreBadge } from "./MatchScoreBadge";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 
 interface BookmarkHeroSectionProps {
   data: BookmarkDetail;
@@ -28,7 +30,7 @@ export function BookmarkHeroSection({ data }: BookmarkHeroSectionProps) {
           저장된 도시
         </p>
         <h1 className="text-4xl font-bold text-white drop-shadow-md">
-          {data.cityName}, {data.countryName}
+          {CITY_NAME_KO[data.cityName] ?? data.cityName}, {COUNTRY_NAME_KO[data.countryName] ?? data.countryName}
         </h1>
       </div>
 

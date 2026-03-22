@@ -21,6 +21,7 @@ import { useCountryFlagMap, useCountryIdMap } from "@/hooks/country/useCountryFl
 import { useCityList } from "@/hooks/city/useCityList";
 import defaultCityImg from "@/assets/no-picture.png";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { CityDetail } from "@/schemas/city.schema";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
 
@@ -112,33 +113,35 @@ interface BookmarkButtonProps {
 
 function BookmarkButton({ city }: BookmarkButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
-  const { selectedCityImgUrl } = useUiStore();
+  const { selectedCityImgUrl, recommendRequest, bookmarkedCityIds } = useUiStore();
+  const isBookmarked = bookmarkedCityIds.includes(city.cityId);
 
   return (
     <button
       onClick={() => {
-        if (!city.recommendId) return;
-        createBookmark({
-          cityId: city.cityId,
-          recommendId: city.recommendId,
-          json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null },
-        });
+        if (isBookmarked) {
+          toast.error("이미 북마크된 도시입니다. 다른 조건으로 검색해주세요.");
+          return;
+        }
+        createBookmark({ cityId: city.cityId, recommendId: recommendRequest!.recommendId!, json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null } });
       }}
       disabled={isPending}
       aria-label="저장하기"
       className={cn(
-        "w-14 h-14 rounded-full border-[3px] bg-blue-500/20",
+        "w-14 h-14 rounded-full border-[3px]",
         "flex items-center justify-center shrink-0",
         "active:scale-95 transition-all duration-150",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60",
-        "border-blue-400/80 hover:bg-blue-500/40",
+        isBookmarked
+          ? "bg-pink-500/80 border-pink-300 cursor-default"
+          : "bg-blue-500/20 border-blue-400/80 hover:bg-blue-500/40",
         isPending && "opacity-70 cursor-not-allowed",
       )}
     >
       {isPending ? (
         <Loader2 className="size-5 text-white animate-spin" />
       ) : (
-        <Heart className="size-5 text-white" />
+        <Heart className={cn("size-5 text-white", isBookmarked && "fill-white")} />
       )}
     </button>
   );
