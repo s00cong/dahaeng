@@ -175,7 +175,15 @@ public class FlightService {
             return Collections.emptyList();
         return Arrays.stream(monthListStr.split(","))
             .map(String::trim)
-            .map(Integer::parseInt)
+            .filter(token -> !token.isBlank())
+            .map(token -> {
+                try {
+                    return Integer.parseInt(token);
+                } catch (NumberFormatException e) {
+                    return null;
+                }
+            })
+            .filter(Objects::nonNull)
             .collect(Collectors.toList());
     }
 
