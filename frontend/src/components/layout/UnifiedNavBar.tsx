@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Globe2,
   Bookmark,
@@ -21,6 +21,7 @@ import { CITY_NAME_KO } from "@/data/cityNameKo";
 export function UnifiedNavBar() {
   const pathname = useLocation({ select: (l) => l.pathname });
   const isMain = pathname === "/main";
+  const isBookmarksList = pathname === "/bookmarks";
   const isFloating =
     isMain ||
     pathname.startsWith("/bookmarks") ||
@@ -28,12 +29,28 @@ export function UnifiedNavBar() {
     pathname.startsWith("/mypage");
 
   const { user } = useAuthStore();
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [bookmarkQuery, setBookmarkQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { openRightPanel, isCityModalOpen, setGlobeCountryTarget } =
     useUiStore();
   const { data: cities } = useCityList();
+
+  // 북마크 목록 벗어나면 검색어 초기화
+  useEffect(() => {
+    if (!isBookmarksList) setBookmarkQuery("");
+  }, [isBookmarksList]);
+
+  const handleBookmarkQueryChange = (value: string) => {
+    setBookmarkQuery(value);
+    void navigate({
+      to: "/bookmarks",
+      search: value.trim() ? { keyword: value.trim() } : {},
+      replace: true,
+    });
+  };
 
   const citySource = cities ?? [];
 
@@ -136,6 +153,26 @@ export function UnifiedNavBar() {
           />
           <span>다행</span>
         </Link>
+
+        {/* 검색바 — 북마크 목록 */}
+        {isBookmarksList && (
+          <div className="hidden md:flex flex-1 mx-4 lg:mx-6 relative max-w-[200px] lg:max-w-[280px] xl:max-w-[320px]">
+            <div className="relative w-full">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 size-4 pointer-events-none z-10"
+                color="#334155"
+                strokeWidth={2}
+              />
+              <input
+                type="text"
+                value={bookmarkQuery}
+                onChange={(e) => handleBookmarkQueryChange(e.target.value)}
+                placeholder="저장된 제목으로 검색..."
+                className="w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border border-slate-200 bg-white/70 backdrop-blur-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+              />
+            </div>
+          </div>
+        )}
 
         {/* 검색바 — 메인에서만 표시 */}
         {isMain && (

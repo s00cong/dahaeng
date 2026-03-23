@@ -44,7 +44,7 @@ const BookmarkDetailPage = () => {
         {data && (
           <>
             {/* 히어로 섹션 */}
-            <BookmarkHeroSection data={data} />
+            <BookmarkHeroSection data={data} bookmarkId={id} />
 
             {/* 대시보드 영역 */}
             <div className="mx-auto max-w-7xl px-6 py-8">

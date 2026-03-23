@@ -53,6 +53,7 @@ export const bookmarkApi = {
         countryName: json.countryName || json.danger?.countryName || '',
         imgUrl: json.imgUrl || null,
         createdAt: data.savedAt,
+        title: data.title ?? null,
         // 매칭 점수
         matchingScore: json.score?.finalScore ?? undefined,
         // 환율 (저장 당시 / 현재)
@@ -93,6 +94,11 @@ export const bookmarkApi = {
     CreateBookmarkRequestSchema.parse(body);
     const { data } = await axiosInstance.post("/api/bookmarks", body);
     return data;
+  },
+
+  // PATCH /api/bookmarks/{bookmarkId} — 제목 수정
+  updateTitle: async (bookmarkId: number, title: string): Promise<void> => {
+    await axiosInstance.patch(`/api/bookmarks/${bookmarkId}`, { title });
   },
 
   // DELETE /api/bookmarks/{bookmarkId}

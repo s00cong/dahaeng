@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, type Variants } from "framer-motion";
 import {
   Mountain,
@@ -21,8 +21,10 @@ import { useSubmitPreference, useUpdatePreference } from "@/hooks/auth/usePrefer
 import { useTagList } from "@/hooks/tag/useTagList";
 import { useMemberTags } from "@/hooks/auth/useMemberTags";
 import { youtubeApi } from "@/api/youtube.api";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { YoutubeLoadingOverlay, type YoutubeLoadStep } from "@/components/common/YoutubeLoadingOverlay";
+import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // 카테고리명 → 아이콘 매핑 (백엔드 categoryName 키워드 기반)
@@ -207,7 +209,16 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
   const { data: tagList = [], isLoading: isTagLoading } = useTagList();
   const { data: memberTags = [], isLoading: isMemberTagLoading } = useMemberTags();
 
-  const { youtubeAutoSelected, youtubeTagIds, setYoutubeTagIds } = usePreferenceStore();
+  const { youtubeTagIds, setYoutubeTagIds } = usePreferenceStore();
+
+  // 새로고침 후에도 배너가 유지되도록 서버에서 직접 조회
+  const { data: syncStatus } = useQuery({
+    queryKey: ["youtube", "sync-status"],
+    queryFn: youtubeApi.getSyncStatus,
+  });
+  const youtubeAutoSelected = syncStatus
+    ? syncStatus.connected && syncStatus.syncEnabled !== false
+    : false;
   const [updateStep, setUpdateStep] = useState<YoutubeLoadStep>("idle");
 
   // edit 모드: 서버에서 불러온 기존 태그로 초기화
@@ -217,9 +228,13 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
     youtubeAutoSelected ? youtubeTagIds : [],
   );
 
+  // YouTube 업데이트 여부 추적 — true이면 서버 태그로 초기화 방지
+  const youtubeUpdatedRef = useRef(false);
+
   // edit 모드에서 서버 태그 로딩 완료 후 초기 선택 세팅
+  // YouTube 업데이트 후에는 실행되지 않도록 ref로 방지
   useEffect(() => {
-    if (isEdit && !isMemberTagLoading && savedTagIds.length > 0) {
+    if (isEdit && !isMemberTagLoading && savedTagIds.length > 0 && !youtubeUpdatedRef.current) {
       setSelectedTagIds(savedTagIds);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,9 +268,13 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
       await youtubeApi.analyze();
       setUpdateStep("fetch");
       const { tagIds, tagNames } = await youtubeApi.getInterestTags();
+      youtubeUpdatedRef.current = true;
       setYoutubeTagIds(tagIds);
       setSelectedTagIds(tagIds);
       usePreferenceStore.getState().setSelectedTags(tagNames);
+    } catch (err) {
+      console.error("YouTube 태그 업데이트 실패:", err);
+      toast.error("YouTube 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setUpdateStep("idle");
     }

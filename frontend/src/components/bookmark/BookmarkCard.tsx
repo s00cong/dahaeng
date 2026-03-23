@@ -108,6 +108,9 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
         <h3 className="text-base font-bold text-slate-900 leading-tight">
           {CITY_NAME_KO[item.cityName] ?? item.cityName}
         </h3>
+        <p className={`text-sm font-medium truncate ${item.title ? "text-slate-600" : "text-slate-400"}`}>
+          {item.title ?? "제목 없음"}
+        </p>
         <p className="text-xs text-slate-400 mt-0.5">
           {dayjs(item.createdAt).format("YYYY.MM.DD HH:mm")}
         </p>

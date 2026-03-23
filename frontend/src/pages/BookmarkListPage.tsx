@@ -166,17 +166,21 @@ const BookmarkListPage = () => {
 
   // 전체 목록을 한 번에 가져와서 클라이언트에서 필터+페이지네이션 처리
   const { data, isLoading, isError, error, refetch } = useBookmarkList({
-    keyword,
     page: 0,
     size: 9999,
   });
   const { mutate: deleteBookmark } = useDeleteBookmark();
 
-  // 필터 적용 후 전체 아이템
+  // 제목 검색 + 대륙 필터 AND 적용
   const filteredAll = useMemo(() => {
     if (!data) return [];
-    return data.content.filter((item) => matchesContinent(item, continentFilter));
-  }, [data, continentFilter]);
+    return data.content.filter((item) => {
+      const matchesTitle = keyword
+        ? (item.title ?? "").toLowerCase().includes(keyword.toLowerCase())
+        : true;
+      return matchesTitle && matchesContinent(item, continentFilter);
+    });
+  }, [data, continentFilter, keyword]);
 
   // 클라이언트 페이지네이션
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / ITEMS_PER_PAGE));

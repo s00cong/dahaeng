@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -115,35 +116,100 @@ function BookmarkButton({ city }: BookmarkButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
   const { selectedCityImgUrl, recommendRequest, bookmarkedCityIds } = useUiStore();
   const isBookmarked = bookmarkedCityIds.includes(city.cityId);
+  const [showModal, setShowModal] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
+
+  const handleClick = () => {
+    if (isBookmarked) {
+      toast.error("이미 북마크된 도시입니다. 다른 조건으로 검색해주세요.");
+      return;
+    }
+    setTitleInput("");
+    setShowModal(true);
+  };
+
+  const handleConfirm = () => {
+    if (titleInput.trim().length < 1) return;
+    createBookmark({
+      cityId: city.cityId,
+      recommendId: recommendRequest!.recommendId!,
+      json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null },
+      title: titleInput.trim(),
+    });
+    setShowModal(false);
+  };
 
   return (
-    <button
-      onClick={() => {
-        if (isBookmarked) {
-          toast.error("이미 북마크된 도시입니다. 다른 조건으로 검색해주세요.");
-          return;
-        }
-        createBookmark({ cityId: city.cityId, recommendId: recommendRequest!.recommendId!, json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null } });
-      }}
-      disabled={isPending}
-      aria-label="저장하기"
-      className={cn(
-        "w-14 h-14 rounded-full border-[3px]",
-        "flex items-center justify-center shrink-0",
-        "active:scale-95 transition-all duration-150",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60",
-        isBookmarked
-          ? "bg-pink-500/80 border-pink-300 cursor-default"
-          : "bg-blue-500/20 border-blue-400/80 hover:bg-blue-500/40",
-        isPending && "opacity-70 cursor-not-allowed",
+    <>
+      <button
+        onClick={handleClick}
+        disabled={isPending}
+        aria-label="저장하기"
+        className={cn(
+          "w-14 h-14 rounded-full border-[3px]",
+          "flex items-center justify-center shrink-0",
+          "active:scale-95 transition-all duration-150",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60",
+          isBookmarked
+            ? "bg-pink-500/80 border-pink-300 cursor-default"
+            : "bg-blue-500/20 border-blue-400/80 hover:bg-blue-500/40",
+          isPending && "opacity-70 cursor-not-allowed",
+        )}
+      >
+        {isPending ? (
+          <Loader2 className="size-5 text-white animate-spin" />
+        ) : (
+          <Heart className={cn("size-5 text-white", isBookmarked && "fill-white")} />
+        )}
+      </button>
+
+      {showModal && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm"
+          onClick={() => setShowModal(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.15 }}
+            className="bg-white rounded-2xl p-6 w-80 mx-4 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-slate-800">북마크 제목 입력</h3>
+            <input
+              type="text"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              placeholder="여행 제목을 입력해주세요"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && titleInput.trim().length >= 1) handleConfirm();
+                if (e.key === "Escape") setShowModal(false);
+              }}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="flex-1 h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-xl transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={titleInput.trim().length < 1}
+                className="flex-1 h-10 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                저장
+              </button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
       )}
-    >
-      {isPending ? (
-        <Loader2 className="size-5 text-white animate-spin" />
-      ) : (
-        <Heart className={cn("size-5 text-white", isBookmarked && "fill-white")} />
-      )}
-    </button>
+    </>
   );
 }
 
