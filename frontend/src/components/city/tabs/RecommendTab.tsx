@@ -15,12 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
-
 import dayjs from "dayjs";
 
 interface RecommendTabProps {
   city: CityDetail;
-  onTabChange: (tab: "recommend" | "cost" | "flight" | "spots") => void;
+  onTabChange: (tab: "recommend" | "youtube" | "cost" | "flight" | "spots") => void;
   isAiLoading?: boolean;
 }
 
@@ -248,9 +247,9 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
             </p>
           )}
           {/* 키워드 뱃지 */}
-          {city.tags && city.tags.length > 0 && (
+          {city.tags && city.tags.filter((t) => (t.tagScore ?? 0) >= 0.6).length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
-              {city.tags.map((t) => t.name).map((kw) => (
+              {city.tags.filter((t) => (t.tagScore ?? 0) >= 0.6).map((t) => t.name).map((kw) => (
                 <Badge
                   key={kw}
                   variant="outline"
@@ -263,6 +262,7 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
           )}
         </div>
       </section>
+
 
       {/* 하단: 1:1 가로 배치 그리드 */}
       <div className="grid grid-cols-2 gap-6 p-6">

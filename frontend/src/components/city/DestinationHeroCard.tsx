@@ -216,6 +216,7 @@ export function DestinationHeroCard({
   // tagScore 내림차순 정렬 후 상위 10개
   const displayKeywords = city.tags
     ? [...city.tags]
+        .filter((t) => (t.tagScore ?? 0) >= 0.6)
         .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
         .slice(0, 10)
         .map((t) => t.name)

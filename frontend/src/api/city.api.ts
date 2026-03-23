@@ -1,7 +1,6 @@
 import { axiosInstance } from "./axiosInstance";
 import type { CityDetail } from "@/schemas/city.schema";
 import { z } from "zod";
-import { DUMMY_NEWS_ARTICLES } from "@/data/city.dummy";
 
 // 백엔드 CountryDanger { level, description }
 const BackendCountryDangerItemSchema = z.object({
@@ -229,9 +228,7 @@ export const cityApi = {
           total: city.livingCostFor1Day.total ?? undefined,
         } : undefined,
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
-        news: city.news?.top3?.length
-          ? city.news
-          : { summation: undefined, top3: DUMMY_NEWS_ARTICLES },
+        news: city.news ?? undefined,
         danger: city.danger ?? undefined,
         tags: city.tags,
         // tags(string[]) + tagScores({}) → Tag[] 변환
@@ -311,6 +308,7 @@ export const cityApi = {
       recommendId: parsed.recommendId ?? undefined,
       recommendations: parsed.recommendations.map((item, index) => ({
         rank: index + 1,
+        cityId: item.id,
         country: item.danger?.countryName ?? "",
         city: item.name,
         totalScore: item.scores?.total ?? 0,

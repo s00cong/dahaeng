@@ -2,13 +2,14 @@ import { create } from "zustand";
 
 export type RecommendResultItem = {
   rank: number;
+  cityId: number;
   country: string;
   city: string;
   totalScore: number;
   reason: string | null | undefined;
 };
 
-type CityDetailTab = "recommend" | "cost" | "flight" | "spots";
+type CityDetailTab = "recommend" | "youtube" | "cost" | "flight" | "spots";
 
 interface UiState {
   // 선택된 도시 (RightPanel + CityDetailModal 공유)
