@@ -25,6 +25,7 @@ import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Transactional(readOnly = true)
@@ -66,7 +67,7 @@ public class CityViewService {
 			.map((city) -> CityViewHistoryResponse.from(
 				city,
 				getKrw(livingCostByCityId.get(city.getId()).getDailyBudget()),
-				historyMap.get(city.getId()).getUpdatedAt()
+				livingCostByCityId.get(city.getId()).getUpdatedAt()
 			))
 			.toList();
 	}
