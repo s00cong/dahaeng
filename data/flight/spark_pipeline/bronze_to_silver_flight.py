@@ -324,14 +324,14 @@ def write_to_mariadb(
          `stops`, `flight_duration`,
          `peak_month_list`, `off_month_list`,
          `flight_collected_date`, `hotel_collected_date`,
-         `created_at`, `updated_at`)
+         `created_at`, `updated_at`, `is_deleted`)
     SELECT
         `city_id`, `year_month`, `origin_airport`,
         `avg_flight_price`, `avg_hotel_price`,
         `stops`, `flight_duration`,
         `peak_month_list`, `off_month_list`,
         `flight_collected_date`, `hotel_collected_date`,
-        NOW(), NOW()
+        NOW(), NOW(), b'0'
     FROM {staging_table};
     """
 
