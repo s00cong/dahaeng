@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
-  Globe2,
   Bookmark,
   TrendingUp,
   Search,
@@ -128,12 +127,7 @@ export function UnifiedNavBar() {
           )}
           aria-label="다행 메인으로 이동"
         >
-          <Globe2
-            className={cn(
-              "size-5 transition-colors duration-300",
-              isFloating ? "text-blue-500" : "text-white",
-            )}
-          />
+          <img src="/favicon.png" alt="다행 로고" className="size-6 object-contain" />
           <span>다행</span>
         </Link>
 

@@ -215,9 +215,9 @@ function TagFlowDiagram({
     cityChipY[ct.name] = cityChipStartY + j * (CITY_CHIP_H + CITY_CHIP_GAP) + CITY_CHIP_H / 2;
   });
 
-  // 유저 관심 태그 중 도시 태그와 이름이 일치하는 것들의 집합 (도시 태그 칩 하이라이트용)
+  // 유저 관심 태그 중 도시 태그와 이름이 일치하는 것들의 집합 (tagId 없는 태그는 매칭 불가)
   const matchedCityTagNames = new Set(
-    tags.filter((t) => cityTagNames.has(t.tagName)).map((t) => t.tagName)
+    tags.filter((t) => t.tagId != null && cityTagNames.has(t.tagName)).map((t) => t.tagName)
   );
 
   // 도시 이름 노드 y: 매칭된 칩들의 평균
@@ -254,8 +254,8 @@ function TagFlowDiagram({
       stroke: palette.line, opacity: 0.8, sw: 2,
     });
 
-    // 관심 태그 → 도시 태그 칩 (매칭된 것만)
-    if (cityTagNames.has(tag.tagName)) {
+    // 관심 태그 → 도시 태그 칩 (매칭된 것만, tagId 없으면 연결 불가)
+    if (tag.tagId != null && cityTagNames.has(tag.tagName)) {
       const cty = cityChipY[tag.tagName] ?? layout.yCenter;
       const mx3 = (x2 + TAG_COL_W + x3) / 2;
       svgLines.push({

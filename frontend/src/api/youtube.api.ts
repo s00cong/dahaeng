@@ -20,7 +20,7 @@ const TopKeywordSchema = z.object({
 });
 
 export const InterestTagSchema = z.object({
-  tagId: z.number(),
+  tagId: z.number().nullish(),
   categoryName: z.string(),
   tagName: z.string(),
   score: z.number().optional(),
@@ -63,9 +63,10 @@ export const youtubeApi = {
     const { data } = await axiosInstance.get("/api/interest/analyze");
     const parsed = InterestAnalyzeResponseSchema.safeParse(data);
     const tags = parsed.success ? parsed.data.tags : z.array(InterestTagSchema).parse(data);
+    const validTags = tags.filter((t) => t.tagId != null);
     return {
-      tagIds: tags.map((t) => t.tagId),
-      tagNames: tags.map((t) => t.tagName),
+      tagIds: validTags.map((t) => t.tagId!),
+      tagNames: validTags.map((t) => t.tagName),
     };
   },
 

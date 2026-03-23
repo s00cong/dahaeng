@@ -42,7 +42,7 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
 function TopCardSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-5 gap-5">
-      {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-72 rounded-2xl" />)}
+      {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-44 rounded-2xl" />)}
     </div>
   );
 }

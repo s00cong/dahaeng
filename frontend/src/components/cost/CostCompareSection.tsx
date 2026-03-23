@@ -53,7 +53,7 @@ const ITEM_KO: Record<string, string> = {
 };
 
 // ─── 검색 드롭다운 ────────────────────────────────────────────────
-interface Option { id: number; name: string; dailyBudget: number }
+interface Option { id: number; name: string; dailyBudget: number; imgUrl?: string | null }
 
 function Selector({
   label,
@@ -230,14 +230,7 @@ function CompareResult({ data }: { data: CostCompare }) {
     >
       {/* ── 메인 서머리 카드 ── */}
       <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600">
-        {/* 배경 이미지 */}
-        {data.target.img_url && (
-          <img
-            src={data.target.img_url}
-            alt={data.target.name}
-            className="absolute inset-0 w-full h-full object-cover opacity-20"
-          />
-        )}
+
         <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
         <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full bg-white/10" />
 
@@ -261,7 +254,7 @@ function CompareResult({ data }: { data: CostCompare }) {
           <div className="mt-5 grid grid-cols-2 gap-4">
             <div className="bg-white/15 rounded-xl p-3">
               {data.base.img_url && (
-                <img src={data.base.img_url} alt={data.base.name} className="w-full h-12 object-cover rounded-lg mb-2 opacity-80" />
+                <img src={data.base.img_url} alt={data.base.name} className="w-full h-48 object-cover rounded-lg mb-2 opacity-80" />
               )}
               <p className="text-white/70 text-xs mb-1">{data.base.name}</p>
               <p className="text-white text-xl font-black">₩{costCompare.baseDailyBudget.toLocaleString()}</p>
@@ -274,7 +267,7 @@ function CompareResult({ data }: { data: CostCompare }) {
             </div>
             <div className="bg-white/25 rounded-xl p-3">
               {data.target.img_url && (
-                <img src={data.target.img_url} alt={data.target.name} className="w-full h-12 object-cover rounded-lg mb-2 opacity-80" />
+                <img src={data.target.img_url} alt={data.target.name} className="w-full h-48 object-cover rounded-lg mb-2 opacity-80" />
               )}
               <p className="text-white/70 text-xs mb-1">{data.target.name}</p>
               <p className="text-white text-xl font-black">₩{costCompare.targetDailyBudget.toLocaleString()}</p>
@@ -484,8 +477,8 @@ export function CostCompareSection() {
     staleTime: 60 * 60 * 1000,
   });
 
-  const cityOptions: Option[] = (cityList ?? []).map((c) => ({ id: c.id, name: c.name, dailyBudget: c.dailyBudget }));
-  const countryOptions: Option[] = (countryList ?? []).map((c) => ({ id: c.id, name: c.name, dailyBudget: c.dailyBudget }));
+  const cityOptions: Option[] = (cityList ?? []).map((c) => ({ id: c.id, name: c.name, dailyBudget: c.dailyBudget, imgUrl: c.imgUrl }));
+  const countryOptions: Option[] = (countryList ?? []).map((c) => ({ id: c.id, name: c.name, dailyBudget: c.dailyBudget, imgUrl: c.imgUrl }));
 
   // 도시 비교 결과
   const { data: cityCompareData, isLoading: isCityLoading } = useQuery({
@@ -493,6 +486,7 @@ export function CostCompareSection() {
     queryFn: () => costApi.getCostCompare('CITY', cityCompareIds!.base, cityCompareIds!.target),
     enabled: cityCompareIds !== null,
     staleTime: 60 * 60 * 1000,
+    retry: false,
   });
 
   // 국가 비교 결과
@@ -501,6 +495,7 @@ export function CostCompareSection() {
     queryFn: () => costApi.getCostCompare('COUNTRY', countryCompareIds!.base, countryCompareIds!.target),
     enabled: countryCompareIds !== null,
     staleTime: 60 * 60 * 1000,
+    retry: false,
   });
 
   const isCity = mode === 'city';
@@ -632,7 +627,17 @@ export function CostCompareSection() {
         {isLoading && <LoadingSkeleton />}
 
         {compareData && !isLoading && (
-          <CompareResult data={compareData} />
+          <CompareResult data={{
+            ...compareData,
+            base: {
+              ...compareData.base,
+              img_url: compareData.base.img_url ?? options.find((o) => o.id === baseId)?.imgUrl ?? null,
+            },
+            target: {
+              ...compareData.target,
+              img_url: compareData.target.img_url ?? options.find((o) => o.id === targetId)?.imgUrl ?? null,
+            },
+          }} />
         )}
 
         {!compareIds && !isLoading && (

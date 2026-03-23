@@ -101,6 +101,7 @@ const TopNavBar = () => {
             aria-label="다행 홈으로 이동"
             onClick={closeMobileMenu}
           >
+            <img src="/favicon.png" alt="다행 로고" className="size-6 object-contain inline-block mr-1" />
             다행
           </Link>
 
