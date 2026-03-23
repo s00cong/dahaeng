@@ -28,7 +28,6 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 			)
 			and	b.member = :member
 		    and b.isDeleted = false
-			order by b.createdAt desc
 		""",
 		countQuery = """
 			    select count(b)
