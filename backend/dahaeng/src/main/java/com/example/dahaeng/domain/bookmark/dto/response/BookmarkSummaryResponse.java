@@ -7,6 +7,7 @@ import com.example.dahaeng.domain.bookmark.entity.Bookmark;
 
 public record BookmarkSummaryResponse(
 	Long id,
+	String title,
 	Long cityId,
 	String cityName,
 	String countryName,
@@ -16,6 +17,7 @@ public record BookmarkSummaryResponse(
 	public static BookmarkSummaryResponse from(Bookmark bookmark) {
 		return new BookmarkSummaryResponse(
 			bookmark.getId(),
+			bookmark.getTitle(),
 			bookmark.getCity().getId(),
 			bookmark.getCity().getCityName(),
 			bookmark.getCity().getCountry().getCountryName(),

@@ -1,5 +1,7 @@
 import { useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { CityDetailModal } from "@/components/city/CityDetailModal";
 import { LeftSidebar } from "@/components/main/LeftSidebar";
 import { GlobeContainer } from "@/components/globe/GlobeContainer";
@@ -44,33 +46,35 @@ const MainPage = () => {
   }, []);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
       className="fixed inset-0 z-0 overflow-hidden"
       role="main"
       aria-label="다행 메인 페이지"
     >
-      {/* Background image */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: "linear-gradient(135deg, #93C5FD 0%, #93C5FD 100%)",
-        }}
-        aria-hidden="true"
-      />
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/1" aria-hidden="true" />
+      {/* Background — 지도 배경색과 동일하게 */}
+      <div className="absolute inset-0" style={{ background: "#0d1b2e" }} aria-hidden="true" />
 
       {/* Left Sidebar — absolute overlay */}
       <LeftSidebar />
 
-      {globeReady && <GlobeContainer className="absolute inset-0" />}
+      {globeReady ? (
+        <GlobeContainer className="absolute inset-0" />
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+          <Loader2 className="size-8 animate-spin text-blue-400" />
+          <p className="text-sm text-white/50">지도를 불러오는 중...</p>
+        </div>
+      )}
 
       {/* Right Summary Panel — 마커/카드 클릭 시 슬라이드 인 */}
       <RightPanel />
 
       {/* City Detail Modal — 전체 화면, 상세 보기 버튼으로 진입 */}
       <CityDetailModal />
-    </div>
+    </motion.div>
   );
 };
 

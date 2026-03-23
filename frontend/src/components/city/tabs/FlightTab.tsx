@@ -166,7 +166,7 @@ export function FlightTab({ city }: FlightTabProps) {
 
         <div
           ref={rightColRef}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-4 min-w-0"
         >
           {/* 6개월 추이 차트 vs 날짜 히스토리 스왑 레이아웃 */}
           <div className="flex-1 relative overflow-hidden rounded-xl border border-border/50 bg-card/50 min-h-[380px] flex flex-col">
@@ -648,7 +648,7 @@ function DateHistoryPanel({
                   {totalPriceTrend.length}일치 기록
                 </span>
               </div>
-              <div className="h-[120px] w-full">
+              <div className="h-[120px] w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={totalPriceTrend} margin={{ top: 6, right: 6, left: -8, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -879,7 +879,7 @@ function TrendSection({ isLoading, trend }: { isLoading: boolean; trend: FlightT
             최저: {dayjs(cheapestMonth.year_month + '-01').format('M월')} ({cheapestMonth.avg_flight_price.toLocaleString()}원)
           </div>
         )}
-        <div className="h-[240px]">
+        <div className="h-[240px] min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />

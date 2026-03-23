@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
-  Globe2,
   Bookmark,
   TrendingUp,
   Search,
@@ -15,6 +14,8 @@ import { useCityList } from "@/hooks/city/useCityList";
 import { useUiStore } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
+
 
 export function UnifiedNavBar() {
   const pathname = useLocation({ select: (l) => l.pathname });
@@ -37,12 +38,14 @@ export function UnifiedNavBar() {
 
   const citySuggestions = useMemo(() => {
     if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return citySource.filter(
-      (c) =>
-        c.cityName.toLowerCase().includes(q) ||
-        c.countryName.toLowerCase().includes(q),
-    );
+    const q = query.trim().toLowerCase().replace(/\s+/g, "");
+    return citySource.filter((c) => {
+      const enName = c.cityName.toLowerCase().replace(/\s+/g, "");
+      const koName = (CITY_NAME_KO[c.cityName] ?? "").toLowerCase().replace(/\s+/g, "");
+      const koCountry = (COUNTRY_NAME_KO[c.countryName] ?? "").toLowerCase().replace(/\s+/g, "");
+      const enCountry = c.countryName.toLowerCase().replace(/\s+/g, "");
+      return enName.includes(q) || koName.includes(q) || koCountry.includes(q) || enCountry.includes(q);
+    });
   }, [query, citySource]);
 
   // 나라 목록 (한국어명 → 영어명)
@@ -53,10 +56,10 @@ export function UnifiedNavBar() {
 
   const countrySuggestions = useMemo(() => {
     if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return countryList.filter(
-      (c) => c.ko.includes(q) || c.en.toLowerCase().includes(q),
-    );
+    const q = query.trim().toLowerCase().replace(/\s+/g, "");
+    return countryList.filter((c) => {
+      return c.ko.replace(/\s+/g, "").includes(q) || c.en.toLowerCase().replace(/\s+/g, "").includes(q);
+    });
   }, [query, countryList]);
 
   const hasResults =
@@ -124,12 +127,7 @@ export function UnifiedNavBar() {
           )}
           aria-label="다행 메인으로 이동"
         >
-          <Globe2
-            className={cn(
-              "size-5 transition-colors duration-300",
-              isFloating ? "text-blue-500" : "text-white",
-            )}
-          />
+          <img src="/favicon.png" alt="다행 로고" className="size-6 object-contain" />
           <span>다행</span>
         </Link>
 
@@ -137,8 +135,7 @@ export function UnifiedNavBar() {
         {isMain && (
           <div
             ref={wrapperRef}
-            className="hidden md:flex flex-col flex-1 mx-6 relative overflow-visible"
-            style={{ maxWidth: "320px" }}
+            className="hidden md:flex flex-col flex-1 mx-4 lg:mx-6 relative overflow-visible max-w-[200px] lg:max-w-[280px] xl:max-w-[320px]"
           >
             <div className="relative">
               <Search
@@ -175,7 +172,8 @@ export function UnifiedNavBar() {
                       {countrySuggestions.map((country) => (
                         <li
                           key={country.en}
-                          onMouseDown={() => {
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
                             setGlobeCountryTarget(country.en);
                             setQuery(country.ko);
                             setSearchOpen(false);
@@ -183,10 +181,10 @@ export function UnifiedNavBar() {
                           className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm"
                         >
                           <Flag className="size-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium text-slate-800">
+                          <span className="font-medium text-slate-800 truncate flex-1 min-w-0">
                             {country.ko}
                           </span>
-                          <span className="text-slate-400 text-xs ml-auto">
+                          <span className="text-slate-400 text-xs ml-auto shrink-0 whitespace-nowrap">
                             {country.en}
                           </span>
                         </li>
@@ -215,22 +213,26 @@ export function UnifiedNavBar() {
                       {citySuggestions.map((city) => (
                         <li
                           key={city.cityId}
-                          onMouseDown={() => {
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
                             openRightPanel(city.cityId, city.imgUrl, {
                               lat: city.latitude,
                               lng: city.longitude,
                             });
-                            setQuery(city.cityName);
+                            setQuery(CITY_NAME_KO[city.cityName] ?? city.cityName);
                             setSearchOpen(false);
                           }}
                           className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm"
                         >
                           <MapPin className="size-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium text-slate-800">
-                            {city.cityName}
+                          <span className="font-medium text-slate-800 flex items-baseline gap-1 min-w-0 flex-1">
+                            <span className="truncate">{CITY_NAME_KO[city.cityName] ?? city.cityName}</span>
+                            {CITY_NAME_KO[city.cityName] && (
+                              <span className="text-[10px] text-slate-400 font-normal shrink-0">{city.cityName}</span>
+                            )}
                           </span>
-                          <span className="text-slate-400 text-xs ml-auto">
-                            {city.countryName}
+                          <span className="text-slate-400 text-xs ml-auto shrink-0 whitespace-nowrap">
+                            {COUNTRY_NAME_KO[city.countryName] ?? city.countryName}
                           </span>
                         </li>
                       ))}

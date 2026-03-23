@@ -9,6 +9,7 @@ import { SalaryPopulationSection } from '@/components/cost/SalaryPopulationSecti
 import { useCityPriceTab } from '@/hooks/cost/useCityPriceTab';
 import { SEOUL_CITY_ID } from '@/api/cost.api';
 import { useCostDetail } from '@/hooks/cost/useCostDetail';
+import { useFlightTrend } from '@/hooks/flight/useFlightTrend';
 import type { CityDetail } from '@/schemas/city.schema';
 
 interface CostCompareTabProps {
@@ -33,6 +34,16 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
 
   // 서울 상세 정보 따로 호출 (비교 바 렌더링용)
   const seoulDetail = useCostDetail('city', SEOUL_CITY_ID);
+
+  // 6개월 항공 추이 → avg_hotel_price 평균 / 2 (2인 기준 1인 숙박비)
+  const { data: flightTrend } = useFlightTrend(city.cityId);
+  const avgHotelPerDay = flightTrend?.trend_data?.length
+    ? Math.round(
+        flightTrend.trend_data.reduce((sum, t) => sum + t.avg_hotel_price, 0) /
+        flightTrend.trend_data.length /
+        2,
+      )
+    : undefined;
 
   // city가 바뀌면 currency도 재설정
   useEffect(() => {
@@ -83,6 +94,8 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
         <SeoulCompareSection
           data={costCompare.data}
           isLoading={costCompare.isLoading}
+          hotelPerDay={avgHotelPerDay ?? city.livingCostFor1Day?.accommodation ?? undefined}
+          totalWithHotel={city.livingCostFor1Day?.total ?? undefined}
         />
 
         {/* C. 항목별 전체 물가표 (월급, 인구 정보 포함) */}

@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,7 +19,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
-import com.example.dahaeng.domain.bookmark.dto.request.BookMarkCreateRequest;
+import com.example.dahaeng.domain.bookmark.dto.request.BookmarkCreateRequest;
+import com.example.dahaeng.domain.bookmark.dto.request.BookmarkModifyRequest;
 import com.example.dahaeng.domain.bookmark.dto.response.BookmarkDetailResponse;
 import com.example.dahaeng.domain.bookmark.dto.response.BookmarkSummaryResponse;
 import com.example.dahaeng.domain.bookmark.dto.response.BookmarkTop5Response;
@@ -59,13 +61,22 @@ public class BookmarkController {
 
 	@PostMapping
 	public ResponseEntity<NoContentResponse> save(
-		@RequestBody @Valid BookMarkCreateRequest request,
+		@RequestBody @Valid BookmarkCreateRequest request,
 		@AuthenticationPrincipal CustomOAuth2User user
 	) throws JsonProcessingException {
 		return new ResponseEntity<>(
 			bookmarkService.save(request, user.getId()),
 			HttpStatus.CREATED
 		);
+	}
+
+	@PatchMapping("/{bookmarkId}")
+	public ResponseEntity<BookmarkDetailResponse> modify(
+		@PathVariable("bookmarkId") Long id,
+		@RequestBody BookmarkModifyRequest request,
+		@AuthenticationPrincipal CustomOAuth2User user
+	) throws JsonProcessingException {
+		return ResponseEntity.ok(bookmarkService.modify(id, request, user.getId()));
 	}
 
 	@DeleteMapping("/{bookmarkId}")

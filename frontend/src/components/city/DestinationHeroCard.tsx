@@ -21,7 +21,9 @@ import { useCountryFlagMap, useCountryIdMap } from "@/hooks/country/useCountryFl
 import { useCityList } from "@/hooks/city/useCityList";
 import defaultCityImg from "@/assets/no-picture.png";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { CityDetail } from "@/schemas/city.schema";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 
 interface DestinationHeroCardProps {
   city: CityDetail;
@@ -111,26 +113,35 @@ interface BookmarkButtonProps {
 
 function BookmarkButton({ city }: BookmarkButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
-  const { selectedCityImgUrl } = useUiStore();
+  const { selectedCityImgUrl, recommendRequest, bookmarkedCityIds } = useUiStore();
+  const isBookmarked = bookmarkedCityIds.includes(city.cityId);
 
   return (
     <button
-      onClick={() => createBookmark({ cityId: city.cityId, json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null } })}
+      onClick={() => {
+        if (isBookmarked) {
+          toast.error("이미 북마크된 도시입니다. 다른 조건으로 검색해주세요.");
+          return;
+        }
+        createBookmark({ cityId: city.cityId, recommendId: recommendRequest!.recommendId!, json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null } });
+      }}
       disabled={isPending}
       aria-label="저장하기"
       className={cn(
-        "w-14 h-14 rounded-full border-[3px] bg-blue-500/20",
+        "w-14 h-14 rounded-full border-[3px]",
         "flex items-center justify-center shrink-0",
         "active:scale-95 transition-all duration-150",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60",
-        "border-blue-400/80 hover:bg-blue-500/40",
+        isBookmarked
+          ? "bg-pink-500/80 border-pink-300 cursor-default"
+          : "bg-blue-500/20 border-blue-400/80 hover:bg-blue-500/40",
         isPending && "opacity-70 cursor-not-allowed",
       )}
     >
       {isPending ? (
         <Loader2 className="size-5 text-white animate-spin" />
       ) : (
-        <Heart className="size-5 text-white" />
+        <Heart className={cn("size-5 text-white", isBookmarked && "fill-white")} />
       )}
     </button>
   );
@@ -205,6 +216,7 @@ export function DestinationHeroCard({
   // tagScore 내림차순 정렬 후 상위 10개
   const displayKeywords = city.tags
     ? [...city.tags]
+        .filter((t) => (t.tagScore ?? 0) >= 0.6)
         .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
         .slice(0, 10)
         .map((t) => t.name)
@@ -258,8 +270,11 @@ export function DestinationHeroCard({
       <div className="relative z-10 p-6 flex flex-col gap-5">
         {/* City name + subtext */}
         <div>
-          <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md">
-            {city.cityName}
+          <h2 className="text-2xl font-bold text-white leading-tight drop-shadow-md flex items-baseline gap-2">
+            {CITY_NAME_KO[city.cityName] ?? city.cityName}
+            {CITY_NAME_KO[city.cityName] && (
+              <span className="text-sm font-normal text-white/60">{city.cityName}</span>
+            )}
           </h2>
           <p className="text-sm text-white/70 mt-1 flex items-center gap-1.5">
             {flagUrl && (

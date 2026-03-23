@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 
 interface SmallDestinationCardProps {
   countryId: number;
+  targetType?: 'city' | 'country';
   name: string;
   imgUrl: string;
   avgCost: string;
@@ -14,6 +15,7 @@ interface SmallDestinationCardProps {
 
 export function SmallDestinationCard({
   countryId,
+  targetType = 'city',
   name,
   imgUrl,
   avgCost,
@@ -23,7 +25,7 @@ export function SmallDestinationCard({
   const [imgError, setImgError] = useState(false);
 
   const handleClick = () => {
-    void navigate({ to: '/cost/$countryId', params: { countryId } });
+    void navigate({ to: '/cost/$countryId', params: { countryId }, search: { targetType } });
   };
 
   return (

@@ -4,8 +4,8 @@ import {
   useNavigate,
   useLocation,
 } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
-import { motion, useAnimation, type Variants } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, type Variants } from "framer-motion";
 import {
   type LucideIcon,
   Globe,
@@ -15,19 +15,14 @@ import {
   Sparkles,
   Star,
   Zap,
-  Loader2,
-  Bot,
   FlaskConical,
 } from "lucide-react";
 import TopNavBar from "@/components/layout/TopNavBar";
 import Footer from "@/components/layout/Footer";
-import { Button } from "@/components/ui/button";
-import { useGoogleLogin } from "@/hooks/auth/useGoogleLogin";
 import { useAuthStore } from "@/stores/authStore";
 import { authApi } from "@/api/auth.api";
-import introBg from "@/assets/treesky2.jpg";
-import nukiImg from "@/assets/AIDrawing_260308_d2d848f3-0f64-44a7-acfa-d2cf92266ef6_0_MiriCanvas.png";
-import maldiveImg from "@/assets/Maldive_beach_1.jpg";
+import { GlobeLoginBackground } from "@/components/auth/GlobeLoginBackground";
+import { useGoogleLogin } from "@/hooks/auth/useGoogleLogin";
 
 // ─── Types ────────────────────────────────────────────────────────
 type Phase = "intro" | "leaving" | "login";
@@ -90,29 +85,6 @@ const STATS = [
 ] as const;
 
 // ─── Login 데이터 ─────────────────────────────────────────────────
-const LOGIN_FEATURES = [
-  {
-    icon: Zap,
-    title: "빠르고 간편함",
-    description: "Google 계정 하나로 가입과 로그인을 한 번에 완료하세요.",
-    accent: "text-amber-500",
-    bg: "bg-amber-50",
-  },
-  {
-    icon: Bot,
-    title: "실시간 도우미",
-    description: "AI 여행 도우미가 최적의 일정을 실시간으로 제안합니다.",
-    accent: "text-blue-500",
-    bg: "bg-blue-50",
-  },
-] as const;
-
-const DUMMY_AVATARS = [
-  { id: 1, bg: "bg-blue-400", initial: "K" },
-  { id: 2, bg: "bg-emerald-400", initial: "J" },
-  { id: 3, bg: "bg-violet-400", initial: "M" },
-];
-
 // ─── Intro 서브 컴포넌트 ──────────────────────────────────────────
 interface IntroFeatureCardProps {
   icon: LucideIcon;
@@ -218,132 +190,8 @@ const IntroFeatureCard = ({
   </motion.div>
 );
 
-// ─── Login 서브 컴포넌트 ──────────────────────────────────────────
-interface GoogleLoginButtonProps {
-  onClick: () => void;
-  isPending: boolean;
-}
-
-const GoogleLoginButton = ({ onClick, isPending }: GoogleLoginButtonProps) => (
-  <Button
-    onClick={onClick}
-    disabled={isPending}
-    variant="outline"
-    size="lg"
-    className="w-full h-12 gap-3 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400 font-medium text-sm shadow-sm"
-    aria-label="Google 계정으로 로그인"
-  >
-    {isPending ? (
-      <Loader2
-        className="size-5 animate-spin text-gray-500"
-        aria-hidden="true"
-      />
-    ) : (
-      <svg
-        className="size-5 shrink-0"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        role="img"
-      >
-        <path
-          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-          fill="#4285F4"
-        />
-        <path
-          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-          fill="#34A853"
-        />
-        <path
-          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
-          fill="#FBBC05"
-        />
-        <path
-          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-          fill="#EA4335"
-        />
-      </svg>
-    )}
-    <span>{isPending ? "이동 중..." : "Google 계정으로 계속하기"}</span>
-  </Button>
-);
-
-interface LoginFeatureItemProps {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  accent: string;
-  bg: string;
-}
-
-const LoginFeatureItem = ({
-  icon: Icon,
-  title,
-  description,
-  accent,
-  bg,
-}: LoginFeatureItemProps) => (
-  <div className="flex flex-col gap-2 p-4 rounded-xl border border-gray-100 bg-white shadow-xs">
-    <div
-      className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}
-    >
-      <Icon className={`size-4 ${accent}`} aria-hidden="true" />
-    </div>
-    <p className="text-sm font-semibold text-gray-800">{title}</p>
-    <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
-  </div>
-);
-
-const AvatarGroup = () => (
-  <div className="flex items-center gap-3">
-    <div className="flex -space-x-2" aria-label="함께하는 여행자들">
-      {DUMMY_AVATARS.map((avatar) => (
-        <div
-          key={avatar.id}
-          className={`w-8 h-8 rounded-full ${avatar.bg} border-2 border-white flex items-center justify-center text-white text-xs font-semibold`}
-          aria-hidden="true"
-        >
-          {avatar.initial}
-        </div>
-      ))}
-    </div>
-    <p className="text-sm text-white/90 font-medium">10,000+ 여행자와 함께</p>
-  </div>
-);
-
-const RightImagePanel = () => (
-  <div className="relative h-full min-h-[280px] lg:min-h-0 overflow-hidden">
-    <img
-      src={maldiveImg}
-      alt="말디브 해변 — 프리미엄 여행지"
-      className="absolute inset-0 w-full h-full object-cover"
-    />
-    <div
-      className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/10"
-      aria-hidden="true"
-    />
-    <div className="absolute inset-0 flex flex-col justify-between p-8">
-      <div>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 px-3 py-1 text-xs font-medium text-white">
-          ✦ 프리미엄 여행 플래너
-        </span>
-      </div>
-      <div className="flex flex-col gap-6">
-        <div>
-          <h2 className="text-3xl font-bold text-white leading-snug">
-            프리미엄 여행의 시작
-          </h2>
-          <p className="mt-2 text-sm text-white/80">
-            예산과 취향에 맞는 완벽한 여행지를 설계하세요.
-          </p>
-        </div>
-        <AvatarGroup />
-      </div>
-    </div>
-  </div>
-);
-
 // ─── LoginCardContent ─────────────────────────────────────────────
-// hooks를 여기서 호출 (항상 마운트되어 있음)
+// One Tap이 자동으로 뜨지만, 버튼 클릭 시 다시 트리거하는 용도
 const LoginCardContent = () => {
   const { mutate: loginWithGoogle, isPending } = useGoogleLogin();
   const { setAccessToken, setUser, setHasCompletedPreference } = useAuthStore();
@@ -358,93 +206,135 @@ const LoginCardContent = () => {
   };
 
   return (
-    <>
-      {/* 좌측 패널 */}
-      <div className="flex flex-col w-full lg:w-[52%] px-8 sm:px-10 lg:px-12 py-5 lg:py-7">
-        <div className="mb-5">
-          <a
-            href="/"
-            className="text-2xl font-bold text-gray-900 no-underline hover:text-gray-700 transition-colors"
-            aria-label="다행 홈으로 이동"
-          >
+    <div style={{
+      width: 400,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      padding: "40px 44px",
+      borderRadius: 28,
+      background: "rgba(10, 20, 40, 0.55)",
+      backdropFilter: "blur(24px) saturate(160%)",
+      WebkitBackdropFilter: "blur(24px) saturate(160%)",
+      border: "1px solid rgba(255,255,255,0.15)",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12)",
+    }}>
+      {/* 내용 전체 너비 */}
+      <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        {/* 로고 */}
+        <div style={{ marginBottom: 20, textAlign: "center" }}>
+          <div style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            background: "rgba(255,255,255,0.15)",
+            border: "1px solid rgba(255,255,255,0.25)",
+            marginBottom: 12,
+          }}>
+            <span style={{ fontSize: 22 }}>✈️</span>
+          </div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: 0, letterSpacing: "-0.3px" }}>
             다행
-          </a>
+          </h2>
         </div>
-        <div className="flex-1 flex flex-col justify-center max-w-md">
-          <div className="mb-5">
-            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
-              다음 여행을
-              <br />
-              계획해 보세요.
-            </h1>
-            <p className="mt-3 text-base text-gray-500">
-              다행과 함께 당신만의 여행을 설계하세요
-            </p>
-          </div>
 
-          <div className="mb-3">
-            <GoogleLoginButton
-              onClick={() => loginWithGoogle()}
-              isPending={isPending}
-            />
-          </div>
-
-          {import.meta.env.DEV && (
-            <div className="mb-6">
-              <Button
-                onClick={handleDevLogin}
-                variant="outline"
-                size="lg"
-                className="w-full h-10 gap-2 border-dashed border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100 text-sm font-medium"
-              >
-                <FlaskConical className="size-4" aria-hidden="true" />
-                개발 모드로 입장 (백엔드 없이)
-              </Button>
-            </div>
-          )}
-
-          <div
-            className="relative flex items-center gap-4 mb-6"
-            aria-hidden="true"
-          >
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400 font-medium">또는</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {LOGIN_FEATURES.map((feature) => (
-              <LoginFeatureItem key={feature.title} {...feature} />
-            ))}
-          </div>
-
-          <p className="mt-5 text-xs text-gray-400 leading-relaxed">
-            로그인하면 다행의{" "}
-            <a
-              href="#"
-              className="underline hover:text-gray-600 transition-colors"
-            >
-              서비스 이용약관
-            </a>{" "}
-            및{" "}
-            <a
-              href="#"
-              className="underline hover:text-gray-600 transition-colors"
-            >
-              개인정보처리방침
-            </a>
-            에 동의하게 됩니다.
-            <br />
-            &copy; 2026 다행. All rights reserved.
+        {/* 헤드라인 */}
+        <div style={{ marginBottom: 24, textAlign: "center" }}>
+          <h1 style={{
+            fontSize: 24,
+            fontWeight: 800,
+            color: "#fff",
+            lineHeight: 1.3,
+            margin: "0 0 8px",
+            letterSpacing: "-0.5px",
+          }}>
+            다음 여행을 계획해 보세요
+          </h1>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: 0 }}>
+            AI와 함께 나만의 여행을 설계하세요
           </p>
         </div>
-      </div>
 
-      {/* 우측 패널 */}
-      <div className="hidden lg:block lg:w-[48%]">
-        <RightImagePanel />
+        {/* 구글 로그인 버튼 — 클릭 시 구글 팝업 (One Tap 닫은 경우 대비) */}
+        <button
+          onClick={() => loginWithGoogle()}
+          disabled={isPending}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            height: 48,
+            borderRadius: 14,
+            background: "#fff",
+            border: "none",
+            cursor: isPending ? "not-allowed" : "pointer",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "#1f2937",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+            transition: "opacity 0.15s",
+            opacity: isPending ? 0.7 : 1,
+            marginBottom: 10,
+          }}
+          aria-label="Google 계정으로 로그인"
+        >
+          {isPending ? (
+            <svg style={{ width: 18, height: 18, animation: "spin 1s linear infinite" }} viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="#d1d5db" strokeWidth="3"/>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="#6b7280" strokeWidth="3" strokeLinecap="round"/>
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+          )}
+          {isPending ? "이동 중..." : "Google로 계속하기"}
+        </button>
+
+        {/* 개발 모드 버튼 */}
+        {import.meta.env.DEV && (
+          <button
+            onClick={handleDevLogin}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              height: 40,
+              borderRadius: 14,
+              background: "rgba(251,191,36,0.15)",
+              border: "1px dashed rgba(251,191,36,0.6)",
+              cursor: "pointer",
+              fontSize: 12,
+              fontWeight: 500,
+              color: "rgba(253,224,132,0.95)",
+              marginBottom: 20,
+            }}
+          >
+            <FlaskConical style={{ width: 14, height: 14 }} />
+            개발 모드로 입장
+          </button>
+        )}
+
+        {/* 약관 */}
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: import.meta.env.DEV ? 0 : "10px 0 0", lineHeight: 1.6 }}>
+          로그인 시{" "}
+          <a href="#" style={{ color: "rgba(255,255,255,0.55)", textDecoration: "underline" }}>이용약관</a>
+          {" "}및{" "}
+          <a href="#" style={{ color: "rgba(255,255,255,0.55)", textDecoration: "underline" }}>개인정보처리방침</a>
+          에 동의합니다
+        </p>
       </div>
-    </>
+    </div>
   );
 };
 
@@ -452,55 +342,46 @@ const LoginCardContent = () => {
 const AuthLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { setAccessToken, setUser, setHasCompletedPreference } = useAuthStore();
 
   const [phase, setPhase] = useState<Phase>(() =>
     location.pathname === "/login" ? "login" : "intro",
   );
 
-  const NUKI_INTRO_LEFT = -280;
+  // 지구본 줌인 phase (One Tap 성공 시 'zoomIn'으로 전환)
+  const [globePhase, setGlobePhase] = useState<'idle' | 'zoomIn'>('idle');
+  const nextRouteRef = useRef<'/main' | '/preference'>('/main');
 
-  const [{ cardOffscreenX, nukiFlyX, nukiPhase1X }] = useState(() => {
-    const vw = typeof window !== "undefined" ? window.innerWidth : 1920;
-    const cardHalfWidth = Math.min((vw - 32) / 2, 700);
-    const cardRightEdge = vw / 2 + cardHalfWidth;
-    const offscreen = NUKI_INTRO_LEFT - cardRightEdge;
-    return {
-      cardOffscreenX: offscreen,
-      nukiFlyX: vw + 2000,
-      nukiPhase1X: -offscreen,
+  // 팝업 방식 — AuthCallbackPage가 postMessage로 결과 전달
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      if (e.data?.type === 'GOOGLE_AUTH_SUCCESS') {
+        const { accessToken, user, hasCompletedPreference, nextRoute } = e.data;
+        setAccessToken(accessToken);
+        setUser(user);
+        setHasCompletedPreference(hasCompletedPreference);
+        nextRouteRef.current = nextRoute;
+        setGlobePhase('zoomIn');
+      }
     };
-  });
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [setAccessToken, setUser, setHasCompletedPreference]);
 
-  const nukiControls = useAnimation();
-  const [nukiVisible, setNukiVisible] = useState(phase !== "login");
+  const [cardOffscreenX] = useState(() => {
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1920;
+    return -(vw + 420);
+  });
 
   // 브라우저 뒤로가기 등 URL 변경 시 phase 동기화
   useEffect(() => {
     if (location.pathname === "/" && phase !== "intro") {
       setPhase("intro");
-      nukiControls.set({ x: 0 });
-      setNukiVisible(true);
     } else if (location.pathname === "/login" && phase === "intro") {
       setPhase("login");
     }
   }, [location.pathname]);
-
-  // 두 단계 nuki: 1) 카드와 함께 중앙까지 → 2) 계속 오른쪽으로 이탈
-  useEffect(() => {
-    if (phase !== "leaving") return;
-    const run = async () => {
-      await nukiControls.start({
-        x: nukiPhase1X,
-        transition: { duration: 1.5, ease: "easeOut" },
-      });
-      await nukiControls.start({
-        x: nukiFlyX,
-        transition: { duration: 0.8, ease: "easeIn" },
-      });
-      setNukiVisible(false);
-    };
-    run();
-  }, [phase]);
 
   // login phase일 때 body 스크롤 차단
   useEffect(() => {
@@ -529,23 +410,25 @@ const AuthLayout = () => {
 
   return (
     <div
-      className="min-h-screen flex flex-col relative w-full bg-transparent overflow-hidden"
+      className="min-h-screen flex flex-col relative w-full bg-transparent"
       style={{ zIndex: 0 }}
     >
-      {/* Background — position:fixed 별도 div로 background-attachment:fixed 대체.
-          fixed bg는 브라우저가 합성 레이어 분리를 못해 CSS transform 애니메이션이
-          메인 스레드 repaint를 유발하므로 제거함. */}
+      {/* 지구본 배경 — zoomIn 시 전면으로 올라와 화면 전체 덮음 */}
       <div
         aria-hidden="true"
         style={{
           position: "fixed",
           inset: 0,
-          backgroundImage: `url(${introBg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          zIndex: -2,
+          zIndex: globePhase === 'zoomIn' ? 50 : -1,
+          width: "100vw",
+          height: "100vh",
         }}
-      />
+      >
+        <GlobeLoginBackground
+          phase={globePhase}
+          onAnimationEnd={() => navigate({ to: nextRouteRef.current })}
+        />
+      </div>
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <TopNavBar />
@@ -951,25 +834,7 @@ const AuthLayout = () => {
         <Outlet />
       </div>
 
-      {/* Nuki — intro 대기. leaving 시 두 단계: 카드와 함께 중앙까지 → 계속 오른쪽 이탈 */}
-      {nukiVisible && (
-        <motion.img
-          src={nukiImg}
-          className="pointer-events-none"
-          style={{
-            position: "fixed",
-            top: "-100px",
-            left: `${NUKI_INTRO_LEFT}px`,
-            zIndex: isLeaving ? 30 : 9,
-            willChange: "transform",
-          }}
-          animate={nukiControls}
-          alt=""
-          aria-hidden="true"
-        />
-      )}
-
-      {/* ── 날아가는 카드 (leaving 전용): 왼쪽에서 중앙까지 nuki와 함께 이동 후 정지 ── */}
+      {/* ── 날아가는 카드 (leaving 전용): 왼쪽에서 중앙까지 이동 후 정지 ── */}
       {isLeaving && (
         <div
           style={{
@@ -979,39 +844,30 @@ const AuthLayout = () => {
             right: 0,
             bottom: 0,
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "center",
             justifyContent: "center",
-            padding: "24px 16px",
             zIndex: 19,
             pointerEvents: "none",
           }}
         >
           <motion.div
-            style={{
-              position: "relative",
-              width: "100%",
-              maxWidth: "1400px",
-              marginLeft: "auto",
-              marginRight: "auto",
-              willChange: "transform",
-            }}
             initial={{ x: cardOffscreenX }}
             animate={{ x: 0 }}
             transition={{ duration: 1.5, ease: "easeOut" }}
           >
-            <div
-              className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col lg:flex-row"
-              style={{ maxHeight: "calc(100vh - 148px)" }}
-            >
-              <LoginCardContent />
-            </div>
+            <LoginCardContent />
           </motion.div>
         </div>
       )}
 
-      {/* ── 로그인 카드 (login 전용): 카드가 중앙에 멈춘 시점에 즉시 등장 ── */}
+      {/* ── 로그인 카드 (login 전용): 로그인 성공 시 페이드아웃 ── */}
       {isLogin && (
-        <div
+        <motion.div
+          animate={{
+            opacity: globePhase === 'zoomIn' ? 0 : 1,
+            scale: globePhase === 'zoomIn' ? 0.92 : 1,
+          }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
           style={{
             position: "fixed",
             top: "64px",
@@ -1019,21 +875,14 @@ const AuthLayout = () => {
             right: 0,
             bottom: 0,
             display: "flex",
-            alignItems: "flex-start",
+            alignItems: "center",
             justifyContent: "center",
-            padding: "24px 16px",
             zIndex: 20,
+            pointerEvents: globePhase === 'zoomIn' ? 'none' : 'auto',
           }}
         >
-          <div className="relative w-full max-w-[1400px] mx-auto">
-            <div
-              className="bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col lg:flex-row"
-              style={{ maxHeight: "calc(100vh - 148px)" }}
-            >
-              <LoginCardContent />
-            </div>
-          </div>
-        </div>
+          <LoginCardContent />
+        </motion.div>
       )}
     </div>
   );

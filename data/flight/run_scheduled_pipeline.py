@@ -114,14 +114,16 @@ def build_hdfs_uri(hdfs_namenode_uri: str, hdfs_root: str) -> str:
 
 
 def should_run_source(source: str, now: datetime, last_success: datetime | None) -> bool:
+    if source == "google_flight":
+        # [서버 봇 차단 이슈] 서버 헤드리스 환경에서 ICN 출발지 입력창이 막히는 문제가 있어
+        # 당분간 자동 스케줄링(cron) 대상에서 제외합니다. 로컬에서 수동으로만 수집합니다.
+        return False
+
     if last_success is None:
         return True
 
     if source == "trip_com":
         return last_success.date() < now.date()
-
-    if source == "google_flight":
-        return now - last_success >= timedelta(days=7)
 
     raise ValueError(f"Unsupported source: {source}")
 
@@ -206,6 +208,8 @@ def build_execution_plan(
                     config["hdfs_trip_bronze_root"],
                     "--hdfs-uri",
                     config["hdfs_namenode_uri"],
+                    "--datanode-host",
+                    "datanode",
                 ],
                 sources={"trip_com"},
             )

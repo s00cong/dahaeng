@@ -1,7 +1,6 @@
 import { axiosInstance } from "./axiosInstance";
 import type { CityDetail } from "@/schemas/city.schema";
 import { z } from "zod";
-import { DUMMY_NEWS_ARTICLES } from "@/data/city.dummy";
 
 // 백엔드 CountryDanger { level, description }
 const BackendCountryDangerItemSchema = z.object({
@@ -36,8 +35,9 @@ const dangerToRiskLevel = (
     | null
     | undefined,
 ): number => {
-  if (!danger || danger.items.length === 0) return 1;
+  if (!danger || danger.items.length === 0) return 0;
   const levels = danger.items.map((item) => item.level);
+  if (levels.some((l) => l.includes("금지") || l.includes("철수"))) return 5;
   if (levels.some((l) => l.includes("자제"))) return 4;
   if (levels.some((l) => l.includes("주의"))) return 3;
   if (levels.some((l) => l.includes("유의"))) return 2;
@@ -197,12 +197,13 @@ export const cityApi = {
       userDailyBudget: number;
       travelDays: number;
       month: number;
+      recommendId?: string;
     },
   ): Promise<CityDetail> => {
     try {
     const { data } = await axiosInstance.get(`/api/city/${cityId}`, {
       params: recommend && recommendParams
-        ? { recommend, ...recommendParams }
+        ? { recommend, selectedTags: recommendParams.selectedTags, userDailyBudget: recommendParams.userDailyBudget, travelDays: recommendParams.travelDays, month: recommendParams.month, recommendId: recommendParams.recommendId }
         : { recommend },
       timeout: recommend ? 60_000 : 10_000,
     });
@@ -211,6 +212,7 @@ export const cityApi = {
       const city = BackendRecommendDetailSchema.parse(data);
       return {
         cityId,
+        recommendId: recommendParams?.recommendId,
         cityName: city.name,
         countryId: 0,
         countryName: "",
@@ -226,9 +228,7 @@ export const cityApi = {
           total: city.livingCostFor1Day.total ?? undefined,
         } : undefined,
         airTicketAndHotel: city.airTicketAndHotel ?? undefined,
-        news: city.news?.top3?.length
-          ? city.news
-          : { summation: undefined, top3: DUMMY_NEWS_ARTICLES },
+        news: city.news ?? undefined,
         danger: city.danger ?? undefined,
         tags: city.tags,
         // tags(string[]) + tagScores({}) → Tag[] 변환
@@ -276,6 +276,7 @@ export const cityApi = {
     month: number;
   }) => {
     const BackendRecommendResponseSchema = z.object({
+      recommendId: z.string().nullable().optional(),
       requestContext: z.object({
         selectedTags: z.array(z.string()),
         userDailyBudget: z.number(),
@@ -303,12 +304,16 @@ export const cityApi = {
     });
     const { data } = await axiosInstance.post("/api/recommend", body);
     const parsed = BackendRecommendResponseSchema.parse(data);
-    return parsed.recommendations.map((item, index) => ({
-      rank: index + 1,
-      country: item.danger?.countryName ?? "",
-      city: item.name,
-      totalScore: item.scores?.total ?? 0,
-      reason: null,
-    }));
+    return {
+      recommendId: parsed.recommendId ?? undefined,
+      recommendations: parsed.recommendations.map((item, index) => ({
+        rank: index + 1,
+        cityId: item.id,
+        country: item.danger?.countryName ?? "",
+        city: item.name,
+        totalScore: item.scores?.total ?? 0,
+        reason: null,
+      })),
+    };
   },
 };

@@ -37,6 +37,11 @@ public class GeoapifyService {
 			append(cityId).toString();
 
 		String value = ops.get(key);
+		if (value == null || value.isBlank()) {
+			return om.createObjectNode()
+				.put("type", "FeatureCollection")
+				.set("features", om.createArrayNode());
+		}
 
 		return om.readTree(value);
 	}

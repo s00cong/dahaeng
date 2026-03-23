@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, Wallet, Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
@@ -22,6 +22,8 @@ import type { CostCompare } from '@/schemas/cost.schema';
 interface SeoulCompareSectionProps {
   data: CostCompare | undefined;
   isLoading: boolean;
+  hotelPerDay?: number;
+  totalWithHotel?: number;
 }
 
 const PIE_COLORS: Record<string, string> = {
@@ -100,17 +102,35 @@ function BarTooltip({ active, payload, targetName }: {
   );
 }
 
-export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProps) {
+export function SeoulCompareSection({ data, isLoading, hotelPerDay, totalWithHotel }: SeoulCompareSectionProps) {
   const vs = data?.costCompare;
-  const isMoreExpensive = (vs?.dailyBudgetGapPercent ?? 0) >= 0;
+  // 히어로 카드: localCostCompare 우선, 없으면 costCompare fallback
+  const gapPercent = data?.localCostCompare?.localDailyCostGapPercent ?? vs?.dailyBudgetGapPercent ?? 0;
+  const isMoreExpensive = gapPercent >= 0;
 
+  const breakdown = data?.expectedTargetDailyBudget.breakdown;
+  // accommodation이 백엔드에서 안 오면 city API의 hotelPerDay로 채움
+  const accommodationValue = breakdown?.accommodation ?? hotelPerDay;
   const pieData = data
-    ? Object.entries(data.expectedTargetDailyBudget.breakdown).map(([key, value]) => ({
-        name: BUDGET_LABELS[key] ?? key,
-        value,
-        color: PIE_COLORS[key] ?? '#94a3b8',
-      }))
+    ? [
+        { key: 'food',          value: breakdown?.food ?? 0 },
+        { key: 'transport',     value: breakdown?.transport ?? 0 },
+        { key: 'accommodation', value: accommodationValue ?? 0 },
+      ]
+        .filter((d) => d.value > 0)
+        .map((d) => ({
+          name:  BUDGET_LABELS[d.key] ?? d.key,
+          value: d.value,
+          color: PIE_COLORS[d.key] ?? '#94a3b8',
+        }))
     : [];
+
+  // total: compare API total(식비+교통)에 숙박이 없으면 city API total 사용
+  const displayTotal = data
+    ? (breakdown?.accommodation != null
+        ? data.expectedTargetDailyBudget.total
+        : (totalWithHotel ?? data.expectedTargetDailyBudget.total))
+    : 0;
 
   const targetName = data?.target.name ?? '도시';
 
@@ -154,26 +174,37 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
               )}
               <p
                 className={cn(
-                  'text-2xl font-bold leading-tight',
+                  'text-4xl font-bold leading-tight',
                   isMoreExpensive ? 'text-red-600' : 'text-blue-600',
                 )}
               >
                 서울보다{' '}
-                {Math.abs(vs.dailyBudgetGapPercent).toFixed(1)}%
+                {Math.abs(gapPercent).toFixed(1)}%
                 <br />
                 {isMoreExpensive ? '비싸요' : '저렴해요'}
               </p>
-              <p className="text-xs text-muted-foreground">
-                하루 예산 기준 · {vs.currency}
+              <p className="text-sm text-muted-foreground">
+                실생활 물가 기준 · {vs.currency}
               </p>
+              <div className="flex flex-wrap justify-center gap-1.5 mt-1">
+                {['아침', '점심', '저녁', '커피', '음료', '대중교통(왕복)'].map((item) => (
+                  <span
+                    key={item}
+                    className="text-xs px-2 py-0.5 rounded-full bg-white/60 dark:bg-white/10 text-muted-foreground border border-border"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* 오른쪽: 하루 예산 구성 PieChart */}
             <div className="flex-1 flex flex-col">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-col mb-2">
                 <p className="text-sm font-semibold text-foreground">하루 예산 구성</p>
-                <p className="text-xs text-muted-foreground text-right">
-                  총 {data.expectedTargetDailyBudget.total.toLocaleString()} {vs.currency}
+                <p className="text-xl font-bold text-foreground">
+                  {displayTotal.toLocaleString()}
+                  <span className="text-sm font-normal text-muted-foreground ml-1">{vs.currency}</span>
                 </p>
               </div>
               <ResponsiveContainer width="100%" height={180}>
@@ -212,6 +243,50 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
                   />
                 </PieChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* 2개 지표 카드 */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* 하루 실제 비용 */}
+            <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-3">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+                <Wallet className="size-4 shrink-0" />
+                하루 실제 비용
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">서울</span>
+                  <span className="font-bold text-base">₩{(data.localCostCompare?.baseLocalDailyCost ?? data.costCompare.baseDailyBudget).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{targetName}</span>
+                  <span className="font-bold text-base text-foreground">₩{(data.localCostCompare?.targetLocalDailyCost ?? data.costCompare.targetDailyBudget).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 현지인 부담률 */}
+            <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-3">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+                <Users className="size-4 shrink-0" />
+                현지인 부담률
+              </div>
+              {data.affordabilityCompare ? (
+                <div className="flex flex-col gap-0.5">
+                  <span className={cn(
+                    'text-3xl font-bold leading-tight',
+                    data.affordabilityCompare.targetMoreAffordable ? 'text-blue-500' : 'text-amber-500',
+                  )}>
+                    {data.affordabilityCompare.targetLocalCostBurdenPercent.toFixed(1)}%
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {data.affordabilityCompare.targetMoreAffordable ? '현지인에게 여유로운 도시' : '현지인에게도 부담스러운 도시'}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">-</span>
+              )}
             </div>
           </div>
 
@@ -255,8 +330,8 @@ export function SeoulCompareSection({ data, isLoading }: SeoulCompareSectionProp
                       const w = width ?? 0;
                       const isNegative = val < 0;
                       const lx = isNegative
-                        ? (x ?? 0) + w - 8   // 파란색: 바 왼쪽 끝에서 왼쪽으로
-                        : (x ?? 0) + w + 8;  // 빨간색: 바 오른쪽 끝에서 오른쪽으로
+                        ? (x ?? 0) + w - 8
+                        : (x ?? 0) + w + 8;
                       const ly = (y ?? 0) + (height ?? 0) / 2;
                       const color = isNegative ? '#3b82f6' : '#ef4444';
                       return (

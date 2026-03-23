@@ -75,15 +75,28 @@ public class TouristService {
 		Member member = validMember(memberId);
 
 		List<MemberTag> memberTags = memberTagRepository.findAllByMember(member);
+		if (memberTags.isEmpty()) {
+			return unrecommend(cityId);
+		}
+
 		List<TouristSpot> places = touristSpotRepository.findByCityId(cityId);
+		if (places.isEmpty()) {
+			return List.of();
+		}
 
 		List<String> selectedTags = memberTags.stream()
 			.map(tag -> tag.getTag().getName())
 			.toList();
+		if (selectedTags.isEmpty()) {
+			return unrecommend(cityId);
+		}
 
 		List<Long> placeIds = places.stream()
 			.map(TouristSpot::getId)
 			.toList();
+		if (placeIds.isEmpty()) {
+			return List.of();
+		}
 
 		Map<Long, List<SpotTagScoreProjection>> spotMap = new HashMap<>();
 
@@ -102,15 +115,24 @@ public class TouristService {
 	private List<PlaceListResponse> unrecommend(Long cityId) {
 		log.info("unrecommended={}", cityId);
 		List<TouristSpot> places = touristSpotRepository.findByCityId(cityId);
+		if (places.isEmpty()) {
+			return List.of();
+		}
 
 		List<Long> placeIds = places.stream()
 			.map(TouristSpot::getId)
 			.toList();
+		if (placeIds.isEmpty()) {
+			return List.of();
+		}
 
 		List<String> tagNames = tagRepository.findAll()
 			.stream()
 			.map(Tag::getName)
 			.toList();
+		if (tagNames.isEmpty()) {
+			return List.of();
+		}
 
 		Map<Long, List<SpotTagScoreProjection>> tagMap = new HashMap<>();
 

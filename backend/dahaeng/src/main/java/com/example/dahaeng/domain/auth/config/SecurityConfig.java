@@ -115,6 +115,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests((auth) -> auth
                         .requestMatchers(PUBLIC_URLS).permitAll()
+                        .requestMatchers("/api/city/view-history").authenticated()
                         .anyRequest().authenticated());
 
         http

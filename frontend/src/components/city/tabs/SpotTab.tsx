@@ -435,8 +435,12 @@ function GeoapifySpotCard({ spot }: { spot: GeoapifySpot }) {
 
 function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature }) {
   const p = feature.properties;
+  const mainName = p.nameKo ?? p.nameEn ?? p.name;
+  const subName = p.nameKo
+    ? (p.name !== p.nameKo ? p.name : undefined)
+    : (p.nameEn && p.name !== p.nameEn ? p.name : undefined);
   const category = p.categories?.[0] ?? null;
-  const mapQuery = p.formatted ? `${p.name} ${p.formatted}` : p.name;
+  const mapQuery = p.formatted ? `${mainName} ${p.formatted}` : mainName;
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
 
   return (
@@ -473,7 +477,12 @@ function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature })
       )}
 
       {/* 이름 */}
-      <p className="text-xs font-semibold text-foreground leading-snug">{p.name}</p>
+      <div>
+        <p className="text-xs font-semibold text-foreground leading-snug">{mainName}</p>
+        {subName && (
+          <p className="text-[10px] text-muted-foreground">{subName}</p>
+        )}
+      </div>
 
       {/* 설명 */}
       {p.description && (

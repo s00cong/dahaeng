@@ -8,6 +8,7 @@ import { useCityList } from "@/hooks/city/useCityList";
 import { DestinationHeroCard } from "@/components/city/DestinationHeroCard";
 import { CityDetailTabNav } from "@/components/city/CityDetailTabNav";
 import { RecommendTab } from "@/components/city/tabs/RecommendTab";
+import { YoutubeTab } from "@/components/city/tabs/YoutubeTab";
 import { CostCompareTab } from "@/components/city/tabs/CostCompareTab";
 import { FlightTab } from "@/components/city/tabs/FlightTab";
 import { SpotTab } from "@/components/city/tabs/SpotTab";
@@ -94,7 +95,7 @@ export function CityDetailModal() {
 
   // 비추천 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
   useEffect(() => {
-    if (!isRecommendedCity && activeCityTab === "recommend") {
+    if (!isRecommendedCity && (activeCityTab === "recommend" || activeCityTab === "youtube")) {
       setActiveCityTab("cost");
     }
   }, [isRecommendedCity, activeCityTab, setActiveCityTab]);
@@ -197,6 +198,7 @@ export function CityDetailModal() {
                         isAiLoading={false}
                       />
                     )}
+                    {activeCityTab === "youtube" && <YoutubeTab city={city} />}
                     {activeCityTab === "cost" && <CostCompareTab city={city} />}
                     {activeCityTab === "flight" && <FlightTab city={city} />}
                     {activeCityTab === "spots" && (

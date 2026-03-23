@@ -13,6 +13,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { youtubeApi } from "@/api/youtube.api";
 import { useSearch } from "@tanstack/react-router";
 import PreferencePage from "./PreferencePage";
+import { YoutubeLoadingOverlay, type YoutubeLoadStep } from "@/components/common/YoutubeLoadingOverlay";
 
 // ─── Step 관리 ───────────────────────────────────────────────────────────────
 
@@ -125,19 +126,16 @@ const YOUTUBE_FEATURES = [
 function YoutubeConsentStep({
   onAgree,
   onCancel,
+  loadingStep,
 }: {
   onAgree: () => Promise<void>;
   onCancel: () => void;
+  loadingStep: YoutubeLoadStep;
 }) {
-  const [isLoading, setIsLoading] = useState(false);
+  const isLoading = loadingStep !== "idle";
 
   const handleAgree = async () => {
-    setIsLoading(true);
-    try {
-      await onAgree();
-    } finally {
-      setIsLoading(false);
-    }
+    await onAgree();
   };
 
   return (
@@ -275,11 +273,15 @@ const PreferenceFlowPage = () => {
   const isEditMode = hasCompletedPreference && preview !== "onboarding";
 
   const [step, setStep] = useState<Step>(isEditMode ? "select" : "onboarding");
+  const [loadingStep, setLoadingStep] = useState<YoutubeLoadStep>("idle");
 
   const handleYoutubeAgree = async () => {
     try {
+      setLoadingStep("sync");
       await youtubeApi.sync();
+      setLoadingStep("analyze");
       await youtubeApi.analyze();
+      setLoadingStep("fetch");
       const { tagIds, tagNames } = await youtubeApi.getInterestTags();
       setYoutubeTagIds(tagIds);
       usePreferenceStore.getState().setSelectedTags(tagNames);
@@ -288,6 +290,7 @@ const PreferenceFlowPage = () => {
       // 실패 시에도 select 단계로 진행 (자동 선택 없이)
       setYoutubeAutoSelected(false);
     }
+    setLoadingStep("idle");
     setStep("select");
   };
 
@@ -302,10 +305,14 @@ const PreferenceFlowPage = () => {
 
   if (step === "youtube-consent") {
     return (
-      <YoutubeConsentStep
-        onAgree={handleYoutubeAgree}
-        onCancel={() => setStep("onboarding")}
-      />
+      <>
+        <YoutubeLoadingOverlay step={loadingStep} />
+        <YoutubeConsentStep
+          onAgree={handleYoutubeAgree}
+          onCancel={() => setStep("onboarding")}
+          loadingStep={loadingStep}
+        />
+      </>
     );
   }
 

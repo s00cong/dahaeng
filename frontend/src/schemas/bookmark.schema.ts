@@ -99,6 +99,7 @@ export type BookmarkDetail = z.infer<typeof BookmarkDetailSchema>;
 // 북마크 생성 요청
 export const CreateBookmarkRequestSchema = z.object({
   cityId: z.number(),
+  recommendId: z.string().uuid(),
   json: z.unknown(),
 });
 export type CreateBookmarkRequest = z.infer<typeof CreateBookmarkRequestSchema>;
