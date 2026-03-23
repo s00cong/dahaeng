@@ -14,9 +14,7 @@ import {
   type CostDetail,
   type CostCompare,
 } from '@/schemas/cost.schema';
-import {
-  DUMMY_COST_COMPARE,
-} from '@/data/cost.dummy';
+
 import { z } from 'zod';
 
 export const SEOUL_CITY_ID = 162;
@@ -268,11 +266,9 @@ export const costApi = {
         localCostCompare: data.localCostCompare,
         affordabilityCompare: data.affordabilityCompare,
       });
-    } catch {
-      return {
-        ...DUMMY_COST_COMPARE,
-        target: { ...DUMMY_COST_COMPARE.target, id: targetId },
-      };
+    } catch (e) {
+      console.error('[getCostCompare] failed:', e);
+      throw e;
     }
   },
 };
