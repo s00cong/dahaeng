@@ -486,6 +486,7 @@ export function CostCompareSection() {
     queryFn: () => costApi.getCostCompare('CITY', cityCompareIds!.base, cityCompareIds!.target),
     enabled: cityCompareIds !== null,
     staleTime: 60 * 60 * 1000,
+    retry: false,
   });
 
   // 국가 비교 결과
@@ -494,6 +495,7 @@ export function CostCompareSection() {
     queryFn: () => costApi.getCostCompare('COUNTRY', countryCompareIds!.base, countryCompareIds!.target),
     enabled: countryCompareIds !== null,
     staleTime: 60 * 60 * 1000,
+    retry: false,
   });
 
   const isCity = mode === 'city';
