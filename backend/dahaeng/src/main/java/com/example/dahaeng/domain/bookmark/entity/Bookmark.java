@@ -33,6 +33,8 @@ public class Bookmark extends BaseEntity {
 	@JoinColumn(name = "city_id", nullable = false)
 	private City city;
 
+	private String title;
+
 	@Column(columnDefinition = "TEXT")
 	private String json;
 
