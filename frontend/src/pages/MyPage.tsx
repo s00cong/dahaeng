@@ -9,11 +9,13 @@ import {
   Lock,
   RotateCcw,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { usePreferenceStore } from "@/stores/preferenceStore";
 import { useLogout } from "@/hooks/auth/useLogout";
+import { useWithdraw } from "@/hooks/auth/useWithdraw";
 import { useMemberTags } from "@/hooks/auth/useMemberTags";
 import { useTagList } from "@/hooks/tag/useTagList";
 import { authApi } from "@/api/auth.api";
@@ -250,13 +252,90 @@ function YoutubeModal({
   );
 }
 
+// ─── Withdraw Modal ───────────────────────────────────────────────────────────
+
+function WithdrawModal({
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  onConfirm: () => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.6)" }}
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 flex flex-col items-center gap-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onCancel}
+          className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors"
+          aria-label="닫기"
+        >
+          <X className="size-5" />
+        </button>
+
+        <div className="size-16 rounded-2xl bg-red-50 flex items-center justify-center">
+          <AlertTriangle className="size-8 text-red-500" />
+        </div>
+
+        <div className="text-center flex flex-col gap-2">
+          <h2 className="text-xl font-bold text-slate-800">
+            정말 탈퇴하시겠어요?
+          </h2>
+          <p className="text-sm text-slate-500 leading-relaxed">
+            탈퇴 시 모든 데이터(북마크, 선호도, 연동 정보)가
+            <br />
+            <span className="font-semibold text-red-500">영구적으로 삭제</span>되며 복구할 수 없습니다.
+          </p>
+        </div>
+
+        <div className="w-full flex flex-col gap-2.5">
+          <Button
+            onClick={onConfirm}
+            disabled={isPending}
+            className="w-full h-12 font-semibold text-base rounded-xl bg-red-500 hover:bg-red-600 text-white"
+          >
+            {isPending ? (
+              <Loader2 className="size-4 animate-spin mr-2" />
+            ) : null}
+            {isPending ? "탈퇴 처리 중..." : "회원 탈퇴"}
+          </Button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isPending}
+            className="w-full h-11 bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-sm rounded-xl transition-colors"
+          >
+            취소
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MyPage = () => {
   const { user, hasCompletedPreference } = useAuthStore();
   const { setYoutubeAutoSelected } = usePreferenceStore();
   const { mutate: logout, isPending: isLogoutPending } = useLogout();
+  const { mutate: withdraw, isPending: isWithdrawPending } = useWithdraw();
   const navigate = useNavigate();
+
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
   const { data: memberTags = [] } = useMemberTags();
   const { data: tagList = [] } = useTagList();
@@ -495,6 +574,7 @@ const MyPage = () => {
                 <span className="text-white/20">|</span>
                 <button
                   type="button"
+                  onClick={() => setWithdrawModalOpen(true)}
                   className="text-red-400 hover:text-red-300 transition-colors font-medium"
                 >
                   회원 탈퇴
@@ -512,6 +592,17 @@ const MyPage = () => {
             action={youtubeModalAction}
             onConfirm={handleYoutubeModalConfirm}
             onCancel={() => setYoutubeModalAction(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 회원 탈퇴 확인 모달 */}
+      <AnimatePresence>
+        {withdrawModalOpen && (
+          <WithdrawModal
+            onConfirm={() => withdraw()}
+            onCancel={() => setWithdrawModalOpen(false)}
+            isPending={isWithdrawPending}
           />
         )}
       </AnimatePresence>
