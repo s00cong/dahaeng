@@ -199,6 +199,7 @@ export function RightPanel() {
               ) : city?.tags && city.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {[...city.tags]
+                    .filter((tag) => (tag.tagScore ?? 0) >= 0.6)
                     .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
                     .slice(0, 10)
                     .map((tag) => (

@@ -21,13 +21,14 @@ export const useRecommend = () => {
     },
     onSuccess: (data, variables) => {
       setRecommendResults(data.recommendations);
-      setRecommendRequest({ ...variables, recommendId: data.recommendId });
+      const recommendParams = { ...variables, recommendId: data.recommendId };
+      setRecommendRequest(recommendParams);
 
       // 추천 결과 도시 3개를 바로 prefetch → 클릭 시 즉시 표시
       data.recommendations.forEach(({ cityId }) => {
         queryClient.prefetchQuery({
-          queryKey: [...queryKeys.city.detail(cityId), true, variables],
-          queryFn: () => cityApi.getDetail(cityId, true, variables),
+          queryKey: [...queryKeys.city.detail(cityId), true, recommendParams],
+          queryFn: () => cityApi.getDetail(cityId, true, recommendParams),
           staleTime: 5 * 60 * 1000,
         });
       });
