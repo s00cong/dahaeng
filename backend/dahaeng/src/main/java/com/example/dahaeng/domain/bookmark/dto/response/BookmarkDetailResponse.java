@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 public record BookmarkDetailResponse(
 	Long id,
+	String title,
 	JsonNode json,
 	ExchangeRateResponse currentExchange,
 	LocalDateTime savedAt

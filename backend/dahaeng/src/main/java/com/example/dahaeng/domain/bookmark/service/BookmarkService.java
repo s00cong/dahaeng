@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -61,6 +62,7 @@ public class BookmarkService {
 
 		return new BookmarkDetailResponse(
 			bookmark.getId(),
+			bookmark.getTitle(),
 			mapper.readTree(bookmark.getJson()),
 			ExchangeRateResponse.from(exchange),
 			bookmark.getCreatedAt()
@@ -82,6 +84,7 @@ public class BookmarkService {
 		Bookmark bookmark = Bookmark.builder()
 			.member(member)
 			.city(city)
+			.title(request.title())
 			.recommendId(request.recommendId())
 			.json(mapper.writeValueAsString(request.json()))
 			.build();
@@ -93,7 +96,7 @@ public class BookmarkService {
 	public PageResponse<BookmarkSummaryResponse> summaries(String keyword, Long memberId, Pageable pageable) {
 		Member member = validMember(memberId);
 
-		Page<Bookmark> bookmarks = bookmarkRepository.findAllByKeywordAndMember(keyword, member, pageable);
+		Page<Bookmark> bookmarks = bookmarkRepository.findALlByKeywordAndMember(keyword, member, pageable);
 
 		return PageResponse.from(
 			new PageImpl<>(bookmarks.stream()
