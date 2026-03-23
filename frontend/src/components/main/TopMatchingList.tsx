@@ -26,7 +26,7 @@ export function TopMatchingList() {
               matchingScore: r.totalScore > 0 ? r.totalScore : undefined,
             }
           : {
-              cityId: r.rank,
+              cityId: r.cityId,
               cityName: r.city,
               countryName: r.country,
               imgUrl: "",

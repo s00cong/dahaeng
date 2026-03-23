@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 export type RecommendResultItem = {
   rank: number;
+  cityId: number;
   country: string;
   city: string;
   totalScore: number;
