@@ -53,7 +53,6 @@ public class SecurityConfig {
             "/api/country/**",
             "/api/recommend",
             "/api/city",
-            "/api/city/*",
             "/api/flights/**",
             "/api/cities/**",
             "/api/*/places",
