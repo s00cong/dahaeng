@@ -59,15 +59,30 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/** Haversine 거리(미터) — 두 위경도 좌표 사이의 실제 거리 */
+function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * 100m 이내 중복 제거 (greedy).
+ * 비교 대상은 이미 채택된 항목(result)에만 — 릴레이 연쇄 필터링 방지.
+ * A→B가 80m라 B를 제거해도, C가 B로부터 80m·A로부터 150m라면 C는 유지됨.
+ */
 function preDedup(items: RadiusItem[]): RadiusItem[] {
   const result: RadiusItem[] = [];
   for (const item of items) {
     const norm = normalizeName(item.name);
     const isDup =
       result.some(
-        (s) =>
-          Math.abs(s.point.lat - item.point.lat) < 0.0005 &&
-          Math.abs(s.point.lon - item.point.lon) < 0.0005,
+        (s) => haversineM(s.point.lat, s.point.lon, item.point.lat, item.point.lon) < 100,
       ) ||
       (norm.length > 3 && result.some((s) => normalizeName(s.name) === norm));
     if (!isDup) result.push(item);
