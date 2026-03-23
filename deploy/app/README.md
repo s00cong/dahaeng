@@ -113,13 +113,17 @@ docker network create dahaeng-db-net
 
 ---
 
-## 5. 1차 실행(HTTP 상태 확인)
+## 5. 백엔드 1차 실행(인증서 발급 전 점검)
 
-먼저 앱을 올려 컨테이너가 정상 동작하는지 확인합니다.
+현재 `frontend/nginx.conf`는 시작 시점부터 실인증서 파일
+`/etc/letsencrypt/live/dahaeng.site/fullchain.pem` 을 요구합니다.
+따라서 인증서가 없는 최초 배포에서는 `frontend`를 먼저 올리면 실패할 수 있습니다.
+
+먼저 `backend`만 띄워서 애플리케이션/DB 연결 상태를 확인합니다.
 
 ```bash
 cd /home/ubuntu/S14P21D206
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build backend
 ```
 
 상태 확인:
@@ -127,14 +131,12 @@ docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d
 ```bash
 docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env ps
 docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs backend
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs frontend
 ```
 
 점검 포인트:
 
-- `backend`, `frontend`가 `Up`
-- 브라우저에서 `http://도메인` 접속 가능
-- 프론트에서 `/api` 호출 시 백엔드 응답 확인
+- `backend`가 `Up`
+- `backend` 로그에 DB 연결 오류/환경변수 오류가 없는지 확인
 
 ---
 
@@ -150,20 +152,20 @@ docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env logs 
 ```bash
 cd /home/ubuntu/S14P21D206
 
-# frontend를 먼저 올려서 ACME 경로 응답 가능하게 함
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d frontend
-
-# certbot으로 인증서 발급
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env run --rm certbot certonly \
-  --webroot -w /var/www/certbot \
+# 최초 발급 시에는 frontend가 인증서 없이 뜨지 않을 수 있으므로 standalone 모드 사용
+# (80 포트를 certbot이 임시 점유하므로, 80 포트를 쓰는 다른 프로세스는 잠시 중지)
+docker run --rm -p 80:80 \
+  -v "$(pwd)/deploy/app/certbot/conf:/etc/letsencrypt" \
+  -v "$(pwd)/deploy/app/certbot/www:/var/www/certbot" \
+  certbot/certbot:latest certonly --standalone \
   -d dahaeng.site -d j14d206.p.ssafy.io \
   --email <YOUR_EMAIL> --agree-tos --no-eff-email
 ```
 
-성공 후 nginx 재로딩:
+성공 후 앱 기동:
 
 ```bash
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build frontend
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
 ```
 
 ### 6-2. 인증서 갱신
@@ -225,7 +227,7 @@ docker image prune -f
 
 - 도메인 A 레코드가 EC2 IP를 가리키는지 확인
 - 80 포트가 외부에서 열려 있는지 확인
-- `/.well-known/acme-challenge/*` 경로가 nginx에서 응답 가능한지 확인
+- 발급 시점에 80 포트를 다른 프로세스(nginx/apache/기존 컨테이너)가 점유하지 않는지 확인
 
 ### 9-3. 프론트는 뜨는데 API 실패
 
@@ -260,17 +262,19 @@ vi deploy/app/.env
 # 3) 네트워크 생성 (최초 1회)
 docker network create dahaeng-db-net
 
-# 4) 앱 기동
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
+# 4) backend 1차 점검
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build backend
 
 # 5) 인증서 발급 (최초 1회)
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env run --rm certbot certonly \
-  --webroot -w /var/www/certbot \
+docker run --rm -p 80:80 \
+  -v "$(pwd)/deploy/app/certbot/conf:/etc/letsencrypt" \
+  -v "$(pwd)/deploy/app/certbot/www:/var/www/certbot" \
+  certbot/certbot:latest certonly --standalone \
   -d dahaeng.site -d j14d206.p.ssafy.io \
   --email <YOUR_EMAIL> --agree-tos --no-eff-email
 
-# 6) 프론트 재기동
-docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build frontend
+# 6) 전체 앱 기동
+docker compose -f deploy/app/docker-compose.yml --env-file deploy/app/.env up -d --build
 ```
 
 이 6단계가 완료되면 HTTPS 배포가 동작해야 합니다.
