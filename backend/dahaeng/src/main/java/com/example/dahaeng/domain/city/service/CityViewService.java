@@ -50,7 +50,10 @@ public class CityViewService {
 
 		Map<Long, CityViewHistory> historyMap = history
 			.stream()
-			.collect(Collectors.toMap(CityViewHistory::getId, Function.identity()));
+			.collect(Collectors.toMap(
+			viewHistory -> viewHistory.getCity().getId(),
+			Function.identity()
+		));
 
 		Map<Long, LivingCostOfCity> livingCostByCityId = livingRepository
 			.findAllInCities(cities)
