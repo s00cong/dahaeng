@@ -2,41 +2,42 @@
   application:
     name: dahaeng
 
-  # AI 설정 (OpenAI)
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:8MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:45MB}
+
   ai:
     openai:
+      base-url: ${OPENAI_BASE_URL:https://gms.ssafy.io/gmsapi/api.openai.com}
       api-key: ${OPENAI_API_KEY}
       chat:
         options:
           model: gpt-4o-mini
           temperature: 0.2
 
-  # 데이터베이스 설정
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/dahaeng}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD}
+    password: ${DB_PASSWORD:}
 
-  # JPA / Hibernate 설정
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/dahaeng}
+    redis:
+      host: ${REDIS_URI:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:0}
+
   jpa:
     hibernate:
-      # 로컬 개발 시에는 update가 편리하지만, 운영 단계에서는 none 또는 validate를 권장합니다.
       ddl-auto: ${DDL_AUTO:update}
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     generate-ddl: true
-  # data:
-  #   mongodb:
-  #     uri: ${MONGODB_URI:mongodb://localhost:27017/dahaeng}
 
-  # JWT 보안 설정
-  jwt:
-    secret: ${JWT_SECRET:your-jwt-secret-base64-default-for-local}
-    access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
-    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
-
-  # OAuth2 설정 (Google)
   security:
     oauth2:
       client:
@@ -51,6 +52,36 @@
             authorization-grant-type: authorization_code
             redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/login/oauth2/code/google}
 
-# 앱 커스텀 설정
+  jwt:
+    secret: ${JWT_SECRET}
+    access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+
 app:
-  front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:8080/}
+  front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:3000/}
+  internal-image-upload:
+    enabled: ${INTERNAL_IMAGE_UPLOAD_ENABLED:false}
+    max-files: ${INTERNAL_IMAGE_UPLOAD_MAX_FILES:5}
+
+cloud:
+  aws:
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID}
+      secret-key: ${AWS_SECRET_ACCESS_KEY}
+    s3:
+      bucket: ${AWS_S3_BUCKET:dahaeng}
+      arn: ${AWS_S3_ARN:arn:aws:s3:::dahaeng}
+
+external:
+  newsapi:
+    key: ${NEWS_API_KEY}
+    base-url: ${NEWS_API_BASE_URL:https://newsapi.org}
+  google-places:
+    key: ${GOOGLE_PLACES_API_KEY}
+    base-url: ${GOOGLE_PLACES_BASE_URL:https://places.googleapis.com}
+
+geoapify:
+  category: tourism.sights

@@ -1,12 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { z } from 'zod';
-import BookmarkListPage from '@/pages/BookmarkListPage';
-
-const bookmarksSearchSchema = z.object({
-  keyword: z.string().optional(),
-});
+import { createFileRoute, Outlet } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/_authenticated/bookmarks')({
-  validateSearch: bookmarksSearchSchema,
-  component: BookmarkListPage,
+  component: () => <Outlet />,
 });

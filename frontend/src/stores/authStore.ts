@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { User } from '@/schemas/auth.schema';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { User } from "@/schemas/auth.schema";
 
 interface AuthState {
   accessToken: string | null;
@@ -34,7 +34,7 @@ export const useAuthStore = create<AuthState>()(
         }),
     }),
     {
-      name: 'dahang-auth',
+      name: "dahaeng-auth",
       partialize: (state) => ({
         accessToken: state.accessToken,
         user: state.user,

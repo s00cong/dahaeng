@@ -1,5 +1,7 @@
 package com.example.dahaeng.domain.bookmark.controller;
 
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -19,6 +21,7 @@ import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
 import com.example.dahaeng.domain.bookmark.dto.request.BookMarkCreateRequest;
 import com.example.dahaeng.domain.bookmark.dto.response.BookmarkDetailResponse;
 import com.example.dahaeng.domain.bookmark.dto.response.BookmarkSummaryResponse;
+import com.example.dahaeng.domain.bookmark.dto.response.BookmarkTop5Response;
 import com.example.dahaeng.domain.bookmark.service.BookmarkService;
 import com.example.dahaeng.global.dto.response.NoContentResponse;
 import com.example.dahaeng.global.dto.response.PageResponse;
@@ -38,7 +41,7 @@ public class BookmarkController {
 
 	@GetMapping("/{bookmarkId}")
 	public ResponseEntity<BookmarkDetailResponse> detail(
-		@PathVariable Long bookmarkId,
+		@PathVariable("bookmarkId") Long bookmarkId,
 		@AuthenticationPrincipal CustomOAuth2User user
 	) throws JsonProcessingException {
 		return ResponseEntity.ok(bookmarkService.detail(bookmarkId, user.getId()));
@@ -71,5 +74,12 @@ public class BookmarkController {
 		@AuthenticationPrincipal CustomOAuth2User user
 	) {
 		return ResponseEntity.ok(bookmarkService.delete(id, user.getId()));
+	}
+
+	@GetMapping("/tops")
+	public ResponseEntity<List<BookmarkTop5Response>> top5(
+		@AuthenticationPrincipal CustomOAuth2User user
+	) {
+		return ResponseEntity.ok(bookmarkService.top5(user.getId()));
 	}
 }

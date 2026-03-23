@@ -1,6 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
-import PreferencePage from '@/pages/PreferencePage';
+import { z } from 'zod';
+import PreferenceFlowPage from '@/pages/PreferenceFlowPage';
 
 export const Route = createFileRoute('/preference')({
-  component: PreferencePage,
+  validateSearch: z.object({
+    preview: z.enum(['onboarding']).optional(),
+  }),
+  component: PreferenceFlowPage,
 });

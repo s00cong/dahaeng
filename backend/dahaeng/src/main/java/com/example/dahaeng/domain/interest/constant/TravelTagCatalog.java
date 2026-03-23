@@ -1,8 +1,11 @@
 package com.example.dahaeng.domain.interest.constant;
 
 import com.example.dahaeng.domain.interest.enums.TravelTagCategory;
-import java.util.*;
-import java.util.stream.Collectors;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public final class TravelTagCatalog {
     private TravelTagCatalog() {}
@@ -20,15 +23,48 @@ public final class TravelTagCatalog {
     }
 
     public static boolean isValid(String categoryLabel, String tag) {
-        if (categoryLabel == null || tag == null) return false;
+        if (categoryLabel == null || tag == null) {
+            return false;
+        }
+
         TravelTagCategory category = TravelTagCategory.fromLabel(categoryLabel);
-        if (category == null) return false;
+        if (category == null) {
+            return false;
+        }
+
         return ALLOWED_TAGS.getOrDefault(category, List.of()).contains(tag.trim());
     }
 
     public static String getAllowedTagsPrompt() {
-        return ALLOWED_TAGS.entrySet().stream()
-                .map(e -> "- " + e.getKey().getLabel() + ": " + String.join(", ", e.getValue()))
-                .collect(Collectors.joining("\n"));
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+
+        int categoryIndex = 0;
+        int totalCategories = ALLOWED_TAGS.size();
+
+        for (Map.Entry<TravelTagCategory, List<String>> entry : ALLOWED_TAGS.entrySet()) {
+            sb.append("  \"")
+                    .append(entry.getKey().getLabel())
+                    .append("\": [");
+
+            List<String> tags = entry.getValue();
+            for (int i = 0; i < tags.size(); i++) {
+                sb.append("\"").append(tags.get(i)).append("\"");
+                if (i < tags.size() - 1) {
+                    sb.append(", ");
+                }
+            }
+
+            sb.append("]");
+            if (categoryIndex < totalCategories - 1) {
+                sb.append(",");
+            }
+            sb.append("\n");
+
+            categoryIndex++;
+        }
+
+        sb.append("}");
+        return sb.toString();
     }
 }

@@ -24,4 +24,7 @@ public class MemberTag extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tag_id", nullable = false)
     private Tag tag;
+
+    @Column(name = "is_from_youtube")
+    private boolean isFromYoutube;
 }

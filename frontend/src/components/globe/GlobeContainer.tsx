@@ -12,11 +12,9 @@ interface GlobeContainerProps {
 
 function GlobeFallback() {
   return (
-    <div className="flex items-center justify-center w-full h-full">
-      <Loader2
-        className="size-8 animate-spin text-blue-400"
-        aria-hidden="true"
-      />
+    <div className="flex flex-col items-center justify-center w-full h-full gap-3" style={{ background: "#0d1b2e" }}>
+      <Loader2 className="size-8 animate-spin text-blue-400" aria-hidden="true" />
+      <p className="text-sm text-white/50">지도를 불러오는 중...</p>
     </div>
   );
 }
@@ -44,7 +42,7 @@ const [size, setSize] = useState({ width: 800, height: 500 });
   return (
     <div
       ref={containerRef}
-      className={cn("overflow-hidden flex items-center justify-center", className)}
+      className={cn("flex items-center justify-center", className)}
       aria-label="2D 세계 지도"
     >
       <Suspense fallback={<GlobeFallback />}>

@@ -27,6 +27,5 @@ public class CalendarResponseDto {
     public static class PriceHistoryDto {
         private String collectedDate;
         private Integer price;
-        private String label;
     }
 }

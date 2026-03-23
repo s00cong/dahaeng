@@ -1,34 +1,38 @@
-import { Sparkles, TrendingUp, Plane, Newspaper, type LucideIcon } from 'lucide-react';
+import { Sparkles, Youtube, TrendingUp, Plane, MapPin, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type CityDetailTab = 'recommend' | 'cost' | 'flight' | 'news';
+type CityDetailTab = 'recommend' | 'youtube' | 'cost' | 'flight' | 'spots';
 
 interface TabConfig {
   id: CityDetailTab;
   label: string;
   icon: LucideIcon;
+  recommendOnly?: boolean;
 }
 
 const TABS: TabConfig[] = [
-  { id: 'recommend', label: '추천 이유', icon: Sparkles },
-  { id: 'cost', label: '생활물가 비교', icon: TrendingUp },
-  { id: 'flight', label: '항공권 탐색', icon: Plane },
-  { id: 'news', label: '현지 뉴스', icon: Newspaper },
+  { id: 'recommend', label: '추천 이유',    icon: Sparkles, recommendOnly: true },
+  { id: 'youtube',   label: '유튜브 취향',  icon: Youtube,  recommendOnly: true },
+  { id: 'cost',      label: '생활물가 비교', icon: TrendingUp },
+  { id: 'flight',    label: '항공권 탐색',  icon: Plane },
+  { id: 'spots',     label: '관광지',       icon: MapPin },
 ];
 
 interface CityDetailTabNavProps {
   activeTab: CityDetailTab;
   onTabChange: (tab: CityDetailTab) => void;
+  showRecommendTab?: boolean;
 }
 
-export function CityDetailTabNav({ activeTab, onTabChange }: CityDetailTabNavProps) {
+export function CityDetailTabNav({ activeTab, onTabChange, showRecommendTab = true }: CityDetailTabNavProps) {
+  const visibleTabs = showRecommendTab ? TABS : TABS.filter((t) => !t.recommendOnly);
   return (
     <nav
       role="tablist"
       aria-label="도시 상세 탭"
       className="flex gap-2 px-5 py-3 shrink-0 overflow-x-auto"
     >
-      {TABS.map((tab) => {
+      {visibleTabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
 

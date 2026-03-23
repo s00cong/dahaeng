@@ -1,0 +1,112 @@
+services:
+  flight-data-worker:
+    build:
+      context: ../..
+      dockerfile: deploy/data/Dockerfile
+    env_file:
+      - ${WORKER_ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      DB_URL: ${DB_URL:-jdbc:mysql://mysql:3306/dahaeng}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/dahaeng}
+      HDFS_NAMENODE_URI: ${HDFS_NAMENODE_URI:-hdfs://namenode:9000}
+      HDFS_TRIP_BRONZE_ROOT: ${HDFS_TRIP_BRONZE_ROOT:-/data/bronze/flight/trip_com}
+      HDFS_TRIP_SILVER_ROOT: ${HDFS_TRIP_SILVER_ROOT:-/data/silver/flight/trip_com_daily_prices}
+      HDFS_FLIGHT_SUMMARY_SILVER_ROOT: ${HDFS_FLIGHT_SUMMARY_SILVER_ROOT:-/data/silver/flight/flight_summary}
+      TRIP_HEADLESS: ${TRIP_HEADLESS:-1}
+      HEADLESS: ${HEADLESS:-1}
+    restart: "no"
+    working_dir: /workspace
+    volumes:
+      - ../..:/workspace
+    networks:
+      - db-external
+
+  danger-worker:
+    build:
+      context: ../../data/danger
+      dockerfile: Dockerfile
+    env_file:
+      - ${WORKER_ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      APP_RUNTIME: docker
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-dahaeng}
+    restart: "no"
+    networks:
+      - db-external
+
+  exchange-worker:
+    build:
+      context: ../../data/exchange
+      dockerfile: Dockerfile
+    env_file:
+      - ${WORKER_ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      APP_RUNTIME: docker
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-dahaeng}
+    restart: "no"
+    networks:
+      - db-external
+
+  livingcost-worker:
+    build:
+      context: ../../data/livingcost
+      dockerfile: Dockerfile
+    env_file:
+      - ${WORKER_ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      APP_RUNTIME: docker
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-dahaeng}
+    restart: "no"
+    networks:
+      - db-external
+  
+  geoapify-worker:
+    build:
+      context: ../../data/geoapify
+      dockerfile: Dockerfile
+    env_file:
+      - ${WORKER_ENV_FILE:-.env}
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      APP_RUNTIME: docker
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE:-dahaeng}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY}
+      GEOAPIFY_BASE_URL: ${GEOAPIFY_BASE_URL:-https://api.geoapify.com}
+      GEOAPIFY_CATEGORY: ${GEOAPIFY_CATEGORY:-tourism.sights}
+      GEOAPIFY_RADIUS_METERS: ${GEOAPIFY_RADIUS_METERS:-10000}
+      GEOAPIFY_LIMIT: ${GEOAPIFY_LIMIT:-100}
+
+    restart: "no"
+    networks:
+      - db-external
+
+networks:
+  db-external:
+    external: true
+    name: ${DB_EXTERNAL_NETWORK:-dahaeng-db-net}

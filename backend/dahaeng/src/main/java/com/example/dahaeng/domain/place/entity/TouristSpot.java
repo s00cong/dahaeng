@@ -26,4 +26,20 @@ public class TouristSpot extends BaseEntity {
 
     private Double lat;
     private Double lon;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "website", columnDefinition = "TEXT")
+    private String website;
+
+    @Column(name = "address", columnDefinition = "TEXT")
+    private String address;
+
+    @Column(name = "sns", columnDefinition = "TEXT")
+    private String sns;
+
+    @Column(name = "imageUrl", columnDefinition = "TEXT")
+    private String imageUrl;
+
 }

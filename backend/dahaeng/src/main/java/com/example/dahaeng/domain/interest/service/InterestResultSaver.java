@@ -1,58 +1,67 @@
 package com.example.dahaeng.domain.interest.service;
 
-import com.example.dahaeng.global.exception.CustomException;
-import com.example.dahaeng.global.exception.ErrorCode;
 import com.example.dahaeng.domain.interest.dto.InterestKeywordCandidate;
-import com.example.dahaeng.domain.interest.enums.InterestCategory;
-import com.example.dahaeng.domain.interest.enums.InterestSourceType;
-import com.example.dahaeng.domain.interest.repository.YoutubeInterestKeywordRepository;
-import com.example.dahaeng.domain.interest.repository.YoutubeInterestRepository;
-import com.example.dahaeng.domain.youtube.entity.YouTubeAccount;
-import com.example.dahaeng.domain.youtube.entity.YouTubeInterest;
-import com.example.dahaeng.domain.youtube.entity.YouTubeInterestKeyword;
-import com.example.dahaeng.domain.youtube.enums.SourceType;
+import com.example.dahaeng.domain.interest.dto.EvidenceKeywordResponse;
+import com.example.dahaeng.domain.interest.dto.SourceBadgeResponse;
 import com.example.dahaeng.domain.interest.dto.TravelTagScore;
+import com.example.dahaeng.domain.interest.enums.InterestSourceType;
+import com.example.dahaeng.domain.member.entity.Member;
+import com.example.dahaeng.domain.member.entity.MemberTag;
+import com.example.dahaeng.domain.member.repository.MemberTagRepository;
+import com.example.dahaeng.domain.tag.entity.Tag;
+import com.example.dahaeng.domain.tag.repository.TagRepository;
+import com.example.dahaeng.domain.interest.repository.YoutubeInterestKeywordRepository;
+import com.example.dahaeng.domain.youtube.entity.YouTubeAccount;
+import com.example.dahaeng.domain.youtube.entity.YouTubeInterestKeyword;
 import com.example.dahaeng.domain.youtube.entity.YouTubeTravelTag;
+import com.example.dahaeng.domain.youtube.enums.SourceType;
 import com.example.dahaeng.domain.youtube.repository.YouTubeAccountRepository;
 import com.example.dahaeng.domain.youtube.repository.YouTubeTravelTagRepository;
+import com.example.dahaeng.global.exception.CustomException;
+import com.example.dahaeng.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InterestResultSaver {
 
+    private static final int MAX_KEYWORDS_TO_SAVE = 200;
+
     private final YouTubeAccountRepository accountRepository;
-    private final YoutubeInterestRepository interestRepository;
     private final YoutubeInterestKeywordRepository keywordRepository;
     private final YouTubeTravelTagRepository travelTagRepository;
+    private final TagRepository tagRepository;
+    private final MemberTagRepository memberTagRepository;
+    private final TravelTagEvidenceService travelTagEvidenceService;
 
     @Transactional
     public void save(Long accountId,
                      List<InterestKeywordCandidate> keywords,
-                     Map<InterestCategory, Double> categories,
+                     List<InterestKeywordCandidate> aiKeywords,
                      List<TravelTagScore> travelTags) {
+        saveKeywords(accountId, keywords);
+        saveTravelTags(accountId, travelTags, aiKeywords);
+    }
 
-        // 1. 연동 계정 조회
-        YouTubeAccount account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "연동 계정을 찾을 수 없습니다."));
-
-        // 2. 기존 분석 결과 초기화 (삭제 후 재삽입)
+    @Transactional
+    public void saveKeywords(Long accountId, List<InterestKeywordCandidate> keywords) {
+        YouTubeAccount account = getAccount(accountId);
         keywordRepository.deleteByAccount_Id(accountId);
-        interestRepository.deleteByAccount_Id(accountId);
-        travelTagRepository.deleteByAccount_Id(accountId);
 
         LocalDateTime now = LocalDateTime.now();
 
-        // 3. 관심 키워드(Keyword) 저장
         if (keywords != null) {
             List<YouTubeInterestKeyword> keywordEntities = keywords.stream()
+                    .limit(MAX_KEYWORDS_TO_SAVE)
                     .map(k -> YouTubeInterestKeyword.builder()
                             .account(account)
                             .keyword(k.getRawKeyword())
@@ -64,50 +73,120 @@ public class InterestResultSaver {
                     .toList();
             keywordRepository.saveAll(keywordEntities);
         }
+    }
 
-        // 4. 관심 카테고리(Category) 점수 기반 정렬 및 저장
-        if (categories != null) {
-            List<Map.Entry<InterestCategory, Double>> sorted = categories.entrySet().stream()
-                    .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                    .toList();
+    @Transactional
+    public void saveTravelTags(Long accountId, List<TravelTagScore> travelTags, List<InterestKeywordCandidate> aiKeywords) {
+        YouTubeAccount account = getAccount(accountId);
+        travelTagRepository.deleteByAccount_Id(accountId);
 
-            int rank = 1;
-            for (Map.Entry<InterestCategory, Double> e : sorted) {
-                YouTubeInterest interest = YouTubeInterest.builder()
-                        .account(account)
-                        .categoryName(e.getKey().name())
-                        .score(e.getValue())
-                        .rankNo(rank++)
-                        .analysisVersion("rule-v1")
-                        .analyzedAt(now)
-                        .build();
-                interestRepository.save(interest);
-            }
-        }
+        LocalDateTime now = LocalDateTime.now();
 
-        // 5. [신규] 여행 취향 태그(Travel Tags) 저장
         if (travelTags != null && !travelTags.isEmpty()) {
             List<YouTubeTravelTag> tagEntities = travelTags.stream()
-                    .map(t -> YouTubeTravelTag.builder()
-                            .account(account)
-                            .tagName(t.getTag())
-                            .categoryName(t.getCategory())
-                            .score(t.getScore())
-                            .confidence(t.getConfidence())
-                            .reason(t.getReason())
-                            .analyzedAt(now)
-                            .build())
+                    .map(t -> toYouTubeTravelTag(account, t, aiKeywords, now))
+                    .filter(java.util.Objects::nonNull)
                     .toList();
             travelTagRepository.saveAllAndFlush(tagEntities);
+            syncMemberTagsFromYoutube(account.getMember(), tagEntities);
             System.out.println(">>> [DB SAVE SUCCESS] Saved " + tagEntities.size() + " travel tags for account " + accountId);
         } else {
+            syncMemberTagsFromYoutube(account.getMember(), List.of());
             System.out.println(">>> [DB SAVE SKIP] No travel tags to save for account " + accountId);
         }
     }
 
-    /**
-     * 관심분야 모듈의 SourceType을 유튜브 모듈의 SourceType으로 매핑
-     */
+    @Transactional
+    public void saveTravelTags(Long accountId, List<TravelTagScore> travelTags) {
+        saveTravelTags(accountId, travelTags, List.of());
+    }
+
+    private YouTubeAccount getAccount(Long accountId) {
+        return accountRepository.findById(accountId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "Linked account not found."));
+    }
+
+    private YouTubeTravelTag toYouTubeTravelTag(YouTubeAccount account,
+                                                TravelTagScore tagScore,
+                                                List<InterestKeywordCandidate> aiKeywords,
+                                                LocalDateTime now) {
+        Tag tag = findTag(tagScore);
+        List<EvidenceKeywordResponse> evidenceKeywords = travelTagEvidenceService.buildEvidenceKeywords(tagScore, aiKeywords);
+        List<SourceBadgeResponse> sourceBadges = travelTagEvidenceService.buildSourceBadges(evidenceKeywords);
+        return YouTubeTravelTag.builder()
+                .account(account)
+                .tag(tag)
+                .tagName(resolveTagName(tagScore, tag))
+                .categoryName(resolveCategoryName(tagScore, tag))
+                .score(tagScore.getScore())
+                .confidence(tagScore.getConfidence())
+                .reason(tagScore.getReason())
+                .evidenceKeywordsJson(travelTagEvidenceService.writeEvidenceKeywordsJson(evidenceKeywords))
+                .sourceBadgesJson(travelTagEvidenceService.writeSourceBadgesJson(sourceBadges))
+                .analyzedAt(now)
+                .build();
+    }
+
+    private Tag findTag(TravelTagScore tagScore) {
+        if (tagScore.getCategory() == null || tagScore.getTag() == null) {
+            log.warn(">>> [TAG MAP SKIP] Missing category/tag in AI result: {}", tagScore);
+            return null;
+        }
+
+        return tagRepository.findByCategoryNameAndTagName(tagScore.getCategory().trim(), tagScore.getTag().trim())
+                .orElseGet(() -> {
+                    log.warn(">>> [TAG MAP MISS] No tag entity found for category='{}', tag='{}'.",
+                            tagScore.getCategory(), tagScore.getTag());
+                    return null;
+                });
+    }
+
+    private String resolveCategoryName(TravelTagScore tagScore, Tag tag) {
+        if (tag != null && tag.getCategory() != null) {
+            return tag.getCategory().getName();
+        }
+        return tagScore.getCategory();
+    }
+
+    private String resolveTagName(TravelTagScore tagScore, Tag tag) {
+        if (tag != null) {
+            return tag.getName();
+        }
+        return tagScore.getTag();
+    }
+
+    private void syncMemberTagsFromYoutube(Member member, List<YouTubeTravelTag> youtubeTravelTags) {
+        memberTagRepository.deleteByMemberAndIsFromYoutubeTrue(member);
+
+        Set<Long> desiredTagIds = youtubeTravelTags.stream()
+                .map(YouTubeTravelTag::getTag)
+                .filter(java.util.Objects::nonNull)
+                .map(Tag::getId)
+                .collect(Collectors.toSet());
+
+        if (desiredTagIds.isEmpty()) {
+            return;
+        }
+
+        List<Long> manualTagIds = memberTagRepository.findManualTagIdsByMemberAndTagIds(member, desiredTagIds);
+        desiredTagIds.removeAll(manualTagIds);
+
+        if (desiredTagIds.isEmpty()) {
+            return;
+        }
+
+        List<Tag> desiredTags = tagRepository.findAllByTagIds(desiredTagIds);
+        List<MemberTag> memberTags = desiredTags.stream()
+                .map(tag -> MemberTag.builder()
+                        .member(member)
+                        .tag(tag)
+                        .isFromYoutube(true)
+                        .build())
+                .toList();
+
+        memberTagRepository.saveAll(memberTags);
+    }
+
     private SourceType mapSourceType(InterestSourceType type) {
         if (type == null) {
             return SourceType.PLAYLIST_TITLE;

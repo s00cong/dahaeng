@@ -1,7 +1,7 @@
 package com.example.dahaeng.domain.interest.service;
 
-import com.example.dahaeng.domain.interest.constant.TravelTagCatalog;
 import com.example.dahaeng.domain.interest.dto.TravelTagScore;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -10,12 +10,16 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class TravelTagPostProcessor {
 
+    private final TravelTagProvider tagProvider;
+    
     // 임계값을 낮추어 더 많은 추론 결과를 수용합니다.
     private static final double MIN_CONFIDENCE_THRESHOLD = 0.3; 
     private static final double MIN_SCORE_THRESHOLD = 0.3;      
     private static final int MAX_REASON_LENGTH = 150;
+    private static final int MAX_EVIDENCE_KEYWORDS = 5;
 
     public List<TravelTagScore> process(List<TravelTagScore> tags) {
         if (tags == null) return Collections.emptyList();
@@ -32,7 +36,7 @@ public class TravelTagPostProcessor {
             String category = t.getCategory().trim();
             String tag = t.getTag().trim();
             
-            if (!TravelTagCatalog.isValid(category, tag)) {
+            if (!tagProvider.isValid(category, tag)) {
                 log.info(">>> [REJECT] Tag '{}' in category '{}' is not in our allowed catalog.", tag, category);
                 continue;
             }
@@ -55,6 +59,7 @@ public class TravelTagPostProcessor {
             if (t.getReason() != null && t.getReason().length() > MAX_REASON_LENGTH) {
                 t.setReason(t.getReason().substring(0, MAX_REASON_LENGTH));
             }
+            t.setEvidenceKeywordIds(normalizeEvidenceKeywordIds(t.getEvidenceKeywordIds()));
             processed.add(t);
         }
 
@@ -73,5 +78,17 @@ public class TravelTagPostProcessor {
 
     private boolean isValidRange(Double v) {
         return v != null && v >= 0.0 && v <= 1.0;
+    }
+
+    private List<Integer> normalizeEvidenceKeywordIds(List<Integer> evidenceKeywordIds) {
+        if (evidenceKeywordIds == null || evidenceKeywordIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return evidenceKeywordIds.stream()
+                .filter(Objects::nonNull)
+                .distinct()
+                .limit(MAX_EVIDENCE_KEYWORDS)
+                .collect(Collectors.toList());
     }
 }

@@ -1,9 +1,59 @@
-import { useState, useCallback, type KeyboardEvent } from 'react';
-import { Landmark } from 'lucide-react';
+import { useState, useCallback, useEffect, useRef, type KeyboardEvent } from 'react';
+import { motion } from 'framer-motion';
+import defaultCityImg from '@/assets/no-picture.png';
 import { Badge } from '@/components/ui/badge';
 import { useUiStore } from '@/stores/uiStore';
+import { useCountryFlagMap } from '@/hooks/country/useCountryFlagMap';
 import { cn } from '@/lib/utils';
+import { CITY_NAME_KO } from '@/data/cityNameKo';
+import { COUNTRY_NAME_KO } from '@/data/countryNameKo';
 import type { CityListItem } from '@/schemas/city.schema';
+
+function MarqueeText({ text, className }: { text: string; className?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [distance, setDistance] = useState(0);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const textEl = textRef.current;
+    if (!container || !textEl) return;
+
+    const measure = () => {
+      const diff = textEl.scrollWidth - container.clientWidth;
+      setDistance(diff > 0 ? diff : 0);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [text]);
+
+  const duration = 2 + distance / 35;
+
+  return (
+    <div ref={containerRef} className={cn('overflow-hidden whitespace-nowrap', className)}>
+      <motion.span
+        ref={textRef}
+        style={{ display: 'inline-block' }}
+        animate={distance > 0 ? { x: [0, 0, -(distance + 4), -(distance + 4), 0] } : { x: 0 }}
+        transition={
+          distance > 0
+            ? {
+                duration,
+                times: [0, 0.15, 0.7, 0.85, 1],
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }
+            : undefined
+        }
+      >
+        {text}
+      </motion.span>
+    </div>
+  );
+}
 
 interface TopMatchingCardProps {
   city: CityListItem;
@@ -19,6 +69,8 @@ function getMatchColor(score: number | undefined): string {
 
 export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
   const { openRightPanel } = useUiStore();
+  const { data: flagMap } = useCountryFlagMap();
+  const flagUrl = flagMap?.get(city.countryName);
   const [imgError, setImgError] = useState(false);
 
   const handleClick = useCallback(() => {
@@ -54,25 +106,24 @@ export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
       </span>
 
       {/* 이미지 아바타 */}
-      <div className="size-10 rounded-xl overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
-        {imgError ? (
-          <Landmark className="size-5 text-slate-400" aria-hidden="true" />
-        ) : (
-          <img
-            src={city.imgUrl}
-            alt={city.cityName}
-            className="size-full object-cover"
-            onError={() => setImgError(true)}
-          />
-        )}
+      <div className="size-10 rounded-xl overflow-hidden bg-slate-200 shrink-0">
+        <img
+          src={imgError || !city.imgUrl ? defaultCityImg : city.imgUrl}
+          alt={city.cityName}
+          className="size-full object-cover"
+          onError={() => setImgError(true)}
+        />
       </div>
 
       {/* 텍스트 */}
       <div className="flex flex-col flex-1 min-w-0">
-        <span className="text-sm font-semibold text-slate-800 truncate">
-          {city.cityName}
-        </span>
-        <span className="text-xs text-slate-500 truncate">{city.countryName}</span>
+        <MarqueeText text={CITY_NAME_KO[city.cityName] ?? city.cityName} className="text-sm font-semibold text-slate-800" />
+        <div className="flex items-center gap-1 min-w-0">
+          {flagUrl && (
+            <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] shrink-0 object-cover" aria-hidden="true" />
+          )}
+          <MarqueeText text={COUNTRY_NAME_KO[city.countryName] ?? city.countryName} className="text-xs text-slate-500" />
+        </div>
       </div>
 
       {/* 매칭 배지 */}

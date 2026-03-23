@@ -1,16 +1,17 @@
+import { useEffect } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { Loader2, AlertCircle, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
+import { useCityList } from "@/hooks/city/useCityList";
 import { DestinationHeroCard } from "@/components/city/DestinationHeroCard";
 import { CityDetailTabNav } from "@/components/city/CityDetailTabNav";
 import { RecommendTab } from "@/components/city/tabs/RecommendTab";
+import { YoutubeTab } from "@/components/city/tabs/YoutubeTab";
 import { CostCompareTab } from "@/components/city/tabs/CostCompareTab";
 import { FlightTab } from "@/components/city/tabs/FlightTab";
-import { NewsTab } from "@/components/city/tabs/NewsTab";
-import { DUMMY_CITY_DETAILS } from "@/data/dummyCityData";
-
+import { SpotTab } from "@/components/city/tabs/SpotTab";
 // 배경 오버레이 페이드 인/아웃 애니메이션 정의
 const backdropVariants: Variants = {
   hidden: { opacity: 0 },
@@ -64,25 +65,40 @@ export function CityDetailModal() {
     selectedCityId,
     isCityModalOpen,
     activeCityTab,
+    isRecommendActive,
+    recommendResults,
+    recommendRequest,
     closeCityModal,
     setActiveCityTab,
   } = useUiStore();
 
-  // 선택된 도시 ID로 API에서 도시 상세 정보를 가져옴
+  const { data: cities } = useCityList();
+  const selectedCityName = cities?.find(
+    (c) => c.cityId === selectedCityId,
+  )?.cityName;
+  const isRecommendedCity =
+    isRecommendActive &&
+    recommendResults.some((r) => r.city === selectedCityName);
+
   const {
-    data: cityFromApi,
+    data: basicCity,
     isLoading,
     isError,
-  } = useCityDetail(selectedCityId);
+  } = useCityDetail(selectedCityId, isRecommendedCity, {
+    enabled: isCityModalOpen,
+    recommendParams:
+      isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+  });
 
-  // API 실패 시 더미 데이터로 대체하고, 더미도 없으면 null
-  const city =
-    cityFromApi ??
-    (isError && selectedCityId
-      ? (DUMMY_CITY_DETAILS[selectedCityId] ?? null)
-      : null);
-  // 더미 데이터로도 복구 불가한 경우에만 에러 UI 표시
+  const city = basicCity ?? null;
   const showError = isError && !city;
+
+  // 비추천 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
+  useEffect(() => {
+    if (!isRecommendedCity && (activeCityTab === "recommend" || activeCityTab === "youtube")) {
+      setActiveCityTab("cost");
+    }
+  }, [isRecommendedCity, activeCityTab, setActiveCityTab]);
 
   return (
     // 모달 열림/닫힘 시 AnimatePresence가 exit 애니메이션을 실행한 후 DOM에서 제거
@@ -138,6 +154,7 @@ export function CityDetailModal() {
               <CityDetailTabNav
                 activeTab={activeCityTab}
                 onTabChange={setActiveCityTab}
+                showRecommendTab={isRecommendedCity}
               />
 
               {/* 스크롤 가능한 탭 콘텐츠 패널 */}
@@ -178,11 +195,15 @@ export function CityDetailModal() {
                       <RecommendTab
                         city={city}
                         onTabChange={setActiveCityTab}
+                        isAiLoading={false}
                       />
                     )}
+                    {activeCityTab === "youtube" && <YoutubeTab city={city} />}
                     {activeCityTab === "cost" && <CostCompareTab city={city} />}
                     {activeCityTab === "flight" && <FlightTab city={city} />}
-                    {activeCityTab === "news" && <NewsTab city={city} />}
+                    {activeCityTab === "spots" && (
+                      <SpotTab city={city} isRecommended={isRecommendedCity} />
+                    )}
                   </motion.div>
                 )}
               </div>

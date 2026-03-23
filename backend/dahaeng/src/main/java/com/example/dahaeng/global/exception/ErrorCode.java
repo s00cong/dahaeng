@@ -33,6 +33,7 @@ public enum ErrorCode {
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "아이디 또는 비밀번호가 올바르지 않습니다."),
     OAUTH_CODE_INVALID(HttpStatus.UNAUTHORIZED, "유효하지 않거나 만료된 인증 코드입니다."),
     LOGIN_REQUIRED(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다."),
+    UN_EXPECTED_TOKEN_VALIDATION(HttpStatus.UNAUTHORIZED, "확인되지 않은 토큰 오류입니다."),
 
     /* =========================
      *  Authorization

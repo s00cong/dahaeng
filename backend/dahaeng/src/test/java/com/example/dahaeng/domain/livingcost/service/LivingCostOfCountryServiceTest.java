@@ -63,7 +63,7 @@ class LivingCostOfCountryServiceTest {
 		when(countryRepository.findOneByCountryId(2L)).thenReturn(Optional.of(livingCost));
 		when(exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(Currency.USD)).thenReturn(Optional.of(usd));
 
-		LivingCostDetailResponse result = service.getLivingCost(new LivingCostDetailRequest(TargetType.COUNTRY, 2L));
+		LivingCostDetailResponse result = service.detail(new LivingCostDetailRequest(TargetType.COUNTRY, 2L));
 
 		assertThat(result.targetType()).isEqualTo("country");
 		assertThat(result.target().name()).isEqualTo("United States");

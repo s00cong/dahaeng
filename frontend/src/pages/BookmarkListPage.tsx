@@ -170,33 +170,27 @@ const containerVariants: Variants = {
   visible: { transition: { staggerChildren: 0.05, delayChildren: 0.1 } },
 };
 
-const cardVariants: Variants = {
-  hidden: { opacity: 0, y: 16 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
-};
-
 // ─── BookmarkListPage ─────────────────────────────────────────────────────────
 const BookmarkListPage = () => {
-  const { keyword } = useSearch({ from: "/_authenticated/bookmarks" });
-  const { data, isLoading, isError, error, refetch } = useBookmarkList(keyword);
-  const { mutate: deleteBookmark } = useDeleteBookmark();
-
+  const { keyword } = useSearch({ from: "/_authenticated/bookmarks/" });
   const [continentFilter, setContinentFilter] =
     useState<ContinentFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Client-side continent filtering
-  const filteredData = useMemo(() => {
+  const { data, isLoading, isError, error, refetch } = useBookmarkList({
+    keyword,
+    page: currentPage - 1,
+    size: ITEMS_PER_PAGE,
+  });
+  const { mutate: deleteBookmark } = useDeleteBookmark();
+
+  // Client-side continent filtering (현재 페이지 내에서만)
+  const pagedData = useMemo(() => {
     if (!data) return [];
-    return data.filter((item) => matchesContinent(item, continentFilter));
+    return data.content.filter((item) => matchesContinent(item, continentFilter));
   }, [data, continentFilter]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-  const pagedData = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredData.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredData, currentPage]);
+  const totalPages = data?.totalPages ?? 1;
 
   const handleFilterChange = (value: string) => {
     setContinentFilter(value as ContinentFilter);
@@ -212,9 +206,12 @@ const BookmarkListPage = () => {
       className="min-h-screen bg-slate-50"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
+      style={{
+        background: "linear-gradient(135deg, #93C5FD 0%, #93C5FD 100%)",
+      }}
       transition={{ duration: 0.35, ease: "easeOut" }}
     >
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-3 pt-24 pb-6">
         {/* 브레드크럼 */}
         <nav
           className="mb-6 flex items-center gap-1.5 text-sm text-slate-400"
@@ -236,7 +233,7 @@ const BookmarkListPage = () => {
           <h1 className="text-2xl font-bold text-slate-900">
             총 저장한 도시 :{" "}
             <span className="text-blue-600">
-              {data ? filteredData.length : 0}개
+              {data ? data.totalElements : 0}개
             </span>
           </h1>
 
@@ -278,7 +275,7 @@ const BookmarkListPage = () => {
         {data && (
           <>
             {/* 빈 상태 */}
-            {filteredData.length === 0 ? (
+            {pagedData.length === 0 ? (
               <motion.div
                 className="flex min-h-64 flex-col items-center justify-center gap-4 text-slate-400"
                 initial={{ opacity: 0 }}
@@ -293,15 +290,18 @@ const BookmarkListPage = () => {
               <>
                 {/* 카드 그리드 */}
                 <motion.div
+                  key={`${continentFilter}-${currentPage}`}
                   className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                   variants={containerVariants}
                   initial="hidden"
                   animate="visible"
                 >
-                  {pagedData.map((item) => (
+                  {pagedData.map((item, index) => (
                     <motion.div
-                      key={item.bookmarkId ?? item.cityId}
-                      variants={cardVariants}
+                      key={item.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, ease: "easeOut", delay: index * 0.05 }}
                     >
                       <BookmarkCard item={item} onDelete={handleDelete} />
                     </motion.div>
@@ -309,7 +309,11 @@ const BookmarkListPage = () => {
 
                   {/* AddCityCard는 마지막에 */}
                   {currentPage === totalPages && (
-                    <motion.div variants={cardVariants}>
+                    <motion.div
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, ease: "easeOut", delay: pagedData.length * 0.05 }}
+                    >
                       <AddCityCard />
                     </motion.div>
                   )}

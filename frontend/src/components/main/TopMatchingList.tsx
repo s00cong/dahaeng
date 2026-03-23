@@ -1,40 +1,51 @@
-import { useMemo } from 'react';
-import { MapPin } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useCityList } from '@/hooks/city/useCityList';
-import { useUiStore } from '@/stores/uiStore';
-import { TopMatchingCard } from './TopMatchingCard';
-import { cn } from '@/lib/utils';
-import { DUMMY_CITIES } from '@/data/dummyCityData';
+import { useMemo } from "react";
+import { MapPin, Loader2, RefreshCw, SearchX } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCityList } from "@/hooks/city/useCityList";
+import { useUiStore } from "@/stores/uiStore";
+import { TopMatchingCard } from "./TopMatchingCard";
+import { cn } from "@/lib/utils";
+import type { CityListItem } from "@/schemas/city.schema";
 
-const TOP_N = 5;
+const TOP_N = 3;
 
 export function TopMatchingList() {
   const { data: citiesFromApi, isLoading } = useCityList();
-  const { globeBudgetFilter, globeDuration, isRecommendActive } = useUiStore();
+  const { isRecommendActive, isRecommendLoading, recommendResults } =
+    useUiStore();
 
-  const cities = citiesFromApi?.length ? citiesFromApi : DUMMY_CITIES;
+  const cities = citiesFromApi ?? [];
 
-  const topCities = useMemo(() => {
-    const base = isRecommendActive
-      ? cities.filter((city) => {
-          const adjustedBudget = (city.estimatedBudget / 7) * globeDuration;
-          const withinBudget =
-            adjustedBudget >= globeBudgetFilter[0] &&
-            adjustedBudget <= globeBudgetFilter[1];
-          return withinBudget;
-        })
-      : cities;
-    return [...base]
-      .sort((a, b) => (b.matchingScore ?? 0) - (a.matchingScore ?? 0))
-      .slice(0, TOP_N);
-  }, [cities, globeBudgetFilter, globeDuration, isRecommendActive]);
+  const topCities = useMemo((): CityListItem[] => {
+    if (isRecommendActive && recommendResults.length > 0) {
+      return recommendResults.slice(0, TOP_N).map((r) => {
+        const matched = cities.find((c) => c.cityName === r.city);
+        return matched
+          ? {
+              ...matched,
+              matchingScore: r.totalScore > 0 ? r.totalScore : undefined,
+            }
+          : {
+              cityId: r.cityId,
+              cityName: r.city,
+              countryName: r.country,
+              imgUrl: "",
+              estimatedBudget: 0,
+              riskLevel: 1,
+              latitude: 0,
+              longitude: 0,
+              matchingScore: r.totalScore > 0 ? r.totalScore : undefined,
+            };
+      });
+    }
+    return [];
+  }, [cities, recommendResults, isRecommendActive]);
 
   return (
     <section
       className={cn(
-        'bg-white/85 backdrop-blur-md rounded-2xl shadow-lg p-4',
-        'flex flex-col gap-2 flex-1 min-h-0',
+        "bg-white/85 backdrop-blur-md rounded-2xl shadow-lg p-4",
+        "flex flex-col gap-2 flex-1 min-h-0",
       )}
       aria-label="최고의 매칭 여행지"
     >
@@ -46,12 +57,16 @@ export function TopMatchingList() {
             최고의 매칭 여행지
           </h2>
         </div>
-        <span className="text-[10px] text-slate-400 font-medium">TOP {TOP_N}</span>
+        <span className="text-[12px] text-slate-400 font-medium">Top 3</span>
       </div>
 
-      {/* 로딩 스켈레톤 */}
+      {/* 도시 목록 로딩 스켈레톤 */}
       {isLoading && (
-        <div className="flex flex-col gap-2" role="status" aria-label="목록 불러오는 중">
+        <div
+          className="flex flex-col gap-2"
+          role="status"
+          aria-label="목록 불러오는 중"
+        >
           {Array.from({ length: TOP_N }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 p-2.5">
               <Skeleton className="size-4 rounded" />
@@ -66,27 +81,67 @@ export function TopMatchingList() {
         </div>
       )}
 
-      {/* 빈 상태 */}
-      {!isLoading && topCities.length === 0 && (
-        <div className="flex flex-col items-center justify-center flex-1 gap-2 py-6 text-center">
-          <MapPin className="size-8 text-slate-300" aria-hidden="true" />
-          <p className="text-xs text-slate-400">추천 여행지가 없습니다.</p>
-          <p className="text-[10px] text-slate-400">
-            여행 설정을 업데이트해 보세요.
+      {/* 추천 API 로딩 중 */}
+      {!isLoading && isRecommendLoading && (
+        <div
+          className="flex flex-col items-center justify-center flex-1 gap-3 py-6"
+          role="status"
+          aria-label="추천 계산 중"
+        >
+          <Loader2 className="size-8 text-blue-400 animate-spin" />
+          <p className="text-xs font-medium text-slate-600">
+            추천 여행지 계산 중...
+          </p>
+          <p className="text-[10px] text-slate-400">잠시만 기다려 주세요</p>
+        </div>
+      )}
+
+      {/* 추천 전 안내 메시지 */}
+      {!isLoading && !isRecommendLoading && !isRecommendActive && (
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+          <RefreshCw className="size-8 text-slate-300" aria-hidden="true" />
+          <p className="text-xs font-medium text-slate-600">
+            아직 추천 결과가 없어요
+          </p>
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            여행 설정을 입력하고
+            <br />
+            추천 업데이트를 눌러주세요
           </p>
         </div>
       )}
 
+      {/* 추천 결과 없음 */}
+      {!isLoading &&
+        !isRecommendLoading &&
+        isRecommendActive &&
+        topCities.length === 0 && (
+          <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+            <SearchX className="size-8 text-slate-300" aria-hidden="true" />
+            <p className="text-xs font-medium text-slate-600">
+              추천된 도시가 없습니다
+            </p>
+            <p className="text-[10px] text-slate-400 leading-relaxed">
+              설정을 변경하고
+              <br />
+              다시 추천해주세요
+            </p>
+          </div>
+        )}
+
       {/* 목록 */}
-      {!isLoading && topCities.length > 0 && (
-        <ul className="flex flex-col overflow-y-auto flex-1" role="list">
-          {topCities.map((city, index) => (
-            <li key={city.cityId} role="listitem">
-              <TopMatchingCard city={city} rank={index + 1} />
-            </li>
-          ))}
-        </ul>
-      )}
+      {!isLoading &&
+        !isRecommendLoading &&
+        isRecommendActive &&
+        topCities.length > 0 && (
+          <ul className="flex flex-col overflow-y-auto flex-1" role="list">
+            {topCities.map((city, index) => (
+              <li key={city.cityId} role="listitem">
+                <TopMatchingCard city={city} rank={index + 1} />
+              </li>
+            ))}
+          </ul>
+        )}
     </section>
   );
 }

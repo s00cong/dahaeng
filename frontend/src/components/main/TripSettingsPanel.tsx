@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUiStore } from "@/stores/uiStore";
+import { usePreferenceStore } from "@/stores/preferenceStore";
 import { useRecommend } from "@/hooks/city/useRecommend";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -45,13 +46,14 @@ export function TripSettingsPanel() {
     setRecommendActive,
   } = useUiStore();
 
-  const [budgetInput, setBudgetInput] = useState<string>("10,000,000");
-  const [durationInput, setDurationInput] = useState<string>("2");
+  const [budgetInput, setBudgetInput] = useState<string>("");
+  const [durationInput, setDurationInput] = useState<string>("");
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number>(
     new Date().getMonth() + 1,
   );
 
+  const { selectedTags } = usePreferenceStore();
   const { mutate: recommend, isPending } = useRecommend();
 
   // 선택한 연/월이 현재 시점보다 과거인지 검사한다.
@@ -104,8 +106,8 @@ export function TripSettingsPanel() {
   const handleReset = useCallback(() => {
     const now = new Date();
 
-    setBudgetInput("10,000,000");
-    setDurationInput("2");
+    setBudgetInput("");
+    setDurationInput("");
     setSelectedYear(now.getFullYear());
     setSelectedMonth(now.getMonth() + 1);
 
@@ -120,39 +122,66 @@ export function TripSettingsPanel() {
     setRecommendActive,
   ]);
 
-  // 예산 입력은 숫자만 허용하고 천 단위 콤마를 붙인다.
+  // 예산 입력 — 만원 단위, 최대 1500만원
   const handleBudgetChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/[^0-9]/g, "");
-    const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    if (digits === "") { setBudgetInput(""); return; }
+    const num = parseInt(digits, 10);
+    if (num > 1500) {
+      toast.error("예산은 최대 1,500만원까지 입력할 수 있습니다.");
+      return;
+    }
+    const formatted = num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     setBudgetInput(formatted);
   }, []);
 
-  // 여행 기간 입력은 숫자만 허용한다.
+  // 여행 기간 입력 — 최대 30일
   const handleDurationChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      const raw = e.target.value.replace(/[^0-9]/g, "");
-      setDurationInput(raw);
+      const digits = e.target.value.replace(/[^0-9]/g, "");
+      if (digits === "") { setDurationInput(""); return; }
+      const num = parseInt(digits, 10);
+      if (num > 30) {
+        toast.error("여행 기간은 최대 30일까지 입력할 수 있습니다.");
+        return;
+      }
+      setDurationInput(digits);
     },
     [],
   );
 
   // 현재 입력값이 유효할 때만 전역 상태와 추천 요청을 갱신한다.
   const handleUpdateRecommendations = useCallback(() => {
-    const budget = parseInt(budgetInput.replace(/,/g, ""), 10);
+    const budgetMan = parseInt(budgetInput.replace(/,/g, ""), 10); // 만원 단위
+    const budget = budgetMan * 10_000; // 원 단위로 변환
     const duration = parseInt(durationInput, 10);
 
-    if (!isNaN(budget) && budget > 0 && !isNaN(duration) && duration > 0) {
+    if (isNaN(budgetMan) || budgetMan <= 0) {
+      toast.error("예산을 입력해 주세요.");
+      return;
+    }
+    if (isNaN(duration) || duration <= 0) {
+      toast.error("여행 기간을 입력해 주세요.");
+      return;
+    }
+    if (!isNaN(budgetMan) && budgetMan > 0 && !isNaN(duration) && duration > 0) {
       setGlobeBudgetFilter([0, budget]);
       setGlobeDuration(duration);
       setGlobeTravelMonth(selectedYear, selectedMonth);
       setRecommendActive(true);
-      recommend({ budget, duration });
+      recommend({
+        selectedTags,
+        userDailyBudget: budget / duration,
+        travelDays: duration,
+        month: selectedMonth,
+      });
     }
   }, [
     budgetInput,
     durationInput,
     selectedYear,
     selectedMonth,
+    selectedTags,
     setGlobeBudgetFilter,
     setGlobeDuration,
     setGlobeTravelMonth,
@@ -231,18 +260,18 @@ export function TripSettingsPanel() {
           1인당 예산
         </label>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
-            ₩
-          </span>
           <Input
             id="budget-input"
             type="text"
             inputMode="numeric"
             value={budgetInput}
             onChange={handleBudgetChange}
-            className="pl-7 text-sm bg-white/70 border-slate-200 focus-visible:ring-blue-300"
-            placeholder="5,000,000"
+            className="pr-12 text-sm bg-white/70 border-slate-200 focus-visible:ring-blue-300"
+            placeholder="-"
           />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 pointer-events-none">
+            만원
+          </span>
         </div>
       </div>
       {/* 여행 기간 */}

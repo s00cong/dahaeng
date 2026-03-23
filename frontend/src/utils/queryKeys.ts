@@ -1,4 +1,7 @@
 export const queryKeys = {
+  tag: {
+    all: ['tag'] as const,
+  },
   city: {
     all: ['city'] as const,
     list: (params?: object) => ['city', 'list', params] as const,
@@ -28,9 +31,13 @@ export const queryKeys = {
   news: {
     byCountry: (countryId: number) => ['news', countryId] as const,
   },
+  country: {
+    flagMap: ['country', 'flagMap'] as const,
+    maps: ['country', 'maps'] as const,
+  },
   bookmark: {
     all: ['bookmark'] as const,
-    list: (keyword?: string) => ['bookmark', 'list', keyword] as const,
+    list: (keyword?: string, page?: number, size?: number) => ['bookmark', 'list', keyword, page, size] as const,
     detail: (id: number) => ['bookmark', 'detail', id] as const,
   },
 } as const;

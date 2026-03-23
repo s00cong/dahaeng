@@ -4,9 +4,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -64,6 +68,85 @@ public class GlobalExceptionHandler {
 
         log.warn("[VALIDATION] code={} path={} message={}",
                 code.name(), path, message);
+
+        return ResponseEntity.status(code.getStatus())
+                .body(ErrorResponse.of(
+                        code.getStatus().value(),
+                        code.name(),
+                        message,
+                        path
+                ));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFoundException(
+        Exception e,
+        HttpServletRequest request
+    ) {
+        ErrorCode code = ErrorCode.NOT_FOUND;
+        String path = request.getRequestURI();
+
+        log.error("[UNHANDLED] code={} path={}", code.name(), path, e);
+
+        return ResponseEntity.status(code.getStatus())
+            .body(ErrorResponse.of(
+                code.getStatus().value(),
+                code.name(),
+                "잘못된 요청 경로입니다.",
+                path
+            ));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpRequestMethodNotSupportedException(
+        Exception e,
+        HttpServletRequest request
+    ) {
+
+        ErrorCode code = ErrorCode.METHOD_NOT_ALLOWED;
+        String path = request.getRequestURI();
+
+        log.error("[UNHANDLED] code={} path={}", code.name(), path, e);
+
+        return ResponseEntity.status(code.getStatus())
+            .body(ErrorResponse.of(
+                code.getStatus().value(),
+                code.name(),
+                code.getDefaultMessage(),
+                path
+            ));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException e,
+            HttpServletRequest request
+    ) {
+        ErrorCode code = ErrorCode.FILE_SIZE_EXCEEDED;
+        String path = request.getRequestURI();
+        String message = "파일 용량 제한을 초과했습니다. 파일당 최대 8MB까지 업로드할 수 있습니다.";
+
+        log.warn("[MULTIPART] code={} path={} message={}", code.name(), path, message);
+
+        return ResponseEntity.status(code.getStatus())
+                .body(ErrorResponse.of(
+                        code.getStatus().value(),
+                        code.name(),
+                        message,
+                        path
+                ));
+    }
+
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ErrorResponse> handleMultipartException(
+            MultipartException e,
+            HttpServletRequest request
+    ) {
+        ErrorCode code = ErrorCode.INVALID_REQUEST;
+        String path = request.getRequestURI();
+        String message = "멀티파트 요청 처리에 실패했습니다. 요청 형식과 파일 용량을 확인해 주세요.";
+
+        log.warn("[MULTIPART] code={} path={} message={}", code.name(), path, message);
 
         return ResponseEntity.status(code.getStatus())
                 .body(ErrorResponse.of(

@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class OAuthCodeService {
 
-    private static final long TTL_SECONDS = 60; // 1분
+    private static final long TTL_SECONDS = 60 * 3; // 3분
     private final Map<String, Entry> store = new ConcurrentHashMap<>();
 
     public String issueCode(CustomOAuth2User user) {

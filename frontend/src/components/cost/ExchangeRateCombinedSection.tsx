@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ko';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -23,7 +23,7 @@ dayjs.locale('ko');
 
 interface ExchangeRateCombinedSectionProps {
   currency: string;
-  exchangeRateData: ExchangeRateNew | undefined;
+  exchangeRateData: ExchangeRateNew | null | undefined;
   isLoading: boolean;
 }
 
@@ -47,16 +47,30 @@ export function ExchangeRateCombinedSection({
   isLoading,
 }: ExchangeRateCombinedSectionProps) {
   const [type, setType] = useState<PeriodType>('M');
-  
+
+  // 사용자 입력 금액 (기본값: displayUnit, 없으면 1)
+  const [inputAmount, setInputAmount] = useState<number>(exchangeRateData?.display_unit ?? 1);
+
+  // 통화가 바뀌면 기본값 재설정
+  useEffect(() => {
+    setInputAmount(exchangeRateData?.display_unit ?? 1);
+  }, [currency, exchangeRateData?.display_unit]);
+
   // 차트용 데이터 (현재 선택된 타입: 월/주/일)
   const { data: historyData, isLoading: isHistoryLoading } = useExchangeRateHistory(currency, type);
-  
+
   // 기준점 계산용 데이터 (사용자 요청에 따라 '주별(W)' 고정 사용)
   const { data: weeklyData } = useExchangeRateHistory(currency, 'W');
 
-  // Current rate logic (API 명세: krw_per_1target 직접 사용)
-  const krwPerTarget = exchangeRateData?.krw_per_1target ?? null;
+  // 사용자가 입력한 금액 기준 KRW 계산
+  const krwPer1 = exchangeRateData?.krw_per_1target ?? null;
+  const displayedKrw = krwPer1 !== null ? Math.round(inputAmount * krwPer1) : null;
   const eventDateFormatted = exchangeRateData ? dayjs(exchangeRateData.event_date).format('MM월 DD일') : '';
+
+  // 프리셋 버튼 목록 (displayUnit 기준으로 ×1, ×5, ×10, ×100)
+  const presets = exchangeRateData?.display_unit
+    ? [1, 5, 10, 100].map((m) => exchangeRateData.display_unit! * m).filter((v) => v <= 1_000_000)
+    : [1, 100, 1000, 10000];
 
   // 주별 평균 및 변동률 계산 (API 명세: history 배열 및 krwPer1target 필드)
   const weeklyAvg =
@@ -99,22 +113,61 @@ export function ExchangeRateCombinedSection({
             <div className="flex flex-col gap-2">
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-8 w-full" />
             </div>
-          ) : exchangeRateData && krwPerTarget !== null ? (
-            <div>
-              <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-800 gap-1 px-1.5 py-0.5 mb-3 leading-tight">
+          ) : exchangeRateData && displayedKrw !== null ? (
+            <div className="flex flex-col gap-3">
+              <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-200 dark:border-emerald-800 gap-1 px-1.5 py-0.5 leading-tight self-start">
                 <RefreshCw className="size-2.5" />
                 실시간 환율 기준 · {eventDateFormatted}
               </Badge>
+
+              {/* KRW 결과 */}
               <div className="flex items-end gap-1.5">
                 <span className="text-4xl font-bold text-foreground tracking-tight">
-                  {Math.round(krwPerTarget).toLocaleString()}
+                  {displayedKrw.toLocaleString()}
                 </span>
                 <span className="text-base text-muted-foreground mb-1">KRW</span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1.5">
-                1 {exchangeRateData.target} = {krwPerTarget.toLocaleString()} KRW
+
+              {/* 환산식 */}
+              <p className="text-sm text-muted-foreground">
+                {inputAmount.toLocaleString()} {(exchangeRateData.display_symbol ?? exchangeRateData.target).replace(/\(\d+\)$/, '').trim()} = {displayedKrw.toLocaleString()} KRW
               </p>
+
+              {/* 금액 입력 */}
+              <div className="flex items-center gap-1.5 mt-1">
+                <input
+                  type="number"
+                  min={1}
+                  value={inputAmount}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (v > 0) setInputAmount(v);
+                  }}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                />
+                <span className="text-sm text-muted-foreground shrink-0">{exchangeRateData.target}</span>
+              </div>
+
+              {/* 프리셋 버튼 */}
+              <div className="flex flex-wrap gap-1.5">
+                {presets.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setInputAmount(v)}
+                    className={cn(
+                      'text-xs px-2.5 py-1 rounded-full border font-medium transition-colors',
+                      inputAmount === v
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-background text-muted-foreground border-input hover:border-blue-400 hover:text-blue-600',
+                    )}
+                  >
+                    {v.toLocaleString()}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">데이터 없음</p>
@@ -135,7 +188,7 @@ export function ExchangeRateCombinedSection({
         <div className="flex items-center justify-between mb-4">
           <span className="text-sm font-semibold text-foreground">
             환율 추이
-            {historyData?.latest.displaySymbol ? ` (${historyData.latest.displaySymbol})` : ''}
+            {historyData?.latest.displaySymbol ? ` (${historyData.latest.displaySymbol.replace(/\(\d+\)$/, '').trim()})` : ''}
           </span>
           <div className="flex gap-1 bg-muted rounded-lg p-0.5">
             {(Object.keys(PERIOD_LABELS) as PeriodType[]).map((t) => (
@@ -171,7 +224,7 @@ export function ExchangeRateCombinedSection({
                 />
                 <Tooltip
                   contentStyle={{ fontSize: 13, borderRadius: 8 }}
-                  formatter={(value: number) => [`${value.toFixed(2)} KRW`, '환율']}
+                  formatter={(value: number | undefined) => [`${(value ?? 0).toFixed(2)} KRW`, '환율']}
                 />
                 {currentChartAvg !== null && (
                   <ReferenceLine

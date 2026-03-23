@@ -32,9 +32,9 @@ public class YouTubeQueryService {
     public SyncStatusResponse getSyncStatus(Long memberId) {
         YouTubeAccount account = accountRepository.findByMemberId(memberId).orElse(null);
         if (account == null) {
-            return new SyncStatusResponse(false, null, null);
+            return new SyncStatusResponse(false, null, null, false);
         }
-        return new SyncStatusResponse(true, account.getSyncStatus(), account.getLastSyncedAt());
+        return new SyncStatusResponse(true, account.getSyncStatus(), account.getLastSyncedAt(), account.isSyncEnabledEffective());
     }
 
     public List<YouTubePlaylistDto> getPlaylists(Long memberId) {
@@ -95,5 +95,5 @@ public class YouTubeQueryService {
                 .toList();
     }
 
-    public record SyncStatusResponse(boolean connected, SyncStatus syncStatus, LocalDateTime lastSyncedAt) {}
+    public record SyncStatusResponse(boolean connected, SyncStatus syncStatus, LocalDateTime lastSyncedAt, Boolean syncEnabled) {}
 }

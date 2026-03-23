@@ -35,7 +35,7 @@ class LivingCostControllerTest {
 
 	@Test
 	void detail_withCityTarget_callsCityService() throws Exception {
-		when(service.getLivingCost(new LivingCostDetailRequest(TargetType.CITY, 1L)))
+		when(service.detail(new LivingCostDetailRequest(TargetType.CITY, 1L)))
 			.thenReturn(new LivingCostDetailResponse("city", null, null));
 
 		mockMvc.perform(get("/api/cost/detail")
@@ -44,12 +44,12 @@ class LivingCostControllerTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.targetType").value("city"));
 
-		verify(service).getLivingCost(new LivingCostDetailRequest(TargetType.CITY, 1L));
+		verify(service).detail(new LivingCostDetailRequest(TargetType.CITY, 1L));
 	}
 
 	@Test
 	void detail_withCountryTarget_callsCountryService() throws Exception {
-		when(service.getLivingCost(new LivingCostDetailRequest(TargetType.COUNTRY, 2L)))
+		when(service.detail(new LivingCostDetailRequest(TargetType.COUNTRY, 2L)))
 			.thenReturn(new LivingCostDetailResponse("country", null, null));
 
 		mockMvc.perform(get("/api/cost/detail")
@@ -58,6 +58,6 @@ class LivingCostControllerTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.targetType").value("country"));
 
-		verify(service).getLivingCost(new LivingCostDetailRequest(TargetType.COUNTRY, 2L));
+		verify(service).detail(new LivingCostDetailRequest(TargetType.COUNTRY, 2L));
 	}
 }

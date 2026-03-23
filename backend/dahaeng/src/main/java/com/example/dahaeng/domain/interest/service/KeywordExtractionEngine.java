@@ -15,6 +15,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class KeywordExtractionEngine {
 
+    private static final int MAX_AI_KEYWORDS = 60;
+
     private final RawInterestSignalCollector collector;
     private final InterestTextCleaner cleaner;
     private final InterestPhraseNormalizer phraseNormalizer;
@@ -34,17 +36,17 @@ public class KeywordExtractionEngine {
         
         List<InterestKeywordCandidate> scored = scoreCalculator.calculate(normalized);
 
-        // AI용 상위 30개 추출 (시맨틱 랭킹 적용)
-        List<InterestKeywordCandidate> top30 = scored.stream()
+        // AI용 상위 60개 추출 (시맨틱 랭킹 적용)
+        List<InterestKeywordCandidate> top60 = scored.stream()
                 .sorted(Comparator.comparingDouble((InterestKeywordCandidate k) -> 
                         k.getScore() * k.getConfidence() * k.getTravelRelevance()).reversed())
-                .limit(30)
+                .limit(MAX_AI_KEYWORDS)
                 .toList();
 
         return ExtractedInterestFeatures.builder()
                 .accountId(accountId)
                 .allKeywords(scored)
-                .top30ForAi(top30)
+                .top30ForAi(top60)
                 .build();
     }
 }

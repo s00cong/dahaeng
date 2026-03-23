@@ -3,6 +3,7 @@ package com.example.dahaeng.domain.livingcost.enums;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum TargetType {
+	CONTINENT("continent"),
 	COUNTRY("country"),
 	CITY("city");
 

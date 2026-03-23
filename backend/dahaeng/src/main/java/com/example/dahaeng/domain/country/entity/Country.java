@@ -8,7 +8,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -34,5 +33,9 @@ public class Country extends BaseEntity {
 	private String imgUrl;
 
 	private Double lat;
-	private Double lng;
+	private Double lon;
+
+	public void updateImgUrl(String imgUrl) {
+		this.imgUrl = imgUrl;
+	}
 }

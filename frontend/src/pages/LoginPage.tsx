@@ -3,6 +3,7 @@ import { type LucideIcon, Loader2, Zap, Bot, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useGoogleLogin } from '@/hooks/auth/useGoogleLogin';
 import { useAuthStore } from '@/stores/authStore';
+import { authApi } from '@/api/auth.api';
 import { useNavigate } from '@tanstack/react-router';
 import maldiveImg from '@/assets/Maldive_beach_1.jpg';
 import TopNavBar from '@/components/layout/TopNavBar';
@@ -174,9 +175,10 @@ const LoginPage = () => {
   const { setAccessToken, setUser, setHasCompletedPreference } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleDevLogin = () => {
-    setAccessToken('dev-mock-token');
-    setUser({ id: 1, email: 'dev@dahaeng.com', name: '개발자', profileImageUrl: '' });
+  const handleDevLogin = async () => {
+    const { accessToken, member } = await authApi.devLogin();
+    setAccessToken(accessToken);
+    setUser(member);
     setHasCompletedPreference(true);
     navigate({ to: '/main' });
   };

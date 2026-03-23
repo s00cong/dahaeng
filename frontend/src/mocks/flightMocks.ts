@@ -35,12 +35,23 @@ export function getMockFlightCalendar(_cityId: number, yearMonth: string): Fligh
   const base = dayjs(yearMonth + '-01');
   const days = base.daysInMonth();
 
-  const makeHistory = (basePrice: number) => [
-    { collected_date: now.format('YYYY-MM-DD'), price: basePrice, label: '오늘' },
-    { collected_date: now.subtract(1, 'day').format('YYYY-MM-DD'), price: basePrice + randomPrice(5000, 4000), label: '어제' },
-    { collected_date: now.subtract(7, 'day').format('YYYY-MM-DD'), price: basePrice + randomPrice(20000, 10000), label: '1주 전' },
-    { collected_date: now.subtract(14, 'day').format('YYYY-MM-DD'), price: basePrice + randomPrice(30000, 15000), label: '2주 전' },
-  ];
+  // 오늘(0)부터 14일 전(14)까지 15일 연속 생성
+  // 과거로 갈수록 가격이 높았던 경향(= 최근에 저렴해짐)에 랜덤 등락 추가
+  const makeHistory = (basePrice: number) =>
+    Array.from({ length: 15 }, (_, i) => {
+      const label =
+        i === 0 ? '오늘' :
+        i === 1 ? '어제' :
+        i === 2 ? '그제' :
+        `${i}일 전`;
+      // 하루 평균 1,500 ~ 3,000원씩 과거가 높고, ±5,000 랜덤 진동
+      const pastPremium = Math.round(i * 2200 + (Math.random() - 0.4) * 8000);
+      return {
+        collected_date: now.subtract(i, 'day').format('YYYY-MM-DD'),
+        price: Math.max(50000, Math.round((basePrice + pastPremium) / 1000) * 1000),
+        label,
+      };
+    });
 
   return {
     city_id: _cityId,

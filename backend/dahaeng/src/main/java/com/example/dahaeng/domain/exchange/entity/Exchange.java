@@ -15,7 +15,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "exchange")
+@Table(name = "exchanges")
 public class Exchange extends BaseEntity {
 
 	@Id

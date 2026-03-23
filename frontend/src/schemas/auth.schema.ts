@@ -26,13 +26,13 @@ export type TokenReissueResponse = z.infer<typeof TokenReissueResponseSchema>;
 
 // Google 로그인 URL 응답
 export const GoogleLoginUrlResponseSchema = z.object({
-  loginUrl: z.string().url(),
+  loginUrl: z.string(), // 백엔드가 "/oauth2/authorization/google" (상대경로) 반환
 });
 export type GoogleLoginUrlResponse = z.infer<typeof GoogleLoginUrlResponseSchema>;
 
-// 선호도 태그 요청
+// 선호도 태그 요청 — 백엔드 MemberTagCreateRequest { tagIds: Long[] } 와 일치
 export const PreferenceTagRequestSchema = z.object({
-  tags: z.array(z.string()),
+  tagIds: z.array(z.number()),
 });
 export type PreferenceTagRequest = z.infer<typeof PreferenceTagRequestSchema>;
 

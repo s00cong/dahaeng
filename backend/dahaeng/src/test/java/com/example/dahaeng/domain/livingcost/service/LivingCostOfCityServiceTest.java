@@ -77,7 +77,7 @@ class LivingCostOfCityServiceTest {
 		when(cityRepository.findOneByCityId(1L)).thenReturn(Optional.of(livingCost));
 		when(exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(Currency.USD)).thenReturn(Optional.of(usd));
 
-		LivingCostDetailResponse result = service.getLivingCost(new LivingCostDetailRequest(TargetType.CITY, 1L));
+		LivingCostDetailResponse result = service.detail(new LivingCostDetailRequest(TargetType.CITY, 1L));
 
 		assertThat(result.targetType()).isEqualTo("city");
 		assertThat(result.target().currency()).isEqualTo("KRW");

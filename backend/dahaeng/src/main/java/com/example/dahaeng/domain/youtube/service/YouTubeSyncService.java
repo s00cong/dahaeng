@@ -1,11 +1,15 @@
 package com.example.dahaeng.domain.youtube.service;
 
 import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
-import com.example.dahaeng.global.exception.CustomException;
-import com.example.dahaeng.global.exception.ErrorCode;
+import com.example.dahaeng.domain.interest.service.InterestResultSaver;
+import com.example.dahaeng.domain.interest.service.KeywordExtractionEngine;
 import com.example.dahaeng.domain.member.entity.Member;
 import com.example.dahaeng.domain.member.repository.MemberRepository;
-import com.example.dahaeng.domain.youtube.dto.response.*;
+import com.example.dahaeng.domain.youtube.dto.response.YouTubeChannelResponse;
+import com.example.dahaeng.domain.youtube.dto.response.YouTubePlaylistItemResponse;
+import com.example.dahaeng.domain.youtube.dto.response.YouTubePlaylistResponse;
+import com.example.dahaeng.domain.youtube.dto.response.YouTubeSubscriptionResponse;
+import com.example.dahaeng.domain.youtube.dto.response.YouTubeVideoResponse;
 import com.example.dahaeng.domain.youtube.entity.YouTubeAccount;
 import com.example.dahaeng.domain.youtube.entity.YouTubePlaylist;
 import com.example.dahaeng.domain.youtube.entity.YouTubeVideo;
@@ -14,13 +18,20 @@ import com.example.dahaeng.domain.youtube.enums.SnapshotType;
 import com.example.dahaeng.domain.youtube.enums.SyncStatus;
 import com.example.dahaeng.domain.youtube.repository.YouTubeAccountRepository;
 import com.example.dahaeng.domain.youtube.service.YouTubeFetchService.YouTubeApiResponse;
+import com.example.dahaeng.global.exception.CustomException;
+import com.example.dahaeng.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +41,8 @@ public class YouTubeSyncService {
     private final YouTubeAccountRepository accountRepository;
     private final YouTubeFetchService fetchService;
     private final YouTubeSaveService saveService;
+    private final KeywordExtractionEngine keywordExtractionEngine;
+    private final InterestResultSaver interestResultSaver;
 
     @Transactional
     public void sync(CustomOAuth2User principal) {
@@ -38,52 +51,51 @@ public class YouTubeSyncService {
         String accessToken = account.getAccessToken();
         LocalDateTime now = LocalDateTime.now();
 
-        // 채널 정보 업데이트
         account = updateAccountInfo(account, accessToken);
 
         try {
             saveService.updateSyncStatus(account, SyncStatus.PENDING, account.getLastSyncedAt());
 
-            // 1. 재생목록 동기화
             Map<String, YouTubePlaylist> playlistMap = syncPlaylists(account, accessToken, now);
 
-            // 2. 재생목록 내 비디오 정보 수집
             Set<String> videoIds = new HashSet<>();
-            Map<String, List<RawPlaylistItem>> playlistItemsMap = collectPlaylistItems(account, accessToken, playlistMap.keySet(), videoIds, now);
+            Map<String, List<RawPlaylistItem>> playlistItemsMap =
+                    collectPlaylistItems(account, accessToken, playlistMap.keySet(), videoIds, now);
 
-            // 3. 구독 정보 동기화
             syncSubscriptions(account, accessToken, now);
 
-            // 4. 좋아요 표시한 동영상 ID 수집
             List<String> likedVideoIds = collectLikedVideoIds(account, accessToken, videoIds, now);
 
-            // 5. 수집된 모든 비디오의 상세 정보(제목, 태그 등) 동기화
             Map<String, YouTubeVideo> videoMap = syncVideoDetails(accessToken, videoIds, now);
 
-            // 6. 비디오 간의 관계(재생목록-비디오, 좋아요-비디오) 최종 연결
             finalizeRelations(account, playlistMap, playlistItemsMap, videoMap, likedVideoIds, now);
+            extractAndSaveKeywordsSafely(account.getId());
 
             saveService.replaceSnapshot(account, SnapshotType.FULL_SYNC, "{\"status\":\"ok\"}", now);
             saveService.updateSyncStatus(account, SyncStatus.SYNCED, now);
-
         } catch (Exception e) {
             saveService.updateSyncStatus(account, SyncStatus.FAILED, account.getLastSyncedAt());
-            if (e instanceof CustomException) throw e;
-            throw new CustomException(ErrorCode.INTERNAL_ERROR, "YouTube 동기화 중 오류가 발생했습니다.", e.getMessage());
+            if (e instanceof CustomException) {
+                throw e;
+            }
+            throw new CustomException(ErrorCode.INTERNAL_ERROR, "YouTube sync failed.", e.getMessage());
         }
     }
 
     private Member getAuthenticatedMember(CustomOAuth2User principal) {
         return memberRepository.findById(principal.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "User not found."));
     }
 
     private YouTubeAccount getYouTubeAccount(Member member) {
         YouTubeAccount account = accountRepository.findByMemberId(member.getId())
-                .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHORIZED, "구글 연동 정보가 없습니다."));
+                .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHORIZED, "Google account is not linked."));
 
         if (account.getAccessToken() == null || account.getAccessToken().isBlank()) {
-            throw new CustomException(ErrorCode.UNAUTHORIZED, "구글 연동 정보가 없습니다.");
+            throw new CustomException(ErrorCode.UNAUTHORIZED, "Google account is not linked.");
+        }
+        if (!account.isSyncEnabledEffective()) {
+            throw new CustomException(ErrorCode.OPERATION_NOT_ALLOWED, "YouTube sync is disabled by user preference.");
         }
         return account;
     }
@@ -91,14 +103,14 @@ public class YouTubeSyncService {
     private YouTubeAccount updateAccountInfo(YouTubeAccount account, String accessToken) {
         YouTubeApiResponse<YouTubeChannelResponse> channelResp = fetchService.fetchMyChannel(accessToken);
         if (channelResp.getBody().getItems().isEmpty()) {
-            throw new CustomException(ErrorCode.EXTERNAL_API_BAD_RESPONSE, "채널 정보를 찾을 수 없습니다.");
+            throw new CustomException(ErrorCode.EXTERNAL_API_BAD_RESPONSE, "Channel information not found.");
         }
         String channelId = channelResp.getBody().getItems().get(0).getId();
 
         return saveService.upsertAccount(
                 account.getMember(),
                 channelId,
-                account.getMember().getEmail(), // member 이메일을 기본으로 사용
+                account.getMember().getEmail(),
                 account.getAccessToken(),
                 account.getRefreshToken(),
                 account.getTokenExpiresAt()
@@ -128,10 +140,17 @@ public class YouTubeSyncService {
         return playlistMap;
     }
 
-    private Map<String, List<RawPlaylistItem>> collectPlaylistItems(YouTubeAccount account, String accessToken, Set<String> playlistIds, Set<String> videoIds, LocalDateTime now) {
+    private Map<String, List<RawPlaylistItem>> collectPlaylistItems(
+            YouTubeAccount account,
+            String accessToken,
+            Set<String> playlistIds,
+            Set<String> videoIds,
+            LocalDateTime now
+    ) {
         Map<String, List<RawPlaylistItem>> playlistItemsByPlaylist = new HashMap<>();
         for (String playlistId : playlistIds) {
-            YouTubeApiResponse<YouTubePlaylistItemResponse> itemsResp = fetchService.fetchPlaylistItems(accessToken, playlistId);
+            YouTubeApiResponse<YouTubePlaylistItemResponse> itemsResp =
+                    fetchService.fetchPlaylistItems(accessToken, playlistId);
             saveService.replaceSnapshot(account, SnapshotType.PLAYLIST_ITEMS, itemsResp.getRawJson(), now);
 
             List<RawPlaylistItem> rawItems = new ArrayList<>();
@@ -162,7 +181,12 @@ public class YouTubeSyncService {
         saveService.replaceSubscriptions(account, inputs, now);
     }
 
-    private List<String> collectLikedVideoIds(YouTubeAccount account, String accessToken, Set<String> videoIds, LocalDateTime now) {
+    private List<String> collectLikedVideoIds(
+            YouTubeAccount account,
+            String accessToken,
+            Set<String> videoIds,
+            LocalDateTime now
+    ) {
         YouTubeApiResponse<YouTubeVideoResponse> likedResp = fetchService.fetchLikedVideos(accessToken);
         saveService.replaceSnapshot(account, SnapshotType.LIKED_VIDEOS, likedResp.getRawJson(), now);
 
@@ -179,7 +203,9 @@ public class YouTubeSyncService {
         for (String videoId : videoIds) {
             YouTubeApiResponse<YouTubeVideoResponse> videoResp = fetchService.fetchVideoDetails(accessToken, videoId);
 
-            if (videoResp.getBody().getItems().isEmpty()) continue;
+            if (videoResp.getBody().getItems().isEmpty()) {
+                continue;
+            }
 
             YouTubeVideoResponse.VideoItem item = videoResp.getBody().getItems().get(0);
             YouTubeVideoResponse.Snippet s = item.getSnippet();
@@ -191,34 +217,50 @@ public class YouTubeSyncService {
         return videoMap;
     }
 
-    private void finalizeRelations(YouTubeAccount account,
-                                   Map<String, YouTubePlaylist> playlistMap,
-                                   Map<String, List<RawPlaylistItem>> playlistItemsMap,
-                                   Map<String, YouTubeVideo> videoMap,
-                                   List<String> likedVideoIds,
-                                   LocalDateTime now) {
-        // 재생목록-비디오 연결
+    private void finalizeRelations(
+            YouTubeAccount account,
+            Map<String, YouTubePlaylist> playlistMap,
+            Map<String, List<RawPlaylistItem>> playlistItemsMap,
+            Map<String, YouTubeVideo> videoMap,
+            List<String> likedVideoIds,
+            LocalDateTime now
+    ) {
         for (Map.Entry<String, List<RawPlaylistItem>> entry : playlistItemsMap.entrySet()) {
             YouTubePlaylist playlist = playlistMap.get(entry.getKey());
             List<YouTubeSaveService.PlaylistVideoInput> inputs = new ArrayList<>();
             for (RawPlaylistItem item : entry.getValue()) {
                 YouTubeVideo video = videoMap.get(item.videoId());
-                if (video != null) inputs.add(new YouTubeSaveService.PlaylistVideoInput(video, item.position()));
+                if (video != null) {
+                    inputs.add(new YouTubeSaveService.PlaylistVideoInput(video, item.position()));
+                }
             }
             saveService.replacePlaylistVideos(playlist, inputs, now);
         }
 
-        // 좋아요-비디오 연결
         List<YouTubeVideo> likedVideoEntities = new ArrayList<>();
         for (String videoId : likedVideoIds) {
             YouTubeVideo video = videoMap.get(videoId);
-            if (video != null) likedVideoEntities.add(video);
+            if (video != null) {
+                likedVideoEntities.add(video);
+            }
         }
         saveService.replaceLikedVideos(account, likedVideoEntities, now);
     }
 
+    private void extractAndSaveKeywordsSafely(Long accountId) {
+        try {
+            var features = keywordExtractionEngine.extractFeatures(accountId);
+            interestResultSaver.saveKeywords(accountId, features.getAllKeywords());
+        } catch (Exception e) {
+            System.out.println(">>> [KEYWORD EXTRACTION SKIP] Failed to extract keywords for account " + accountId
+                    + ": " + e.getMessage());
+        }
+    }
+
     private LocalDateTime parseDateTime(String value) {
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         try {
             return OffsetDateTime.parse(value).toLocalDateTime();
         } catch (Exception e) {
