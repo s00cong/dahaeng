@@ -16,6 +16,12 @@ export const authApi = {
     return GoogleLoginUrlResponseSchema.parse(data);
   },
 
+  // POST /api/auth/google/one-tap (Google One Tap credential → app token)
+  verifyOneTap: async (credential: string) => {
+    const { data } = await axiosInstance.post('/api/auth/google/one-tap', { credential });
+    return AuthCallbackResponseSchema.parse(data);
+  },
+
   // POST /api/auth/exchange (토큰 교환)
   // 백엔드: bare ExchangeResponse { tokenType, accessToken, member }
   exchangeCode: async (code: string) => {

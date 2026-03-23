@@ -1,6 +1,7 @@
 import { useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { CityDetailModal } from "@/components/city/CityDetailModal";
 import { LeftSidebar } from "@/components/main/LeftSidebar";
 import { GlobeContainer } from "@/components/globe/GlobeContainer";
@@ -45,7 +46,10 @@ const MainPage = () => {
   }, []);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
       className="fixed inset-0 z-0 overflow-hidden"
       role="main"
       aria-label="다행 메인 페이지"
@@ -70,7 +74,7 @@ const MainPage = () => {
 
       {/* City Detail Modal — 전체 화면, 상세 보기 버튼으로 진입 */}
       <CityDetailModal />
-    </div>
+    </motion.div>
   );
 };
 

@@ -1,19 +1,21 @@
-import { Sparkles, TrendingUp, Plane, MapPin, type LucideIcon } from 'lucide-react';
+import { Sparkles, Youtube, TrendingUp, Plane, MapPin, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type CityDetailTab = 'recommend' | 'cost' | 'flight' | 'spots';
+type CityDetailTab = 'recommend' | 'youtube' | 'cost' | 'flight' | 'spots';
 
 interface TabConfig {
   id: CityDetailTab;
   label: string;
   icon: LucideIcon;
+  recommendOnly?: boolean;
 }
 
 const TABS: TabConfig[] = [
-  { id: 'recommend', label: '추천 이유', icon: Sparkles },
-  { id: 'cost', label: '생활물가 비교', icon: TrendingUp },
-  { id: 'flight', label: '항공권 탐색', icon: Plane },
-  { id: 'spots', label: '관광지', icon: MapPin },
+  { id: 'recommend', label: '추천 이유',    icon: Sparkles, recommendOnly: true },
+  { id: 'youtube',   label: '유튜브 취향',  icon: Youtube,  recommendOnly: true },
+  { id: 'cost',      label: '생활물가 비교', icon: TrendingUp },
+  { id: 'flight',    label: '항공권 탐색',  icon: Plane },
+  { id: 'spots',     label: '관광지',       icon: MapPin },
 ];
 
 interface CityDetailTabNavProps {
@@ -23,7 +25,7 @@ interface CityDetailTabNavProps {
 }
 
 export function CityDetailTabNav({ activeTab, onTabChange, showRecommendTab = true }: CityDetailTabNavProps) {
-  const visibleTabs = showRecommendTab ? TABS : TABS.filter((t) => t.id !== 'recommend');
+  const visibleTabs = showRecommendTab ? TABS : TABS.filter((t) => !t.recommendOnly);
   return (
     <nav
       role="tablist"
