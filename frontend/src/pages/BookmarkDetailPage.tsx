@@ -20,7 +20,7 @@ const BookmarkDetailPage = () => {
   return (
     <div
       className="relative min-h-screen"
-      style={{ background: 'linear-gradient(135deg, #93C5FD 0%, #93C5FD 100%)' }}
+      style={{ background: '#0d1b2e' }}
     >
       <motion.div
         initial={{ opacity: 0 }}

@@ -63,14 +63,19 @@ export function BookmarkHeroSection({
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
       {/* 좌하단 도시명 + 제목 */}
-      <div className="absolute bottom-8 left-8 flex flex-col gap-1">
-        <p className="mb-1 text-sm font-medium text-white/75 uppercase tracking-widest">
+      <div className="absolute bottom-8 left-8 flex flex-col">
+        <p className="text-sm font-medium text-white/75 uppercase tracking-widest">
           저장된 도시
         </p>
 
+        <h2 className="mt-1 text-lg font-bold text-white drop-shadow-md">
+          {CITY_NAME_KO[data.cityName] ?? data.cityName},{" "}
+          {COUNTRY_NAME_KO[data.countryName] ?? data.countryName}
+        </h2>
+
         {/* 제목 편집 영역 */}
         {isEditing ? (
-          <div className="flex items-center gap-2">
+          <div className="mt-3 flex items-center gap-2">
             <input
               ref={inputRef}
               type="text"
@@ -101,8 +106,8 @@ export function BookmarkHeroSection({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-semibold text-white/90 drop-shadow">
+          <div className="mt-3 flex items-center gap-2">
+            <span className="text-4xl font-semibold text-white drop-shadow">
               {titleValue || (
                 <span className="text-white/50 font-normal text-base">
                   제목 없음
@@ -118,11 +123,6 @@ export function BookmarkHeroSection({
             </button>
           </div>
         )}
-
-        <h1 className="text-xl font-bold text-white drop-shadow-md">
-          {CITY_NAME_KO[data.cityName] ?? data.cityName},{" "}
-          {COUNTRY_NAME_KO[data.countryName] ?? data.countryName}
-        </h1>
       </div>
 
       {/* 우하단 매칭 점수 배지 */}

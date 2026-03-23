@@ -200,11 +200,11 @@ const BookmarkListPage = () => {
 
   return (
     <motion.div
-      className="min-h-screen bg-slate-50"
+      className="min-h-screen"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       style={{
-        background: "linear-gradient(135deg, #93C5FD 0%, #93C5FD 100%)",
+        background: "#0d1b2e",
       }}
       transition={{ duration: 0.35, ease: "easeOut" }}
     >
