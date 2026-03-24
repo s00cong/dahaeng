@@ -57,7 +57,7 @@ class RecommendFacadeTest {
         );
 
         RecommendCitySummaryResponse response = recommendFacade.recommend(
-                new RecommendCitiesRequest(List.of("food"), 500000.0, 2, 4, null)
+                new RecommendCitiesRequest(List.of("food"), 1_000_000.0, 2, 4, null)
         );
 
         assertThat(response.recommendId()).isNotNull();
@@ -189,8 +189,28 @@ class RecommendFacadeTest {
             }
 
             @Override
+            public String getDangerControlPartial() {
+                return null;
+            }
+
+            @Override
             public String getDangerLimita() {
                 return dangerLimita;
+            }
+
+            @Override
+            public String getDangerLimitaPartial() {
+                return null;
+            }
+
+            @Override
+            public String getDangerEvacuateRegionTy() {
+                return null;
+            }
+
+            @Override
+            public String getDangerForbiddenRegionTy() {
+                return null;
             }
 
             @Override

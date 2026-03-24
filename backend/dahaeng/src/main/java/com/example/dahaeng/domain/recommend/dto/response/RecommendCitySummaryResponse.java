@@ -15,7 +15,7 @@ public record RecommendCitySummaryResponse(
         return new RecommendCitySummaryResponse(
                 new RequestContext(
                         request.selectedTags(),
-                        request.userDailyBudget(),
+                        request.userTotalBudget(),
                         request.travelDays(),
                         request.month()
                 ),
@@ -26,7 +26,7 @@ public record RecommendCitySummaryResponse(
 
     public record RequestContext(
             List<String> selectedTags,
-            Double userDailyBudget,
+            Double userTotalBudget,
             Integer travelDays,
             Integer month
     ) {
