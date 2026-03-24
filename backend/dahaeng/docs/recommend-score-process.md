@@ -7,6 +7,43 @@
 - `src/main/java/com/example/dahaeng/domain/city/service/CityService.java`
 - `src/main/java/com/example/dahaeng/domain/recommend/repository/RecommendQueryRepository.java`
 
+## 0. 이번 비중 조정 요약
+
+- 태그 점수 최대치: `55 -> 45`
+- 예산 점수 최대치: `18 -> 35`
+- 안전 점수 최대치: `15 -> 20`
+- 태그 내부 가중치
+  - 기존: `tagAverage 0.65 + tagMatchRate 0.35`
+  - 변경: `tagAverage 0.55 + tagMatchRate 0.45`
+- 예산 점수 방식
+  - 기존: 예산이 쌀수록 유리한 단조 구조
+  - 변경: 예산에 가장 가까울 때 최고점인 ideal-point 곡선
+- 추천 후보 처리
+  - 기존: `expectedTotalCost > totalBudget * 1.3` 이면 제외
+  - 변경: 자동 제외 없이 예산 점수로만 불리하게 반영
+
+## 0.5 이론적 근거
+
+현재 추천 점수 구조는 하나의 알고리즘만 쓰는 것이 아니라, 여행 추천에서 자주 쓰는 여러 방식을 결합한 형태다.
+
+- 기본 구조: 가중합 기반 다속성 추천
+  - `finalScore = tagScore + budgetScore + safetyScore + newsPenaltyScore`
+  - 여러 속성을 하나의 점수로 합쳐 순위를 만드는 가장 전형적인 방식이다.
+- 태그 적합도: 콘텐츠 기반 유사도
+  - 사용자가 고른 태그와 도시 태그/기후 태그의 일치 정도로 점수를 만든다.
+  - `tagAverage`와 `tagMatchRate`를 함께 써서 "얼마나 잘 맞는지"와 "몇 개나 맞는지"를 동시에 본다.
+- 예산 적합도: ideal-point model
+  - 무조건 저렴할수록 좋은 것이 아니라, 사용자 예산에 적당히 가까운 도시를 가장 높게 평가한다.
+  - 너무 저렴하거나 너무 비싼 경우 모두 점수가 내려간다.
+- 안전/뉴스: 리스크 보정
+  - 태그와 예산이 좋아도 안전 리스크나 부정 뉴스가 있으면 최종 점수를 깎는다.
+  - 즉 매력도 점수 위에 현실적인 위험도를 덧씌우는 구조다.
+- 제외 규칙: 필터 + 랭킹
+  - `control`, `limita` 같은 전면 위험 조건은 여전히 후보에서 제외한다.
+  - 그 외 나머지는 점수로 비교해 순위를 정한다.
+
+정리하면, 현재 추천은 "콘텐츠 기반 여행지 추천 + ideal-point 예산 모형 + 위험도 패널티 + 필터링"을 조합한 설명 가능한 점수형 추천 시스템이다.
+
 ## 1. 입력 예산 의미 변경
 
 기존 `userDailyBudget`는 이름과 다르게 총예산처럼 쓰이고 있었다. 현재는 필드명을 `userTotalBudget`로 바꾸고, 실제 계산도 총예산 기준으로 맞췄다.
@@ -23,11 +60,11 @@ totalBudget = userTotalBudget
 expectedTotalCost = avgFlightPrice + (livingCostFor1Day * travelDays)
 ```
 
-- 1차 예산 필터
+- 후보 제외 없음
 
 ```text
-if expectedTotalCost > totalBudget * 1.3:
-    추천 후보 제외
+예산 차이가 커도 후보를 바로 제거하지 않음
+budgetScore에서 비선형으로 불리하게 반영
 ```
 
 예시:
@@ -41,8 +78,8 @@ livingCostFor1Day = 800,000
 expectedTotalCost = 250,000 + (800,000 * 3)
                   = 2,650,000
 
-2,650,000 <= 3,000,000 * 1.3 = 3,900,000
--> 후보 유지
+costBudgetRatio = 2,650,000 / 3,000,000 = 0.8833
+-> 예산 이상점(0.95) 근처라 높은 점수
 ```
 
 예시:
@@ -56,8 +93,8 @@ livingCostFor1Day = 1,250,000
 expectedTotalCost = 400,000 + (1,250,000 * 3)
                   = 4,150,000
 
-4,150,000 > 3,900,000
--> 후보 제외
+costBudgetRatio = 4,150,000 / 3,000,000 = 1.3833
+-> 후보 제외는 아니지만 예산 점수 0점
 ```
 
 ## 2. 태그 점수 로직 변경
@@ -80,8 +117,8 @@ expectedTotalCost = 400,000 + (1,250,000 * 3)
 ```text
 tagAverage = matchedScoreSum / matchedCount
 tagMatchRate = matchedCount / selectedTagCount
-blendedTagRaw = (tagAverage * 0.65) + (tagMatchRate * 0.35)
-tagScore = min(55, blendedTagRaw * 55)
+blendedTagRaw = (tagAverage * 0.55) + (tagMatchRate * 0.45)
+tagScore = min(45, blendedTagRaw * 45)
 ```
 
 ### 예시 1. 점수는 높지만 태그를 적게 맞춘 도시
@@ -94,17 +131,17 @@ matched scores = [0.95, 0.89]
 tagAverage = (0.95 + 0.89) / 2 = 0.92
 tagMatchRate = 2 / 4 = 0.50
 
-blendedTagRaw = (0.92 * 0.65) + (0.50 * 0.35)
-              = 0.598 + 0.175
-              = 0.773
+blendedTagRaw = (0.92 * 0.55) + (0.50 * 0.45)
+              = 0.506 + 0.225
+              = 0.731
 
-tagScore = 0.773 * 55 = 42.5
+tagScore = 0.731 * 45 = 32.9
 ```
 
 해석:
 
 - 예전 로직이면 `0.92 * 55 = 50.6`
-- 지금은 매칭률이 낮아서 `42.5`로 내려간다
+- 지금은 태그 최대치 자체를 낮추고 매칭률 비중을 높여 `32.9`로 내려간다
 
 ### 예시 2. 평균은 조금 낮지만 태그를 많이 맞춘 도시
 
@@ -116,17 +153,17 @@ matched scores = [0.82, 0.79, 0.77, 0.80]
 tagAverage = (0.82 + 0.79 + 0.77 + 0.80) / 4 = 0.795
 tagMatchRate = 4 / 4 = 1.00
 
-blendedTagRaw = (0.795 * 0.65) + (1.00 * 0.35)
-              = 0.51675 + 0.35
-              = 0.86675
+blendedTagRaw = (0.795 * 0.55) + (1.00 * 0.45)
+              = 0.43725 + 0.45
+              = 0.88725
 
-tagScore = 0.86675 * 55 = 47.7
+tagScore = 0.88725 * 45 = 39.9
 ```
 
 해석:
 
 - 예전 로직이면 `0.795 * 55 = 43.7`
-- 지금은 여러 태그를 고르게 맞춰서 `47.7`까지 올라간다
+- 지금은 여러 태그를 고르게 맞춰서 `39.9`까지 올라가지만, 전체 비중은 이전보다 낮다
 
 ### 예시 3. 요청 태그가 많을수록 매칭률 영향이 커지는 경우
 
@@ -136,11 +173,11 @@ matchedCount = 2
 tagAverage = 0.93
 tagMatchRate = 2 / 6 = 0.3333
 
-blendedTagRaw = (0.93 * 0.65) + (0.3333 * 0.35)
-              = 0.6045 + 0.1167
-              = 0.7212
+blendedTagRaw = (0.93 * 0.55) + (0.3333 * 0.45)
+              = 0.5115 + 0.1500
+              = 0.6615
 
-tagScore = 0.7212 * 55 = 39.7
+tagScore = 0.6615 * 45 = 29.8
 ```
 
 해석:
@@ -169,11 +206,11 @@ tagScore = 0.7212 * 55 = 39.7
 점수 규칙:
 
 ```text
-forbidden_region_ty 또는 control_partial 존재 -> 4.0
-evacuate_region_ty 또는 limita_partial 존재 -> 6.0
-attention 존재 -> 10.0
-attention_partial 존재 -> 12.0
-아무 위험 정보 없음 -> 15.0
+forbidden_region_ty 또는 control_partial 존재 -> 5.0
+evacuate_region_ty 또는 limita_partial 존재 -> 8.0
+attention 존재 -> 13.0
+attention_partial 존재 -> 16.0
+아무 위험 정보 없음 -> 20.0
 ```
 
 추가로 아래 값은 여전히 추천에서 제외한다.
@@ -193,7 +230,7 @@ limita_partial = null
 evacuate_region_ty = null
 forbidden_region_ty = null
 
-safetyScore = 15.0
+safetyScore = 20.0
 ```
 
 ### 예시 2. 일부 지역 여행유의
@@ -202,7 +239,7 @@ safetyScore = 15.0
 attention = null
 attention_partial = "여행유의(일부)"
 
-safetyScore = 12.0
+safetyScore = 16.0
 ```
 
 ### 예시 3. 전국 여행유의
@@ -211,7 +248,7 @@ safetyScore = 12.0
 attention = "여행유의"
 attention_partial = null
 
-safetyScore = 10.0
+safetyScore = 13.0
 ```
 
 ### 예시 4. 일부 지역 철수권고
@@ -222,7 +259,7 @@ forbidden_region_ty = null
 control_partial = null
 limita_partial = null
 
-safetyScore = 6.0
+safetyScore = 8.0
 ```
 
 ### 예시 5. 일부 지역 여행금지 성격 경고
@@ -230,7 +267,7 @@ safetyScore = 6.0
 ```text
 forbidden_region_ty = "국경 인접 지역"
 
-safetyScore = 4.0
+safetyScore = 5.0
 ```
 
 ### 예시 6. 전면 여행제한
@@ -248,31 +285,37 @@ limita = "출국권고"
 - 일부 지역 위험은 제외 대신 강한 감점
 - `attention`보다 `attention_partial`을 약하게 보는 것이 아니라, 일부 지역 경고를 전국 경고보다 조금 덜 심각하게 반영한다
 
-## 4. 예산 점수 패널티 강화
+## 4. 예산 점수 ideal-point 모델 적용
 
-기존 예산 점수:
+현재 예산 점수는 "쌀수록 무조건 좋다"가 아니라, 예산에 적당히 가까운 도시를 가장 선호하는 이상점 모형으로 계산한다.
 
-```text
-ratio = (totalBudget - expectedTotalCost) / totalBudget
+- 이상점: `expectedTotalCost / totalBudget = 0.95`
+- 너무 저렴한 구간 시작: `0.30`
+- 너무 비싼 구간 시작: `1.20`
+- 최고 점수: `35점`
 
-ratio >= 0 -> min(25, ratio * 25)
-ratio < 0 -> max(-25, (ratio / 0.3) * 25)
-```
-
-현재 예산 점수:
+계산식:
 
 ```text
-ratio = (totalBudget - expectedTotalCost) / totalBudget
+costBudgetRatio = expectedTotalCost / totalBudget
 
-ratio >= 0 -> min(18, ratio * 18)
-ratio < 0 -> max(-30, (ratio / 0.3) * 30)
+if costBudgetRatio <= 0.30 or costBudgetRatio >= 1.20:
+    budgetScore = 0
+
+if costBudgetRatio <= 0.95:
+    normalizedDistance = (0.95 - costBudgetRatio) / (0.95 - 0.30)
+else:
+    normalizedDistance = (costBudgetRatio - 0.95) / (1.20 - 0.95)
+
+budgetScore = (1 - normalizedDistance^2) * 35
 ```
 
 변경 의도:
 
-- 예산이 남는다고 과하게 보상하지 않음
-- 예산 초과는 이전보다 더 강하게 패널티
-- 비싼 도시가 태그 점수만으로 상위권에 남는 현상을 완화
+- 너무 싼 도시도, 너무 비싼 도시도 덜 선호되게 반영
+- 사용자가 생각한 예산에 가까운 도시를 가장 높게 평가
+- 30% 초과 여부만으로 기계적으로 제외하지 않고, 곡선 점수로 순위를 조정
+- 예산 항목의 최대 영향력을 이전보다 더 크게 가져감
 
 ### 예시 1. 예산 여유가 있는 경우
 
@@ -280,16 +323,20 @@ ratio < 0 -> max(-30, (ratio / 0.3) * 30)
 totalBudget = 3,000,000
 expectedTotalCost = 2,400,000
 
-ratio = (3,000,000 - 2,400,000) / 3,000,000
-      = 0.20
+costBudgetRatio = 2,400,000 / 3,000,000
+                = 0.80
 
-budgetScore = 0.20 * 18 = 3.6
+normalizedDistance = (0.95 - 0.80) / 0.65
+                   = 0.2308
+
+budgetScore = (1 - 0.2308^2) * 35
+            = 33.2
 ```
 
 해석:
 
-- 기존 로직이면 `0.20 * 25 = 5.0`
-- 현재는 예산 여유를 덜 공격적으로 보상
+- 예산보다 약간 저렴해서 만족도가 높다
+- 너무 싸지도 않고 이상점에도 비교적 가까워 높은 점수를 받는다
 
 ### 예시 2. 예산을 10% 초과한 경우
 
@@ -297,16 +344,20 @@ budgetScore = 0.20 * 18 = 3.6
 totalBudget = 3,000,000
 expectedTotalCost = 3,300,000
 
-ratio = (3,000,000 - 3,300,000) / 3,000,000
-      = -0.10
+costBudgetRatio = 3,300,000 / 3,000,000
+                = 1.10
 
-budgetScore = (-0.10 / 0.3) * 30 = -10.0
+normalizedDistance = (1.10 - 0.95) / 0.25
+                   = 0.60
+
+budgetScore = (1 - 0.60^2) * 35
+            = 22.4
 ```
 
 해석:
 
-- 기존 로직이면 `-8.3`
-- 현재는 더 세게 깎는다
+- 예산을 조금 넘더라도 바로 탈락하지 않는다
+- 다만 이상점에서 멀어져 점수가 분명히 낮아진다
 
 ### 예시 3. 예산을 20% 초과한 경우
 
@@ -314,11 +365,10 @@ budgetScore = (-0.10 / 0.3) * 30 = -10.0
 totalBudget = 3,000,000
 expectedTotalCost = 3,600,000
 
-ratio = (3,000,000 - 3,600,000) / 3,000,000
-      = -0.20
+costBudgetRatio = 3,600,000 / 3,000,000
+                = 1.20
 
-budgetScore = (-0.20 / 0.3) * 30
-            = -20.0
+budgetScore = 0
 ```
 
 ### 예시 4. 예산 초과가 매우 큰 경우
@@ -327,11 +377,10 @@ budgetScore = (-0.20 / 0.3) * 30
 totalBudget = 3,000,000
 expectedTotalCost = 4,200,000
 
-1차 필터 확인:
-4,200,000 > 3,000,000 * 1.3 = 3,900,000
+costBudgetRatio = 4,200,000 / 3,000,000
+                = 1.40
 
-결과:
-추천 후보 제외
+budgetScore = 0
 ```
 
 ## 5. 최종 점수식
@@ -344,9 +393,9 @@ finalScore = clamp(tagScore + budgetScore + safetyScore + newsPenaltyScore, 0, 1
 
 현재 각 항목 범위:
 
-- 태그 점수: `0 ~ 55`
-- 예산 점수: `-30 ~ 18`
-- 안전 점수: `4 ~ 15`
+- 태그 점수: `0 ~ 45`
+- 예산 점수: `0 ~ 35`
+- 안전 점수: `5 ~ 20`
 - 뉴스 패널티: `-15 ~ 0`
 
 ## 6. 종합 예시
@@ -387,21 +436,25 @@ cityNewsPenaltyScore = 4.0
 expectedTotalCost = 280,000 + (760,000 * 3)
                   = 2,560,000
 
-ratio = (3,000,000 - 2,560,000) / 3,000,000
-      = 0.1467
-budgetScore = 0.1467 * 18 = 2.6
+costBudgetRatio = 2,560,000 / 3,000,000
+                = 0.8533
+
+normalizedDistance = (0.95 - 0.8533) / 0.65
+                   = 0.1487
+budgetScore = (1 - 0.1487^2) * 35
+            = 34.2
 
 tagAverage = (0.88 + 0.81 + 0.77 + 0.83) / 4 = 0.8225
 tagMatchRate = 4 / 4 = 1.0
-blendedTagRaw = (0.8225 * 0.65) + (1.0 * 0.35)
-              = 0.8846
-tagScore = 0.8846 * 55 = 48.7
+blendedTagRaw = (0.8225 * 0.55) + (1.0 * 0.45)
+              = 0.9024
+tagScore = 0.9024 * 45 = 40.6
 
-safetyScore = 15.0
+safetyScore = 20.0
 newsPenaltyScore = -4.0
 
-finalScore = 48.7 + 2.6 + 15.0 - 4.0
-           = 62.3
+finalScore = 40.6 + 34.2 + 20.0 - 4.0
+           = 90.8
 ```
 
 ### 예시 2. 태그는 일부만 강하고, 예산도 초과한 경우
@@ -434,27 +487,31 @@ cityNewsPenaltyScore = 7.0
 expectedTotalCost = 420,000 + (1,020,000 * 3)
                   = 3,480,000
 
-ratio = (3,000,000 - 3,480,000) / 3,000,000
-      = -0.16
-budgetScore = (-0.16 / 0.3) * 30 = -16.0
+costBudgetRatio = 3,480,000 / 3,000,000
+                = 1.16
+
+normalizedDistance = (1.16 - 0.95) / 0.25
+                   = 0.84
+budgetScore = (1 - 0.84^2) * 35
+            = 10.3
 
 tagAverage = (0.95 + 0.91) / 2 = 0.93
 tagMatchRate = 2 / 4 = 0.50
-blendedTagRaw = (0.93 * 0.65) + (0.50 * 0.35)
-              = 0.7795
-tagScore = 0.7795 * 55 = 42.9
+blendedTagRaw = (0.93 * 0.55) + (0.50 * 0.45)
+              = 0.7365
+tagScore = 0.7365 * 45 = 33.1
 
-safetyScore = 12.0
+safetyScore = 16.0
 newsPenaltyScore = -7.0
 
-finalScore = 42.9 - 16.0 + 12.0 - 7.0
-           = 31.9
+finalScore = 33.1 + 10.3 + 16.0 - 7.0
+           = 52.4
 ```
 
 해석:
 
 - 태그 평균은 높아도 매칭률이 낮아서 완전 고득점은 아님
-- 예산 초과가 커서 순위가 크게 내려감
+- 예산을 조금 넘지만 후보에서 빠지지 않고, ideal-point 곡선에 따라 중간 수준 점수를 받는다
 - 일부 지역 위험 경고와 뉴스 패널티도 추가 감점
 
 ### 예시 3. 일부 지역 철수권고가 있는 경우
@@ -487,21 +544,25 @@ cityNewsPenaltyScore = 5.0
 expectedTotalCost = 250,000 + (700,000 * 3)
                   = 2,350,000
 
-ratio = (3,000,000 - 2,350,000) / 3,000,000
-      = 0.2167
-budgetScore = 0.2167 * 18 = 3.9
+costBudgetRatio = 2,350,000 / 3,000,000
+                = 0.7833
+
+normalizedDistance = (0.95 - 0.7833) / 0.65
+                   = 0.2564
+budgetScore = (1 - 0.2564^2) * 35
+            = 32.7
 
 tagAverage = (0.86 + 0.79) / 2 = 0.825
 tagMatchRate = 2 / 2 = 1.0
-blendedTagRaw = (0.825 * 0.65) + (1.0 * 0.35)
-              = 0.88625
-tagScore = 0.88625 * 55 = 48.7
+blendedTagRaw = (0.825 * 0.55) + (1.0 * 0.45)
+              = 0.90375
+tagScore = 0.90375 * 45 = 40.7
 
-safetyScore = 6.0
+safetyScore = 8.0
 newsPenaltyScore = -5.0
 
-finalScore = 48.7 + 3.9 + 6.0 - 5.0
-           = 53.6
+finalScore = 40.7 + 32.7 + 8.0 - 5.0
+           = 76.4
 ```
 
 해석:
@@ -513,5 +574,6 @@ finalScore = 48.7 + 3.9 + 6.0 - 5.0
 
 - 태그 하나만 강한 도시보다, 여러 요청 태그를 고르게 만족하는 도시가 올라온다.
 - 일부 지역 위험 경고가 있는 국가는 완전 제외 대신 강하게 감점된다.
-- 고비용 도시가 총예산 대비 더 불리하게 반영된다.
+- 너무 싸거나 너무 비싼 도시보다, 예산에 근접한 도시가 더 올라온다.
+- 30% 초과 여부만으로 끊지 않고도 예산 적합도를 자연스럽게 순위에 반영할 수 있다.
 - 추천 결과가 예산, 위험도, 태그 매칭률을 더 직관적으로 반영한다.
