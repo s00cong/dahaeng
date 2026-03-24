@@ -23,7 +23,6 @@ interface SeoulCompareSectionProps {
   data: CostCompare | undefined;
   isLoading: boolean;
   hotelPerDay?: number;
-  totalWithHotel?: number;
 }
 
 const PIE_COLORS: Record<string, string> = {
@@ -102,7 +101,7 @@ function BarTooltip({ active, payload, targetName }: {
   );
 }
 
-export function SeoulCompareSection({ data, isLoading, hotelPerDay, totalWithHotel }: SeoulCompareSectionProps) {
+export function SeoulCompareSection({ data, isLoading, hotelPerDay }: SeoulCompareSectionProps) {
   const vs = data?.costCompare;
   // 히어로 카드: localCostCompare 우선, 없으면 costCompare fallback
   const gapPercent = data?.localCostCompare?.localDailyCostGapPercent ?? vs?.dailyBudgetGapPercent ?? 0;
@@ -125,12 +124,9 @@ export function SeoulCompareSection({ data, isLoading, hotelPerDay, totalWithHot
         }))
     : [];
 
-  // total: compare API total(식비+교통)에 숙박이 없으면 city API total 사용
-  const displayTotal = data
-    ? (breakdown?.accommodation != null
-        ? data.expectedTargetDailyBudget.total
-        : (totalWithHotel ?? data.expectedTargetDailyBudget.total))
-    : 0;
+  // total: 식비 + 교통 + 숙박(fallback 포함) 직접 합산
+  const pieTotal = pieData.reduce((sum, d) => sum + d.value, 0);
+  const displayTotal = data ? (pieTotal > 0 ? pieTotal : data.expectedTargetDailyBudget.total) : 0;
 
   const targetName = data?.target.name ?? '도시';
 
@@ -235,8 +231,8 @@ export function SeoulCompareSection({ data, isLoading, hotelPerDay, totalWithHot
                     wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
                     formatter={(value, _entry) => {
                       const item = pieData.find((d) => d.name === value);
-                      const pct = item
-                        ? ((item.value / data.expectedTargetDailyBudget.total) * 100).toFixed(0)
+                      const pct = item && displayTotal > 0
+                        ? ((item.value / displayTotal) * 100).toFixed(0)
                         : '';
                       return `${value} ${pct}%`;
                     }}

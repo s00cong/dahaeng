@@ -95,7 +95,6 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
           data={costCompare.data}
           isLoading={costCompare.isLoading}
           hotelPerDay={avgHotelPerDay ?? city.livingCostFor1Day?.accommodation ?? undefined}
-          totalWithHotel={city.livingCostFor1Day?.total ?? undefined}
         />
 
         {/* C. 항목별 전체 물가표 (월급, 인구 정보 포함) */}
