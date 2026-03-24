@@ -477,7 +477,7 @@ const BookmarkListPage = () => {
             홈
           </Link>
           <ChevronRight className="size-3.5" aria-hidden="true" />
-          <span className="text-slate-600 font-medium">저장된 도시</span>
+          <span className="text-white font-medium">저장된 도시</span>
         </nav>
 
         {/* 헤더 행 */}

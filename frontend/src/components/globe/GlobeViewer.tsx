@@ -1574,8 +1574,12 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         flightAnimRef.current = null;
       }
       overlay.remove();
-      if (map.getLayer("flight-arc")) map.removeLayer("flight-arc");
-      if (map.getSource("flight-arc")) map.removeSource("flight-arc");
+      try {
+        if (map.getLayer("flight-arc")) map.removeLayer("flight-arc");
+        if (map.getSource("flight-arc")) map.removeSource("flight-arc");
+      } catch (_) {
+        // 컴포넌트 언마운트 시 지도가 이미 파괴된 경우 무시
+      }
     };
   }, [selectedCityCoords, mapReady, avgDurationText]);
 
