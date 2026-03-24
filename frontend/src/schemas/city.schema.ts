@@ -9,7 +9,7 @@ export const CityListItemSchema = z.object({
   countryName: z.string(),
   imgUrl: z.string(),
   estimatedBudget: z.number(),
-  riskLevel: z.number().min(0).max(5), // danger object에서 파생
+  riskLevel: z.number().min(0).max(6), // danger object에서 파생
   latitude: z.number(),
   longitude: z.number(),
   matchingScore: z.number().min(0).max(100).optional(),
