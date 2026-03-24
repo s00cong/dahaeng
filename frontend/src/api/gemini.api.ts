@@ -9,7 +9,9 @@ const attractionInCourseSchema = z.object({
   name: z.string(),
   order: z.number(),
   description: z.string(),
+  tip: z.string(),
   stayMinutes: z.number(),
+  visitTime: z.string(),
   lat: z.number(),
   lon: z.number(),
 });
@@ -34,11 +36,13 @@ const attractionItemSchema = {
     name: { type: 'string', description: 'Exact name from the input list' },
     order: { type: 'number', description: 'Visit order starting from 1' },
     description: { type: 'string', description: 'One short Korean sentence describing this attraction' },
+    tip: { type: 'string', description: 'One short Korean sentence about what visitors can enjoy or do here (e.g. 전망대에서 야경 감상하기, 현지 길거리 음식 맛보기)' },
     stayMinutes: { type: 'number', description: 'Suggested stay duration in minutes' },
+    visitTime: { type: 'string', description: 'Recommended visit time range in Korean (e.g. 09:00 ~ 10:30)' },
     lat: { type: 'number' },
     lon: { type: 'number' },
   },
-  required: ['name', 'order', 'description', 'stayMinutes', 'lat', 'lon'],
+  required: ['name', 'order', 'description', 'tip', 'stayMinutes', 'visitTime', 'lat', 'lon'],
 };
 
 const TRAVEL_COURSES_JSON_SCHEMA = {
@@ -110,7 +114,9 @@ export async function generateTravelCourses(
 다음은 ${cityNameKo}의 관광지 목록입니다.
 서로 다른 테마의 하루 여행 코스 3개를 추천해 주세요.
 각 코스는 5~7곳으로 구성하고, 동선이 효율적이도록 순서를 정해주세요.
-각 관광지에 한 문장의 간단한 한국어 설명을 달아주세요.
+각 관광지에 한 문장의 간단한 한국어 설명(description)을 달아주세요.
+각 관광지에서 방문객이 즐길 수 있는 활동이나 추천 행동을 한 문장으로 tip 필드에 적어주세요 (예: 전망대에서 야경 감상하기, 현지 길거리 음식 맛보기).
+각 관광지의 권장 방문 시간대를 visitTime으로 알려주세요 (예: 09:00 ~ 10:30). 코스 전체가 하루 일정이 되도록 연속된 시간으로 구성하세요.
 ${tagSection}
 관광지 목록 (tags: 장소 특성 태그, score: 추천 점수):
 ${JSON.stringify(allSpots, null, 2)}
