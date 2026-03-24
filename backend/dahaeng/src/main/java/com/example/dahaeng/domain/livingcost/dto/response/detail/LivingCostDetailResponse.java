@@ -14,7 +14,7 @@ public record LivingCostDetailResponse(
 			livingCost.getCity().getId(),
 			livingCost.getCity().getCityName(),
 			livingCost.getCity().getCountry().getCountryName(),
-			"KRW",
+			livingCost.getCity().getCountry().getCurrency(),
 			livingCost.getCity().getImgUrl()
 		);
 
@@ -86,7 +86,7 @@ public record LivingCostDetailResponse(
 			livingCost.getCountry().getId(),
 			livingCost.getCountry().getCountryName(),
 			livingCost.getCountry().getContinent().name(),
-			"KRW",
+			livingCost.getCountry().getCurrency(),
 			livingCost.getCountry().getImgUrl()
 		);
 
