@@ -38,120 +38,359 @@ const FILTER_OPTIONS: { value: ContinentFilter; label: string }[] = [
   { value: "middleeast_africa", label: "중동·아프리카" },
 ];
 
-// Rough continent → filter mapping (client-side heuristic by countryName)
+// countryNameKo.ts 기준 162개 나라 대륙별 매핑
 const CONTINENT_KEYWORDS: Record<ContinentFilter, string[]> = {
   all: [],
   asia: [
+    // 동아시아
     "japan",
     "china",
-    "korea",
-    "thailand",
+    "south korea",
+    "north korea",
+    "taiwan",
+    "mongolia",
+    "hong kong",
+    // 동남아시아
     "vietnam",
+    "thailand",
     "indonesia",
     "malaysia",
     "singapore",
     "philippines",
-    "india",
-    "taiwan",
-    "hong kong",
     "cambodia",
     "myanmar",
     "laos",
+    "timor-leste",
+    // 남아시아
+    "india",
+    "pakistan",
     "bangladesh",
-    "nepal",
     "sri lanka",
-    "maldives",
+    "nepal",
+    "bhutan",
+    // 중앙아시아
+    "kazakhstan",
+    "uzbekistan",
+    "kyrgyzstan",
+    "tajikistan",
+    "turkmenistan",
+    // 러시아 (아시아/유럽 모두 포함)
+    "russia",
+    // 한국어
     "일본",
     "중국",
-    "한국",
-    "태국",
+    "대한민국",
+    "북한",
+    "대만",
+    "몽골",
+    "홍콩",
     "베트남",
+    "태국",
     "인도네시아",
     "말레이시아",
     "싱가포르",
     "필리핀",
+    "캄보디아",
+    "미얀마",
+    "라오스",
+    "동티모르",
     "인도",
-    "대만",
-    "홍콩",
+    "파키스탄",
+    "방글라데시",
+    "스리랑카",
+    "네팔",
+    "부탄",
+    "카자흐스탄",
+    "우즈베키스탄",
+    "키르기스스탄",
+    "타지키스탄",
+    "투르크메니스탄",
+    "러시아",
   ],
   europe: [
+    // 서유럽
     "france",
     "germany",
     "italy",
     "spain",
-    "uk",
-    "united kingdom",
+    "portugal",
     "netherlands",
+    "belgium",
+    "luxembourg",
     "switzerland",
     "austria",
-    "portugal",
-    "greece",
-    "czech",
-    "poland",
-    "hungary",
-    "belgium",
+    "ireland",
+    "united kingdom",
+    // 북유럽
     "sweden",
     "norway",
     "denmark",
     "finland",
-    "croatia",
+    "iceland",
+    // 동유럽
+    "poland",
+    "czechia",
+    "hungary",
     "romania",
+    "bulgaria",
+    "slovakia",
+    "slovenia",
+    "croatia",
+    "ukraine",
+    "belarus",
+    "moldova",
+    "serbia",
+    "albania",
+    "kosovo",
+    "montenegro",
+    "bosnia",
+    "macedonia",
+    // 발트
+    "estonia",
+    "latvia",
+    "lithuania",
+    // 기타
+    "greece",
+    "cyprus",
+    "georgia",
+    "armenia",
+    "azerbaijan",
+    // 러시아 (아시아/유럽 모두 포함), 튀르키예
+    "russia",
+    "turkey",
+    // 한국어
     "프랑스",
     "독일",
     "이탈리아",
     "스페인",
-    "영국",
+    "포르투갈",
     "네덜란드",
+    "벨기에",
+    "룩셈부르크",
     "스위스",
+    "오스트리아",
+    "아일랜드",
+    "영국",
+    "스웨덴",
+    "노르웨이",
+    "덴마크",
+    "핀란드",
+    "아이슬란드",
+    "폴란드",
+    "체코",
+    "헝가리",
+    "루마니아",
+    "불가리아",
+    "슬로바키아",
+    "슬로베니아",
+    "크로아티아",
+    "우크라이나",
+    "벨라루스",
+    "몰도바",
+    "세르비아",
+    "알바니아",
+    "코소보",
+    "몬테네그로",
+    "보스니아",
+    "북마케도니아",
+    "에스토니아",
+    "라트비아",
+    "리투아니아",
+    "그리스",
+    "키프로스",
+    "조지아",
+    "아르메니아",
+    "아제르바이잔",
+    "러시아",
+    "튀르키예",
   ],
   americas: [
-    "usa",
+    // 북아메리카
     "united states",
     "canada",
     "mexico",
+    "cuba",
+    "jamaica",
+    "haiti",
+    "dominican",
+    "puerto rico",
+    "el salvador",
+    "guatemala",
+    "honduras",
+    "nicaragua",
+    "panama",
+    "costa rica",
+    // 남아메리카
     "brazil",
     "argentina",
+    "chile",
     "peru",
     "colombia",
-    "chile",
-    "cuba",
-    "costa rica",
+    "venezuela",
+    "ecuador",
+    "bolivia",
+    "paraguay",
+    "uruguay",
+    // 한국어
     "미국",
     "캐나다",
     "멕시코",
+    "쿠바",
+    "자메이카",
+    "아이티",
+    "도미니카",
+    "푸에르토리코",
+    "엘살바도르",
+    "과테말라",
+    "온두라스",
+    "니카라과",
+    "파나마",
     "브라질",
     "아르헨티나",
+    "칠레",
+    "페루",
+    "콜롬비아",
+    "베네수엘라",
+    "에콰도르",
+    "볼리비아",
+    "파라과이",
+    "우루과이",
   ],
   oceania: [
     "australia",
     "new zealand",
+    "papua new guinea",
     "fiji",
-    "papua",
     "samoa",
     "호주",
     "뉴질랜드",
+    "파푸아뉴기니",
     "피지",
+    "사모아",
   ],
   middleeast_africa: [
-    "uae",
-    "dubai",
-    "saudi",
+    // 중동
+    "saudi arabia",
+    "united arab emirates",
     "qatar",
+    "kuwait",
+    "oman",
     "jordan",
     "israel",
+    "lebanon",
+    "syria",
+    "iraq",
+    "iran",
+    "yemen",
     "turkey",
+    // 북아프리카
     "egypt",
     "morocco",
-    "kenya",
-    "south africa",
-    "nigeria",
+    "algeria",
+    "libya",
+    "tunisia",
+    "sudan",
+    "w. sahara",
+    // 동아프리카
     "ethiopia",
+    "kenya",
     "tanzania",
-    "터키",
-    "이집트",
+    "uganda",
+    "rwanda",
+    "somalia",
+    "djibouti",
+    "eritrea",
+    "mozambique",
+    "madagascar",
+    "zambia",
+    "zimbabwe",
+    "malawi",
+    "mauritius",
+    // 서아프리카
+    "nigeria",
+    "ghana",
+    "senegal",
+    "mali",
+    "niger",
+    "chad",
+    "cameroon",
+    "ivory",
+    "côte",
+    "guinea",
+    "liberia",
+    "sierra leone",
+    "benin",
+    "burkina",
+    "togo",
+    "mauritania",
+    "gambia",
+    "gabon",
+    "congo",
+    // 남아프리카
+    "south africa",
+    "namibia",
+    "botswana",
+    "angola",
+    "lesotho",
+    "eswatini",
+    // 한국어
+    "사우디아라비아",
+    "아랍에미리트",
+    "카타르",
+    "쿠웨이트",
+    "오만",
+    "요르단",
     "이스라엘",
-    "두바이",
-    "사우디",
+    "레바논",
+    "시리아",
+    "이라크",
+    "이란",
+    "예멘",
+    "튀르키예",
+    "이집트",
+    "모로코",
+    "알제리",
+    "리비아",
+    "튀니지",
+    "수단",
+    "서사하라",
+    "에티오피아",
+    "케냐",
+    "탄자니아",
+    "우간다",
+    "르완다",
+    "소말리아",
+    "지부티",
+    "에리트레아",
+    "모잠비크",
+    "마다가스카르",
+    "잠비아",
+    "짐바브웨",
+    "말라위",
+    "모리셔스",
+    "나이지리아",
+    "가나",
+    "세네갈",
+    "말리",
+    "니제르",
+    "차드",
+    "카메룬",
+    "코트디부아르",
+    "기니",
+    "라이베리아",
+    "시에라리온",
+    "베냉",
+    "부르키나파소",
+    "토고",
+    "모리타니",
+    "가봉",
+    "콩고",
+    "남아프리카공화국",
+    "나미비아",
+    "보츠와나",
+    "앙골라",
+    "레소토",
+    "에스와티니",
   ],
 };
 
@@ -177,20 +416,33 @@ const BookmarkListPage = () => {
     useState<ContinentFilter>("all");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // 전체 목록을 한 번에 가져와서 클라이언트에서 필터+페이지네이션 처리
   const { data, isLoading, isError, error, refetch } = useBookmarkList({
-    keyword,
-    page: currentPage - 1,
-    size: ITEMS_PER_PAGE,
+    page: 0,
+    size: 9999,
   });
   const { mutate: deleteBookmark } = useDeleteBookmark();
 
-  // Client-side continent filtering (현재 페이지 내에서만)
-  const pagedData = useMemo(() => {
+  // 제목 검색 + 대륙 필터 AND 적용
+  const filteredAll = useMemo(() => {
     if (!data) return [];
-    return data.content.filter((item) => matchesContinent(item, continentFilter));
-  }, [data, continentFilter]);
+    return data.content.filter((item) => {
+      const matchesTitle = keyword
+        ? (item.title ?? "").toLowerCase().includes(keyword.toLowerCase())
+        : true;
+      return matchesTitle && matchesContinent(item, continentFilter);
+    });
+  }, [data, continentFilter, keyword]);
 
-  const totalPages = data?.totalPages ?? 1;
+  // 클라이언트 페이지네이션
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredAll.length / ITEMS_PER_PAGE),
+  );
+  const pagedData = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAll.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredAll, currentPage]);
 
   const handleFilterChange = (value: string) => {
     setContinentFilter(value as ContinentFilter);
@@ -203,11 +455,11 @@ const BookmarkListPage = () => {
 
   return (
     <motion.div
-      className="min-h-screen bg-slate-50"
+      className="min-h-screen"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       style={{
-        background: "linear-gradient(135deg, #93C5FD 0%, #93C5FD 100%)",
+        background: "#0d1b2e",
       }}
       transition={{ duration: 0.35, ease: "easeOut" }}
     >
@@ -230,7 +482,7 @@ const BookmarkListPage = () => {
 
         {/* 헤더 행 */}
         <div className="mb-6 flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-white">
             총 저장한 도시 :{" "}
             <span className="text-blue-600">
               {data ? data.totalElements : 0}개
@@ -301,18 +553,26 @@ const BookmarkListPage = () => {
                       key={item.id}
                       initial={{ opacity: 0, y: 16 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, ease: "easeOut", delay: index * 0.05 }}
+                      transition={{
+                        duration: 0.3,
+                        ease: "easeOut",
+                        delay: index * 0.05,
+                      }}
                     >
                       <BookmarkCard item={item} onDelete={handleDelete} />
                     </motion.div>
                   ))}
 
-                  {/* AddCityCard는 마지막에 */}
-                  {currentPage === totalPages && (
+                  {/* AddCityCard는 마지막 페이지에만 */}
+                  {currentPage === totalPages && continentFilter === "all" && (
                     <motion.div
                       initial={{ opacity: 0, y: 16 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, ease: "easeOut", delay: pagedData.length * 0.05 }}
+                      transition={{
+                        duration: 0.3,
+                        ease: "easeOut",
+                        delay: pagedData.length * 0.05,
+                      }}
                     >
                       <AddCityCard />
                     </motion.div>

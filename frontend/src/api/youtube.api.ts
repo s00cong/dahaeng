@@ -1,6 +1,13 @@
 import { axiosInstance } from "./axiosInstance";
 import { z } from "zod";
 
+export interface YoutubeSyncStatus {
+  connected: boolean;
+  syncEnabled: boolean | null;
+  syncStatus: "PENDING" | "SYNCED" | "FAILED" | null;
+  lastSyncedAt: string | null;
+}
+
 const EvidenceKeywordSchema = z.object({
   keyword: z.string(),
   sourceType: z.string(),
@@ -53,6 +60,17 @@ export const youtubeApi = {
     await axiosInstance.post("/api/interest/analyze", null, {
       timeout: 120_000,
     });
+  },
+
+  // GET /api/youtube/sync-status — YouTube 연동 및 동기화 상태 조회
+  getSyncStatus: async (): Promise<YoutubeSyncStatus> => {
+    const { data } = await axiosInstance.get("/api/youtube/sync-status");
+    return data as YoutubeSyncStatus;
+  },
+
+  // PATCH /api/youtube/sync-preference — syncEnabled 변경
+  updateSyncPreference: async (syncEnabled: boolean): Promise<void> => {
+    await axiosInstance.patch("/api/youtube/sync-preference", { syncEnabled });
   },
 
   // GET /api/interest/analyze — 저장된 여행 태그 목록 + 풀 분석 데이터 조회

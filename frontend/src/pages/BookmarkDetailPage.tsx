@@ -20,7 +20,7 @@ const BookmarkDetailPage = () => {
   return (
     <div
       className="relative min-h-screen"
-      style={{ background: 'linear-gradient(135deg, #93C5FD 0%, #93C5FD 100%)' }}
+      style={{ background: '#0d1b2e' }}
     >
       <motion.div
         initial={{ opacity: 0 }}
@@ -44,7 +44,7 @@ const BookmarkDetailPage = () => {
         {data && (
           <>
             {/* 히어로 섹션 */}
-            <BookmarkHeroSection data={data} />
+            <BookmarkHeroSection data={data} bookmarkId={id} />
 
             {/* 대시보드 영역 */}
             <div className="mx-auto max-w-7xl px-6 py-8">

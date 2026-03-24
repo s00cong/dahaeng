@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { youtubeApi } from "@/api/youtube.api";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Link2,
@@ -308,7 +310,8 @@ function WithdrawModal({
           <p className="text-sm text-slate-500 leading-relaxed">
             탈퇴 시 모든 데이터(북마크, 선호도, 연동 정보)가
             <br />
-            <span className="font-semibold text-red-500">영구적으로 삭제</span>되며 복구할 수 없습니다.
+            <span className="font-semibold text-red-500">영구적으로 삭제</span>
+            되며 복구할 수 없습니다.
           </p>
         </div>
 
@@ -346,6 +349,7 @@ const MyPage = () => {
   const { mutate: withdraw, isPending: isWithdrawPending } = useWithdraw();
   const navigate = useNavigate();
 
+  const queryClient = useQueryClient();
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
   const { data: memberTags = [] } = useMemberTags();
@@ -357,7 +361,17 @@ const MyPage = () => {
     .filter((t) => savedTagIds.includes(t.tagId))
     .map((t) => t.tagName);
 
-  const [youtubeConnected, setYoutubeConnected] = useState(true);
+  // YouTube 연동 상태 (서버에서 조회)
+  const { data: syncStatus } = useQuery({
+    queryKey: ["youtube", "sync-status"],
+    queryFn: youtubeApi.getSyncStatus,
+  });
+  // 계정 자체가 OAuth 연결되어 있는지
+  const isYoutubeAccountLinked = syncStatus?.connected ?? false;
+  // 계정 연결 + syncEnabled 활성 상태
+  const youtubeConnected =
+    isYoutubeAccountLinked && syncStatus?.syncEnabled !== false;
+
   const [youtubeModalAction, setYoutubeModalAction] = useState<
     "connect" | "disconnect" | null
   >(null);
@@ -367,8 +381,31 @@ const MyPage = () => {
   };
 
   const handleYoutubeModalConfirm = () => {
-    setYoutubeConnected((v) => !v);
+    const action = youtubeModalAction;
     setYoutubeModalAction(null);
+
+    if (action === "disconnect") {
+      // 동기화 비활성화
+      youtubeApi
+        .updateSyncPreference(false)
+        .then(() =>
+          queryClient.invalidateQueries({
+            queryKey: ["youtube", "sync-status"],
+          }),
+        )
+        .catch(console.error);
+    } else if (action === "connect" && isYoutubeAccountLinked) {
+      // 계정은 연결됐지만 sync만 꺼져 있던 경우 → 재활성화
+      youtubeApi
+        .updateSyncPreference(true)
+        .then(() =>
+          queryClient.invalidateQueries({
+            queryKey: ["youtube", "sync-status"],
+          }),
+        )
+        .catch(console.error);
+    }
+    // 계정 자체가 미연동인 경우 → 모달 내부에서 OAuth 리다이렉트 처리
   };
 
   const handleTagEdit = () => {

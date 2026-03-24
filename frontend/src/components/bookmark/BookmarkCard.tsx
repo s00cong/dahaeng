@@ -55,7 +55,8 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
 
   const continentLabel =
     CONTINENT_LABEL_MAP[item.countryName.toLowerCase()] ??
-    (COUNTRY_NAME_KO[item.countryName] ?? item.countryName.toUpperCase());
+    COUNTRY_NAME_KO[item.countryName] ??
+    item.countryName.toUpperCase();
   const badgeClass = getContinentBadgeClass(item.countryName);
 
   return (
@@ -101,13 +102,23 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
           )}
         >
           {flagUrl && (
-            <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
+            <img
+              src={flagUrl}
+              alt=""
+              className="h-3 w-auto rounded-[2px] object-cover shrink-0"
+              aria-hidden="true"
+            />
           )}
           {continentLabel}
         </Badge>
-        <h3 className="text-base font-bold text-slate-900 leading-tight">
+        <h3 className="text-base font-bold text-slate-600 leading-tight">
           {CITY_NAME_KO[item.cityName] ?? item.cityName}
         </h3>
+        <p
+          className={`text-xl font-bold truncate ${item.title ? "text-slate-900" : "text-slate-400"}`}
+        >
+          {item.title ?? "제목 없음"}
+        </p>
         <p className="text-xs text-slate-400 mt-0.5">
           {dayjs(item.createdAt).format("YYYY.MM.DD HH:mm")}
         </p>
