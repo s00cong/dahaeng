@@ -42,7 +42,7 @@ public class NewsApiSearchService implements NewsSearchService {
                 .queryParam("language", "en")
                 .queryParam("sortBy", "publishedAt")
                 .queryParam("pageSize", 5)
-                .queryParam("from", LocalDate.now().minusDays(7))
+                .queryParam("from", LocalDate.now().minusDays(14))
                 .build()
                 .toUriString();
 
@@ -115,9 +115,9 @@ public class NewsApiSearchService implements NewsSearchService {
 
     private String buildQuery(String city, String country, double newsPenaltyScore) {
         if (newsPenaltyScore <= -8) {
-            return "\"" + city + "\" AND \"" + country + "\" AND (travel OR safety OR crime OR protest OR accident)";
+            return "\"" + city + "\" OR \"" + country + "\" AND (travel OR safety OR crime OR protest OR accident)";
         }
-        return "\"" + city + "\" AND \"" + country + "\" AND (travel OR tourism OR attraction OR restaurant OR festival)";
+        return "\"" + city + "\" OR \"" + country + "\" AND (travel OR tourism OR attraction OR restaurant OR festival)";
     }
 
     private String summarizeArticles(String city, String country, double newsPenaltyScore, List<ArticleItem> articles) {

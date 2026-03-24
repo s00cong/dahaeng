@@ -34,7 +34,7 @@ public class CityController {
             @PathVariable("id") Long id,
             @RequestParam("recommend") Boolean recommend,
             @RequestParam(value = "selectedTags", required = false) List<String> selectedTags,
-            @RequestParam(value = "userDailyBudget", required = false) Double userDailyBudget,
+            @RequestParam(value = "userTotalBudget", required = false) Double userTotalBudget,
             @RequestParam(value = "travelDays", required = false) Integer travelDays,
             @RequestParam(value = "month", required = false) Integer month,
             @RequestParam(value = "recommendId", required = false) UUID recommendId,
@@ -43,7 +43,7 @@ public class CityController {
         cityViewService.view(id, user.getId());
 
         if (recommend) {
-            RecommendCitiesRequest request = new RecommendCitiesRequest(selectedTags, userDailyBudget, travelDays, month, recommendId);
+            RecommendCitiesRequest request = new RecommendCitiesRequest(selectedTags, userTotalBudget, travelDays, month, recommendId);
             RecommendCityDetailResponse recommendCityDetailResponse = cityService.getRecommendCityDetail(id, request);
             return ResponseEntity.ok(recommendCityDetailResponse);
         }

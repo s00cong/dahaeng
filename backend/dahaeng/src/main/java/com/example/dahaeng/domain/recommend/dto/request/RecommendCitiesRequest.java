@@ -5,7 +5,7 @@ import java.util.UUID;
 
 public record RecommendCitiesRequest(
         List<String> selectedTags,
-        Double userDailyBudget,
+        Double userTotalBudget,
         Integer travelDays,
         Integer month,
         UUID recommendId

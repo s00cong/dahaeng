@@ -159,15 +159,20 @@ public class CityService {
         List<String> selectedTags = normalizeSelectedTags(request, cityTags);
         List<String> climateTags = extractClimateTags(selectedTags);
 
-        double tagRaw = calculateTagRaw(id, selectedTags, climateTags, request.month());
+        TagMetrics tagMetrics = calculateTagMetrics(id, selectedTags, climateTags, request.month());
         Danger danger = dangerRepository.findByCountryId(city.getCountry().getId()).orElse(null);
         RecommendationScoreCalculator.ScoreBreakdown scoreBreakdown = RecommendationScoreCalculator.calculate(
-                tagRaw,
+                tagMetrics.averageScore(),
+                tagMetrics.matchRate(),
                 request,
                 avgFlightPrice,
                 dailyLivingCost.total(),
                 danger != null ? danger.getAttention() : null,
                 danger != null ? danger.getAttentionPartial() : null,
+                danger != null ? danger.getControlPartial() : null,
+                danger != null ? danger.getLimitaPartial() : null,
+                danger != null ? danger.getEvacuateRegionTy() : null,
+                danger != null ? danger.getForbiddenRegionTy() : null,
                 city.getNews_penalty_score()
         );
         long basicDataMs = elapsedMs(basicDataStart);
@@ -496,9 +501,9 @@ public class CityService {
                 .toList();
     }
 
-    private double calculateTagRaw(Long cityId, List<String> selectedTags, List<String> climateTags, Integer month) {
+    private TagMetrics calculateTagMetrics(Long cityId, List<String> selectedTags, List<String> climateTags, Integer month) {
         if (selectedTags.isEmpty()) {
-            return 0.0;
+            return new TagMetrics(0.0, 0.0);
         }
 
         List<String> regularTags = selectedTags.stream()
@@ -515,29 +520,33 @@ public class CityService {
         boolean hasRegularTags = !matchedTags.isEmpty();
         boolean hasClimateTags = !matchedClimateTags.isEmpty();
         if (!hasRegularTags && !hasClimateTags) {
-            return 0.0;
+            return new TagMetrics(0.0, 0.0);
         }
 
-        double regularAverage = matchedTags.stream()
+        long regularMatchedCount = matchedTags.stream()
+                .map(CityTag::getTagScore)
+                .filter(java.util.Objects::nonNull)
+                .count();
+        long climateMatchedCount = matchedClimateTags.stream()
+                .map(CityClimateTag::getScore)
+                .filter(java.util.Objects::nonNull)
+                .count();
+        long matchedCount = regularMatchedCount + climateMatchedCount;
+
+        double scoreSum = matchedTags.stream()
                 .map(CityTag::getTagScore)
                 .filter(java.util.Objects::nonNull)
                 .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0.0);
-        double climateAverage = matchedClimateTags.stream()
+                .sum();
+        scoreSum += matchedClimateTags.stream()
                 .map(CityClimateTag::getScore)
                 .filter(java.util.Objects::nonNull)
                 .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0.0);
+                .sum();
 
-        if (!hasClimateTags) {
-            return regularAverage;
-        }
-        if (!hasRegularTags) {
-            return climateAverage;
-        }
-        return (regularAverage + climateAverage) / 2.0;
+        double averageScore = matchedCount == 0 ? 0.0 : scoreSum / matchedCount;
+        double matchRate = selectedTags.isEmpty() ? 0.0 : (double) matchedCount / selectedTags.size();
+        return new TagMetrics(averageScore, Math.min(1.0, matchRate));
     }
 
     private List<String> extractClimateTags(List<String> selectedTags) {
@@ -549,7 +558,7 @@ public class CityService {
 
     private void validateRecommendDetailRequest(RecommendCitiesRequest request) {
         if (request == null
-                || request.userDailyBudget() == null
+                || request.userTotalBudget() == null
                 || request.travelDays() == null
                 || request.travelDays() <= 0
                 || request.month() == null
@@ -563,6 +572,12 @@ public class CityService {
 
     private double round(double value) {
         return Math.round(value * 10.0) / 10.0;
+    }
+
+    private record TagMetrics(
+            double averageScore,
+            double matchRate
+    ) {
     }
 
     private double round4(double value) {
