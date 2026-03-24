@@ -6,8 +6,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.example.dahaeng.domain.flight.document.FlightPriceCalendar;
+import com.example.dahaeng.domain.flightalert.entity.AlertType;
 import com.example.dahaeng.domain.flight.repository.FlightPriceCalendarRepository;
 import java.lang.reflect.Field;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -15,53 +18,79 @@ import org.junit.jupiter.api.Test;
 class FlightAlertPriceServiceTest {
 
     @Test
-    void findLowestRoundTrip_prefersCheapestValidCombinationAcrossMonthBoundary() throws Exception {
+    void findAlertCandidate_usesOutboundDailyPricesWithoutRoundTripCalculation() throws Exception {
         FlightPriceCalendarRepository repository = mock(FlightPriceCalendarRepository.class);
         FlightAlertPriceService service = new FlightAlertPriceService(repository);
         Long cityId = 1L;
 
         String currentMonth = YearMonth.now().toString();
-        String nextMonth = YearMonth.now().plusMonths(1).toString();
 
         FlightPriceCalendar current = calendar(
                 cityId,
                 currentMonth,
                 "2026-03-20",
                 List.of(
-                        dailyPrice("2026-03-28", 100_000),
-                        dailyPrice("2026-03-30", 200_000)
+                        dailyPrice("2026-03-28", 220_000),
+                        dailyPrice("2026-03-30", 245_000),
+                        dailyPrice("2026-04-01", 280_000)
                 ),
-                List.of(
-                        dailyPrice("2026-03-31", 150_000)
-                )
-        );
-        FlightPriceCalendar next = calendar(
-                cityId,
-                nextMonth,
-                "2026-03-21",
-                List.of(),
-                List.of(
-                        dailyPrice("2026-04-02", 120_000),
-                        dailyPrice("2026-04-05", 80_000)
-                )
+                List.of()
         );
 
         when(repository.findByCityIdAndYearMonthOrderByCollectedDateDesc(eq(cityId), eq(currentMonth), eq(org.springframework.data.domain.PageRequest.of(0, 1))))
                 .thenReturn(List.of(current));
-        when(repository.findByCityIdAndYearMonthOrderByCollectedDateDesc(eq(cityId), eq(nextMonth), eq(org.springframework.data.domain.PageRequest.of(0, 1))))
-                .thenReturn(List.of(next));
-        for (int i = 2; i < 6; i++) {
+        for (int i = 1; i < 6; i++) {
             String yearMonth = YearMonth.now().plusMonths(i).toString();
             when(repository.findByCityIdAndYearMonthOrderByCollectedDateDesc(eq(cityId), eq(yearMonth), eq(org.springframework.data.domain.PageRequest.of(0, 1))))
                     .thenReturn(List.of());
         }
 
-        FlightAlertPriceService.RoundTripPriceMatch result = service.findLowestRoundTrip(cityId).orElseThrow();
+        FlightAlertPriceService.AlertCandidate result = service.findAlertCandidate(cityId, 250_000).orElseThrow();
 
+        assertThat(result.alertType()).isEqualTo(AlertType.TARGET_HIT);
         assertThat(result.matchedPrice()).isEqualTo(220_000);
-        assertThat(result.departureDate()).isEqualTo("2026-03-28");
-        assertThat(result.returnDate()).isEqualTo("2026-04-02");
-        assertThat(result.collectedDate()).isEqualTo("2026-03-21");
+        assertThat(result.nearestMatchDate()).isEqualTo(LocalDate.parse("2026-03-28"));
+        assertThat(result.bestPriceDate()).isEqualTo(LocalDate.parse("2026-03-28"));
+        assertThat(result.matchedDateCount()).isEqualTo(2);
+        assertThat(result.collectedAt()).isEqualTo(LocalDateTime.parse("2026-03-20T00:00:00"));
+    }
+
+    @Test
+    void findAlertCandidate_countsNearTargetMatchesWhenThresholdNotReached() throws Exception {
+        FlightPriceCalendarRepository repository = mock(FlightPriceCalendarRepository.class);
+        FlightAlertPriceService service = new FlightAlertPriceService(repository);
+        Long cityId = 1L;
+
+        String currentMonth = YearMonth.now().toString();
+
+        FlightPriceCalendar current = calendar(
+                cityId,
+                currentMonth,
+                "2026-03-20",
+                List.of(
+                        dailyPrice("2026-03-28", 320_000),
+                        dailyPrice("2026-03-30", 315_000),
+                        dailyPrice("2026-04-01", 340_000)
+                )
+                ,
+                List.of()
+        );
+
+        when(repository.findByCityIdAndYearMonthOrderByCollectedDateDesc(eq(cityId), eq(currentMonth), eq(org.springframework.data.domain.PageRequest.of(0, 1))))
+                .thenReturn(List.of(current));
+        for (int i = 1; i < 6; i++) {
+            String yearMonth = YearMonth.now().plusMonths(i).toString();
+            when(repository.findByCityIdAndYearMonthOrderByCollectedDateDesc(eq(cityId), eq(yearMonth), eq(org.springframework.data.domain.PageRequest.of(0, 1))))
+                    .thenReturn(List.of());
+        }
+
+        FlightAlertPriceService.AlertCandidate result = service.findAlertCandidate(cityId, 305_000).orElseThrow();
+
+        assertThat(result.alertType()).isEqualTo(AlertType.NEAR_TARGET);
+        assertThat(result.matchedPrice()).isEqualTo(315_000);
+        assertThat(result.nearestMatchDate()).isEqualTo(LocalDate.parse("2026-03-28"));
+        assertThat(result.bestPriceDate()).isEqualTo(LocalDate.parse("2026-03-30"));
+        assertThat(result.matchedDateCount()).isEqualTo(2);
     }
 
     private static FlightPriceCalendar calendar(
