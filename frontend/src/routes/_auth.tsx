@@ -5,6 +5,7 @@ import {
   useLocation,
 } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { motion, type Variants } from "framer-motion";
 import {
   type LucideIcon,
@@ -363,6 +364,8 @@ const AuthLayout = () => {
         setHasCompletedPreference(hasCompletedPreference);
         nextRouteRef.current = nextRoute;
         setGlobePhase('zoomIn');
+      } else if (e.data?.type === 'GOOGLE_AUTH_ERROR') {
+        toast.error('Google 로그인에 실패했습니다. 다시 시도해주세요.');
       }
     };
     window.addEventListener('message', handler);

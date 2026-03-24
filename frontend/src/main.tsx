@@ -25,7 +25,7 @@ createRoot(document.getElementById("root")!).render(
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ""}>
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} context={{ queryClient }} />
-        <Toaster richColors position="top-center" />
+        <Toaster richColors position="top-center" expand visibleToasts={5} />
       </QueryClientProvider>
     </GoogleOAuthProvider>
   </StrictMode>,

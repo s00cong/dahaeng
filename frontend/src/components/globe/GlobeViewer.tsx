@@ -1,4 +1,5 @@
 import { useEffect, useRef, useMemo, useState } from "react";
+import { toast } from "sonner";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { feature as topoFeature } from "topojson-client";
@@ -495,8 +496,14 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
   // 맵 핀포인트 직접 클릭 시 flyTo 스킵 플래그
   const skipCityFlyRef = useRef(false);
 
-  const { data: citiesFromApi } = useCityList();
+  const { data: citiesFromApi, isError: isCityListError } = useCityList();
   const cities = citiesFromApi ?? [];
+
+  useEffect(() => {
+    if (isCityListError) {
+      toast.error("도시 정보를 불러오지 못했습니다. 새로고침 해주세요.");
+    }
+  }, [isCityListError]);
 
   const currentYearMonth = useMemo(() => {
     const d = new Date();
