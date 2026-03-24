@@ -7,8 +7,10 @@ import {
   BookOpen,
   Share2,
   Clock,
+  Sparkles,
+  Route,
 } from "lucide-react";
-import Map, { Marker, Popup, NavigationControl } from "react-map-gl/maplibre";
+import Map, { Marker, Popup, NavigationControl, Source, Layer } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CityDetail } from "@/schemas/city.schema";
@@ -17,6 +19,8 @@ import { usePlaces } from "@/hooks/spot/usePlaces";
 import type { Place } from "@/api/places.api";
 import { useNearbyAttractions } from "@/hooks/spot/useNearbyAttractions";
 import type { NearbyAttractionFeature } from "@/api/nearbyAttractions.api";
+import { useTravelCourse } from "@/hooks/spot/useTravelCourse";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 
 
 interface SpotTabProps {
@@ -159,7 +163,15 @@ function PlaceCard({ place }: { place: Place }) {
 
 // ── 3. 근처 관광지 카드 (/api/{cityId}/nearby-attractions) ────────────────────
 
-function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature }) {
+function NearbyAttractionCard({
+  feature,
+  courseOrder,
+  courseDescription,
+}: {
+  feature: NearbyAttractionFeature;
+  courseOrder?: number;
+  courseDescription?: string;
+}) {
   const p = feature.properties;
   const mainName = p.nameKo ?? p.nameEn ?? p.name;
   const subName = p.nameKo
@@ -170,7 +182,7 @@ function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature })
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-white overflow-hidden hover:border-orange-200 hover:shadow-sm transition-all">
+    <div className={`flex flex-col rounded-xl border bg-white overflow-hidden hover:shadow-sm transition-all ${courseOrder != null ? 'border-indigo-200 hover:border-indigo-300' : 'border-border hover:border-orange-200'}`}>
       {/* 이미지 */}
       {p.imageUrl && (
         <div className="relative h-28 bg-slate-200 shrink-0">
@@ -202,18 +214,25 @@ function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature })
         </span>
       )}
 
-      {/* 이름 */}
-      <div>
-        <p className="text-xs font-semibold text-foreground leading-snug">{mainName}</p>
-        {subName && (
-          <p className="text-[10px] text-muted-foreground">{subName}</p>
+      {/* 순번 배지 + 이름 */}
+      <div className="flex items-start gap-1.5">
+        {courseOrder != null && (
+          <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold mt-0.5">
+            {courseOrder}
+          </span>
         )}
+        <div>
+          <p className="text-xs font-semibold text-foreground leading-snug">{mainName}</p>
+          {subName && (
+            <p className="text-[10px] text-muted-foreground">{subName}</p>
+          )}
+        </div>
       </div>
 
-      {/* 설명 */}
-      {p.description && (
+      {/* 코스 설명 (우선) 또는 기존 설명 */}
+      {(courseDescription ?? p.description) && (
         <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
-          {p.description}
+          {courseDescription ?? p.description}
         </p>
       )}
 
@@ -271,12 +290,29 @@ interface MapMarker {
   description?: string;
   address?: string;
   category?: string;
+  courseOrder?: number;
+  courseDescription?: string;
 }
 
 // ── 관광지 지도 컴포넌트 ──────────────────────────────────────────────────────
 
-function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; centerLat: number; centerLon: number }) {
+function SpotMap({
+  markers,
+  centerLat,
+  centerLon,
+  courseRoute,
+}: {
+  markers: MapMarker[];
+  centerLat: number;
+  centerLon: number;
+  courseRoute?: [number, number][];
+}) {
   const [popup, setPopup] = useState<MapMarker | null>(null);
+
+  const routeGeoJSON: GeoJSON.Feature<GeoJSON.LineString> | null =
+    courseRoute && courseRoute.length >= 2
+      ? { type: 'Feature', geometry: { type: 'LineString', coordinates: courseRoute }, properties: {} }
+      : null;
 
   return (
     <div className="rounded-xl overflow-hidden border border-border" style={{ height: 280 }}>
@@ -288,6 +324,17 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
       >
         <NavigationControl position="top-right" />
 
+        {/* 코스 경로 선 */}
+        {routeGeoJSON && (
+          <Source id="course-route" type="geojson" data={routeGeoJSON}>
+            <Layer
+              id="course-route-line"
+              type="line"
+              paint={{ 'line-color': '#6366f1', 'line-width': 2.5, 'line-dasharray': [3, 2] }}
+            />
+          </Source>
+        )}
+
         {markers.map((m) => (
           <Marker
             key={m.id}
@@ -296,21 +343,28 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
             anchor="bottom"
             onClick={(e) => { e.originalEvent.stopPropagation(); setPopup(m); }}
           >
-            <div
-              className={`flex items-center justify-center rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform ${
-                m.type === "ai"
-                  ? "w-7 h-7 bg-amber-400"
-                  : m.type === "nearby"
-                    ? "w-6 h-6 bg-orange-400"
-                    : "w-6 h-6 bg-blue-500"
-              }`}
-              title={m.name}
-            >
-              {m.type === "ai"
-                ? <Star className="size-3.5 text-white fill-white" />
-                : <MapPin className="size-3 text-white" />
-              }
-            </div>
+            {m.courseOrder != null ? (
+              <div
+                className="flex items-center justify-center w-7 h-7 rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform bg-indigo-500 text-white text-[11px] font-bold"
+                title={m.name}
+              >
+                {m.courseOrder}
+              </div>
+            ) : (
+              <div
+                className={`flex items-center justify-center rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform ${
+                  m.type === "ai"
+                    ? "w-7 h-7 bg-amber-400"
+                    : "w-6 h-6 bg-orange-400"
+                }`}
+                title={m.name}
+              >
+                {m.type === "ai"
+                  ? <Star className="size-3.5 text-white fill-white" />
+                  : <MapPin className="size-3 text-white" />
+                }
+              </div>
+            )}
           </Marker>
         ))}
 
@@ -372,9 +426,11 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
                   <span className="text-[10px] text-blue-600">#{popup.tagName}</span>
                 )}
 
-                {/* 설명 */}
-                {popup.description && (
-                  <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">{popup.description}</p>
+                {/* 코스 설명 (우선) 또는 기존 설명 */}
+                {(popup.courseDescription ?? popup.description) && (
+                  <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">
+                    {popup.courseDescription ?? popup.description}
+                  </p>
                 )}
 
                 {/* 주소 */}
@@ -404,13 +460,33 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
 
   const { data: places, isLoading: isPlacesLoading } = usePlaces(city.cityId);
   const { data: nearbyAttractions } = useNearbyAttractions(city.cityId);
+  const { courses, selectedCourse, selectedIndex, setSelectedIndex, isLoading: isCourseLoading, error: courseError, generate, reset } = useTravelCourse();
+
+  const cityNameKo = CITY_NAME_KO[city.cityName] ?? city.cityName;
 
   // recommend=true 일 때 서버 AI 추천 관광지
   const touristSpots = isRecommended && city.touristSpot && city.touristSpot.length > 0
     ? city.touristSpot
     : null;
 
-  // 지도 마커 생성 (AI 추천 + 근처 관광지, 좌표 있는 것만)
+  // 코스 이름 → { order, description } 맵
+  const courseMap = useMemo(() => {
+    const m = new globalThis.Map<string, { order: number; description: string }>();
+    if (selectedCourse) {
+      selectedCourse.attractions.forEach((a) => m.set(a.name, { order: a.order, description: a.description }));
+    }
+    return m;
+  }, [selectedCourse]);
+
+  // 코스 경로 좌표 (순서대로)
+  const courseRoute = useMemo<[number, number][]>(() => {
+    if (!selectedCourse) return [];
+    return [...selectedCourse.attractions]
+      .sort((a, b) => a.order - b.order)
+      .map((a) => [a.lon, a.lat] as [number, number]);
+  }, [selectedCourse]);
+
+  // 지도 마커 생성
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const markers: MapMarker[] = [];
     touristSpots?.forEach((s, i) => {
@@ -434,21 +510,38 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
     nearbyAttractions?.forEach((f, i) => {
       const p = f.properties;
       if (p.lat != null && p.lon != null) {
+        const name = p.nameKo ?? p.nameEn ?? p.name;
+        const info = courseMap.get(name);
         markers.push({
           id: `nearby-${i}`,
           lat: p.lat,
           lon: p.lon,
-          name: p.name,
+          name,
           type: "nearby",
           imageUrl: p.imageUrl,
           description: p.description ?? undefined,
           address: p.formatted ?? undefined,
           category: p.categories?.[0] ?? undefined,
+          courseOrder: info?.order,
+          courseDescription: info?.description,
         });
       }
     });
     return markers;
-  }, [touristSpots, nearbyAttractions]);
+  }, [touristSpots, nearbyAttractions, courseMap]);
+
+  // 근처 관광지 정렬: 코스 포함(순서대로) → 이미지 있음 → 나머지
+  const sortedNearby = useMemo(() => {
+    if (!nearbyAttractions) return [];
+    return [...nearbyAttractions].sort((a, b) => {
+      const nameA = a.properties.nameKo ?? a.properties.nameEn ?? a.properties.name;
+      const nameB = b.properties.nameKo ?? b.properties.nameEn ?? b.properties.name;
+      const orderA = courseMap.get(nameA)?.order ?? Infinity;
+      const orderB = courseMap.get(nameB)?.order ?? Infinity;
+      if (orderA !== orderB) return orderA - orderB;
+      return (b.properties.imageUrl ? 1 : 0) - (a.properties.imageUrl ? 1 : 0);
+    });
+  }, [nearbyAttractions, courseMap]);
 
   const centerLat = lat ?? city.latitude ?? 0;
   const centerLon = lon ?? city.longitude ?? 0;
@@ -473,7 +566,12 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                   title="관광지 지도"
                   sub={`${mapMarkers.length}곳`}
                 />
-                <SpotMap markers={mapMarkers} centerLat={centerLat} centerLon={centerLon} />
+                <SpotMap
+                  markers={mapMarkers}
+                  centerLat={centerLat}
+                  centerLon={centerLon}
+                  courseRoute={courseRoute.length >= 2 ? courseRoute : undefined}
+                />
               </section>
             )}
 
@@ -520,20 +618,78 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
               )}
             </section>
 
-            {/* ── Section 3: 근처 관광지 (/api/{cityId}/nearby-attractions) ── */}
+            {/* ── Section 3: 근처 관광지 + AI 여행 코스 ── */}
             {nearbyAttractions && nearbyAttractions.length > 0 && (
               <section>
-                <SectionHeader
-                  icon={<MapPin className="size-4 text-orange-500" />}
-                  title="근처 관광지"
-                  sub={`${nearbyAttractions.length}곳`}
-                />
-                <div className="grid grid-cols-2 gap-2.5">
-                  {[...nearbyAttractions]
-                    .sort((a, b) => (b.properties.imageUrl ? 1 : 0) - (a.properties.imageUrl ? 1 : 0))
-                    .map((feature, i) => (
-                      <NearbyAttractionCard key={i} feature={feature} />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="size-4 text-orange-500" />
+                    <h3 className="text-sm font-semibold text-foreground">근처 관광지</h3>
+                    <span className="text-xs text-muted-foreground">{nearbyAttractions.length}곳</span>
+                  </div>
+                  {courses ? (
+                    <button
+                      onClick={reset}
+                      className="text-[10px] text-slate-400 hover:text-red-400 transition-colors"
+                    >
+                      초기화
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => nearbyAttractions && generate(nearbyAttractions, cityNameKo, touristSpots ?? undefined, city.tags ?? undefined)}
+                      disabled={isCourseLoading}
+                      className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-2.5 py-1 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                    >
+                      {isCourseLoading ? (
+                        <>
+                          <Route className="size-3 animate-pulse" />
+                          코스 생성 중...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="size-3" />
+                          AI 여행 코스
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                {courseError && (
+                  <p className="text-xs text-red-500 mb-2">{courseError}</p>
+                )}
+
+                {/* 코스 탭 선택 */}
+                {courses && (
+                  <div className="flex gap-1.5 mb-3 flex-wrap">
+                    {courses.courses.map((c, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setSelectedIndex(i)}
+                        className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                          selectedIndex === i
+                            ? 'bg-indigo-500 text-white border-indigo-500'
+                            : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100'
+                        }`}
+                      >
+                        {c.courseTitle}
+                      </button>
                     ))}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  {sortedNearby.map((feature, i) => {
+                    const name = feature.properties.nameKo ?? feature.properties.nameEn ?? feature.properties.name;
+                    const info = courseMap.get(name);
+                    return (
+                      <NearbyAttractionCard
+                        key={i}
+                        feature={feature}
+                        courseOrder={info?.order}
+                        courseDescription={info?.description}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             )}
