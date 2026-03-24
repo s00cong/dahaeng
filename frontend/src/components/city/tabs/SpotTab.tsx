@@ -49,11 +49,13 @@ function TouristSpotCard({
   cityName,
   courseOrder,
   courseDescription,
+  courseTip,
 }: {
   spot: TouristSpot;
   cityName: string;
   courseOrder?: number;
   courseDescription?: string;
+  courseTip?: string;
 }) {
   const tags = spot.tags ?? [];
   const spotScore = spot.spotScore != null ? Math.round(spot.spotScore * 100) : null;
@@ -95,6 +97,13 @@ function TouristSpotCard({
         <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">
           {descriptionText}
         </p>
+      )}
+
+      {/* 추천 활동 */}
+      {courseTip && (
+        <span className="self-start text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5">
+          ✅ {courseTip}
+        </span>
       )}
 
       {/* 태그 + tagScore */}
@@ -185,10 +194,14 @@ function NearbyAttractionCard({
   feature,
   courseOrder,
   courseDescription,
+  courseTip,
+  visitTime,
 }: {
   feature: NearbyAttractionFeature;
   courseOrder?: number;
   courseDescription?: string;
+  courseTip?: string;
+  visitTime?: string;
 }) {
   const p = feature.properties;
   const mainName = p.nameKo ?? p.nameEn ?? p.name;
@@ -254,12 +267,26 @@ function NearbyAttractionCard({
         </p>
       )}
 
+      {/* 추천 활동 */}
+      {courseTip && (
+        <span className="self-start text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5">
+          ✅ {courseTip}
+        </span>
+      )}
+
       {/* 주소 */}
       {p.formatted && (
         <div className="flex items-start gap-1 text-[10px] text-muted-foreground">
           <MapPin className="size-2.5 shrink-0 mt-0.5" />
           <span className="line-clamp-1">{p.formatted}</span>
         </div>
+      )}
+
+      {/* 방문 시간 (코스 포함 시) */}
+      {visitTime && (
+        <span className="self-start text-[10px] font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+          🕐 {visitTime}
+        </span>
       )}
 
       {/* 운영시간 */}
@@ -310,6 +337,8 @@ interface MapMarker {
   category?: string;
   courseOrder?: number;
   courseDescription?: string;
+  courseTip?: string;
+  visitTime?: string;
 }
 
 // ── 관광지 지도 컴포넌트 ──────────────────────────────────────────────────────
@@ -333,7 +362,7 @@ function SpotMap({
       : null;
 
   return (
-    <div className="rounded-xl overflow-hidden border border-border" style={{ height: 280 }}>
+    <div className="rounded-xl overflow-hidden border border-border" style={{ height: 380 }}>
       <Map
         initialViewState={{ longitude: centerLon, latitude: centerLat, zoom: 12 }}
         mapStyle="https://tiles.openfreemap.org/styles/liberty"
@@ -454,11 +483,25 @@ function SpotMap({
                   <span className="text-[10px] text-blue-600">#{popup.tagName}</span>
                 )}
 
+                {/* 방문 시간 */}
+                {popup.visitTime && (
+                  <span className="self-start text-[10px] font-medium text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+                    🕐 {popup.visitTime}
+                  </span>
+                )}
+
                 {/* 코스 설명 (우선) 또는 기존 설명 */}
                 {(popup.courseDescription ?? popup.description) && (
                   <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">
                     {popup.courseDescription ?? popup.description}
                   </p>
+                )}
+
+                {/* 추천 활동 */}
+                {popup.courseTip && (
+                  <span className="self-start text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5">
+                    ✅ {popup.courseTip}
+                  </span>
                 )}
 
                 {/* 주소 */}
@@ -499,9 +542,9 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
 
   // 코스 이름 → { order, description } 맵
   const courseMap = useMemo(() => {
-    const m = new globalThis.Map<string, { order: number; description: string }>();
+    const m = new globalThis.Map<string, { order: number; description: string; tip: string; visitTime: string }>();
     if (selectedCourse) {
-      selectedCourse.attractions.forEach((a) => m.set(a.name, { order: a.order, description: a.description }));
+      selectedCourse.attractions.forEach((a) => m.set(a.name, { order: a.order, description: a.description, tip: a.tip, visitTime: a.visitTime }));
     }
     return m;
   }, [selectedCourse]);
@@ -535,6 +578,8 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
           description: descriptionText,
           courseOrder: courseInfo?.order,
           courseDescription: courseInfo?.description,
+          courseTip: courseInfo?.tip,
+          visitTime: courseInfo?.visitTime,
         });
       }
     });
@@ -555,6 +600,8 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
           category: p.categories?.[0] ?? undefined,
           courseOrder: info?.order,
           courseDescription: info?.description,
+          courseTip: info?.tip,
+          visitTime: info?.visitTime,
         });
       }
     });
@@ -624,6 +671,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                         cityName={city.cityName}
                         courseOrder={info?.order}
                         courseDescription={info?.description}
+                        courseTip={info?.tip}
                       />
                     );
                   })}
@@ -700,18 +748,18 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
 
                 {/* 코스 탭 선택 */}
                 {courses && (
-                  <div className="flex gap-1.5 mb-3 flex-wrap">
+                  <div className="flex flex-col gap-1.5 mb-3">
                     {courses.courses.map((c, i) => (
                       <button
                         key={i}
                         onClick={() => setSelectedIndex(i)}
-                        className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                        className={`flex items-center justify-between gap-2 text-left px-3 py-1.5 rounded-xl border transition-colors ${
                           selectedIndex === i
                             ? 'bg-indigo-500 text-white border-indigo-500'
                             : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100'
                         }`}
                       >
-                        {c.courseTitle}
+                        <span className="text-[11px] font-medium">{c.courseTitle}</span>
                       </button>
                     ))}
                   </div>
@@ -727,6 +775,8 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                         feature={feature}
                         courseOrder={info?.order}
                         courseDescription={info?.description}
+                        courseTip={info?.tip}
+                        visitTime={info?.visitTime}
                       />
                     );
                   })}

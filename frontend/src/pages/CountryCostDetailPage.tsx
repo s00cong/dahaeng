@@ -15,6 +15,7 @@ import { CostDetailTable } from '@/components/cost/CostDetailTable';
 import { ExchangeRateCombinedSection } from '@/components/cost/ExchangeRateCombinedSection';
 import { useCostDetail as useSeoulDetail } from '@/hooks/cost/useCostDetail';
 import { useFlightTrend } from '@/hooks/flight/useFlightTrend';
+import { useCountryHotelAvg } from '@/hooks/flight/useCountryHotelAvg';
 import { useCityDetail } from '@/hooks/city/useCityDetail';
 import { useExchangeRateNew } from '@/hooks/cost/useExchangeRateNew';
 
@@ -111,14 +112,21 @@ const CountryCostDetailPage = () => {
   const foreignCurrency = cityDetail?.exchangeRate?.currency ?? null;
   const { data: exchangeRateData, isLoading: isExchangeLoading } = useExchangeRateNew(foreignCurrency ?? '');
 
-  // 6개월 항공 추이 → avg_hotel_price 평균 / 2 (city 타입일 때만)
+  // city 타입: 해당 도시 항공 추이에서 숙박비 추출
   const { data: flightTrend } = useFlightTrend(targetType === 'city' ? targetId : null);
-  const avgHotelPerDay = flightTrend?.trend_data?.length
+  const cityHotelPerDay = flightTrend?.trend_data?.length
     ? Math.round(
         flightTrend.trend_data.reduce((sum, t) => sum + t.avg_hotel_price, 0) /
         flightTrend.trend_data.length / 2,
       )
     : undefined;
+
+  // country 타입: 해당 국가 도시들의 숙박비 평균 (city list에서 countryName으로 필터링)
+  const countryHotelPerDay = useCountryHotelAvg(
+    targetType === 'country' ? (data?.target.name ?? null) : null,
+  );
+
+  const avgHotelPerDay = cityHotelPerDay ?? countryHotelPerDay;
 
   return (
     <motion.div
