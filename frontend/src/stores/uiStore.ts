@@ -32,7 +32,7 @@ interface UiState {
   recommendResults: RecommendResultItem[];
   recommendRequest: {
     selectedTags: string[];
-    userDailyBudget: number;
+    userTotalBudget: number;
     travelDays: number;
     month: number;
     recommendId?: string;
@@ -68,7 +68,7 @@ interface UiState {
   setRecommendResults: (results: RecommendResultItem[]) => void;
   setRecommendRequest: (req: {
     selectedTags: string[];
-    userDailyBudget: number;
+    userTotalBudget: number;
     travelDays: number;
     month: number;
     recommendId?: string;

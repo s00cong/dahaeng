@@ -128,7 +128,7 @@ export type CityDetail = z.infer<typeof CityDetailSchema>;
 
 export const RecommendRequestSchema = z.object({
   selectedTags: z.array(z.string()),
-  userDailyBudget: z.number().positive(),
+  userTotalBudget: z.number().positive(),
   travelDays: z.number().int().positive(),
   month: z.number().int().min(1).max(12),
   recommendId: z.string().uuid(),

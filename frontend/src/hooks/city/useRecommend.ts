@@ -12,7 +12,7 @@ export const useRecommend = () => {
   return useMutation({
     mutationFn: (body: {
       selectedTags: string[];
-      userDailyBudget: number;
+      userTotalBudget: number;
       travelDays: number;
       month: number;
     }) => cityApi.recommend(body),
