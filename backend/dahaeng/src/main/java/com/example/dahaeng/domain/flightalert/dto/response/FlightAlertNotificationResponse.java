@@ -13,23 +13,25 @@ public record FlightAlertNotificationResponse(
 	AlertType alertType,
 	Integer thresholdPrice,
 	Integer matchedPrice,
-	LocalDate departureDate,
-	LocalDate returnDate,
-	LocalDate collectedDate,
+	LocalDate nearestMatchDate,
+	LocalDate bestPriceDate,
+	Integer matchedDateCount,
+	LocalDateTime collectedAt,
 	boolean isRead,
 	LocalDateTime createdAt
 ) {
 	public static FlightAlertNotificationResponse from(FlightAlertNotification notification) {
 		return new FlightAlertNotificationResponse(
 			notification.getId(),
-			notification.getCity().getId(),
-			notification.getCity().getCityName(),
+			notification.getSubscription().getCity().getId(),
+			notification.getSubscription().getCity().getCityName(),
 			notification.getAlertType(),
 			notification.getThresholdPrice(),
 			notification.getMatchedPrice(),
-			notification.getDepartureDate(),
-			notification.getReturnDate(),
-			notification.getCollectedDate(),
+			notification.getNearestMatchDate(),
+			notification.getBestPriceDate(),
+			notification.getMatchedDateCount(),
+			notification.getCollectedAt(),
 			notification.isRead(),
 			notification.getCreatedAt()
 		);

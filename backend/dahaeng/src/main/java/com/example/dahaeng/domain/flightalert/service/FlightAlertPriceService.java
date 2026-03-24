@@ -1,7 +1,9 @@
 package com.example.dahaeng.domain.flightalert.service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.dahaeng.domain.flight.document.FlightPriceCalendar;
 import com.example.dahaeng.domain.flight.repository.FlightPriceCalendarRepository;
+import com.example.dahaeng.domain.flightalert.entity.AlertType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -19,60 +22,80 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FlightAlertPriceService {
 	private static final int SEARCH_MONTHS = 6;
-	private static final int MIN_TRIP_DAYS = 3;
-	private static final int MAX_TRIP_DAYS = 7;
+	private static final double NEAR_TARGET_MULTIPLIER = 1.05d;
 
 	private final FlightPriceCalendarRepository flightPriceCalendarRepository;
 
-	public Optional<RoundTripPriceMatch> findLowestRoundTrip(Long cityId) {
-		List<RoundTripPriceMatch> candidates = new ArrayList<>();
+	public Optional<AlertCandidate> findAlertCandidate(Long cityId, Integer thresholdPrice) {
+		List<DailyPriceCandidate> candidates = findDailyCandidates(cityId);
+		if (candidates.isEmpty()) {
+			return Optional.empty();
+		}
+
+		int nearTargetUpperBound = (int)Math.floor(thresholdPrice * NEAR_TARGET_MULTIPLIER);
+		List<DailyPriceCandidate> targetHitCandidates = candidates.stream()
+			.filter(candidate -> candidate.matchedPrice() <= thresholdPrice)
+			.toList();
+		List<DailyPriceCandidate> matchedCandidates;
+		AlertType alertType;
+		if (!targetHitCandidates.isEmpty()) {
+			matchedCandidates = targetHitCandidates;
+			alertType = AlertType.TARGET_HIT;
+		} else {
+			matchedCandidates = candidates.stream()
+				.filter(candidate -> candidate.matchedPrice() > thresholdPrice)
+				.filter(candidate -> candidate.matchedPrice() <= nearTargetUpperBound)
+				.toList();
+			alertType = AlertType.NEAR_TARGET;
+		}
+		if (matchedCandidates.isEmpty()) {
+			return Optional.empty();
+		}
+
+		DailyPriceCandidate bestPriceCandidate = matchedCandidates.stream()
+			.min(Comparator
+				.comparing(DailyPriceCandidate::matchedPrice)
+				.thenComparing(DailyPriceCandidate::bestMatchDate))
+			.orElseThrow();
+
+		DailyPriceCandidate nearestCandidate = matchedCandidates.stream()
+			.min(Comparator.comparing(DailyPriceCandidate::bestMatchDate))
+			.orElseThrow();
+
+		return Optional.of(new AlertCandidate(
+			alertType,
+			bestPriceCandidate.matchedPrice(),
+			nearestCandidate.bestMatchDate(),
+			bestPriceCandidate.bestMatchDate(),
+			matchedCandidates.size(),
+			bestPriceCandidate.collectedAt()
+		));
+	}
+
+	private List<DailyPriceCandidate> findDailyCandidates(Long cityId) {
+		List<DailyPriceCandidate> candidates = new ArrayList<>();
 		YearMonth startMonth = YearMonth.now();
 
 		for (int offset = 0; offset < SEARCH_MONTHS; offset++) {
 			YearMonth currentMonth = startMonth.plusMonths(offset);
-			Optional<FlightPriceCalendar> outboundCalendar = findLatestCalendar(cityId, currentMonth);
-			if (outboundCalendar.isEmpty()) {
+			Optional<FlightPriceCalendar> calendar = findLatestCalendar(cityId, currentMonth);
+			if (calendar.isEmpty()) {
 				continue;
 			}
 
-			List<InboundSource> inboundSources = new ArrayList<>();
-			findLatestCalendar(cityId, currentMonth).ifPresent(calendar -> inboundSources.add(new InboundSource(calendar)));
-			findLatestCalendar(cityId, currentMonth.plusMonths(1))
-				.ifPresent(calendar -> inboundSources.add(new InboundSource(calendar)));
-
-			for (FlightPriceCalendar.DailyPrice outbound : safeDailyPrices(outboundCalendar.get().getOutboundDailyPrices())) {
+			for (FlightPriceCalendar.DailyPrice outbound : safeDailyPrices(calendar.get().getOutboundDailyPrices())) {
 				if (outbound.getDate() == null || outbound.getPrice() == null) {
 					continue;
 				}
-				LocalDate departureDate = LocalDate.parse(outbound.getDate());
-
-				for (InboundSource inboundSource : inboundSources) {
-					for (FlightPriceCalendar.DailyPrice inbound : safeDailyPrices(inboundSource.calendar().getInboundDailyPrices())) {
-						if (inbound.getDate() == null || inbound.getPrice() == null) {
-							continue;
-						}
-						LocalDate returnDate = LocalDate.parse(inbound.getDate());
-						long tripDays = returnDate.toEpochDay() - departureDate.toEpochDay();
-						if (tripDays < MIN_TRIP_DAYS || tripDays > MAX_TRIP_DAYS) {
-							continue;
-						}
-
-						candidates.add(new RoundTripPriceMatch(
-							outbound.getPrice() + inbound.getPrice(),
-							departureDate.toString(),
-							returnDate.toString(),
-							laterCollectedDate(outboundCalendar.get(), inboundSource.calendar())
-						));
-					}
-				}
+				candidates.add(new DailyPriceCandidate(
+					outbound.getPrice(),
+					parseToLocalDate(outbound.getDate()),
+					parseToLocalDateTime(calendar.get().getCollectedDate())
+				));
 			}
 		}
 
-		return candidates.stream()
-			.min(Comparator
-				.comparing(RoundTripPriceMatch::matchedPrice)
-				.thenComparing(RoundTripPriceMatch::departureDate)
-				.thenComparing(RoundTripPriceMatch::returnDate));
+		return candidates;
 	}
 
 	private Optional<FlightPriceCalendar> findLatestCalendar(Long cityId, YearMonth yearMonth) {
@@ -86,20 +109,36 @@ public class FlightAlertPriceService {
 		return dailyPrices == null ? List.of() : dailyPrices;
 	}
 
-	private String laterCollectedDate(FlightPriceCalendar first, FlightPriceCalendar second) {
-		LocalDate firstDate = LocalDate.parse(first.getCollectedDate());
-		LocalDate secondDate = LocalDate.parse(second.getCollectedDate());
-		return firstDate.isAfter(secondDate) ? first.getCollectedDate() : second.getCollectedDate();
+	private LocalDate parseToLocalDate(String value) {
+		try {
+			return LocalDate.parse(value);
+		} catch (DateTimeParseException ignored) {
+			return LocalDateTime.parse(value).toLocalDate();
+		}
 	}
 
-	private record InboundSource(FlightPriceCalendar calendar) {
+	private LocalDateTime parseToLocalDateTime(String value) {
+		try {
+			return LocalDateTime.parse(value);
+		} catch (DateTimeParseException ignored) {
+			return LocalDate.parse(value).atStartOfDay();
+		}
 	}
 
-	public record RoundTripPriceMatch(
+	private record DailyPriceCandidate(
 		Integer matchedPrice,
-		String departureDate,
-		String returnDate,
-		String collectedDate
+		LocalDate bestMatchDate,
+		LocalDateTime collectedAt
+	) {
+	}
+
+	public record AlertCandidate(
+		AlertType alertType,
+		Integer matchedPrice,
+		LocalDate nearestMatchDate,
+		LocalDate bestPriceDate,
+		Integer matchedDateCount,
+		LocalDateTime collectedAt
 	) {
 	}
 }

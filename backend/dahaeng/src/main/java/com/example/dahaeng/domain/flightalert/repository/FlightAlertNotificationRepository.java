@@ -9,9 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.example.dahaeng.domain.flightalert.entity.FlightAlertNotification;
 
 public interface FlightAlertNotificationRepository extends JpaRepository<FlightAlertNotification, Long> {
-	Page<FlightAlertNotification> findAllByMemberIdAndIsDeletedFalse(Long memberId, Pageable pageable);
+	Page<FlightAlertNotification> findAllBySubscriptionMemberIdAndIsDeletedFalse(Long memberId, Pageable pageable);
 
-	long countByMemberIdAndIsReadFalseAndIsDeletedFalse(Long memberId);
+	long countBySubscriptionMemberIdAndIsReadFalseAndIsDeletedFalse(Long memberId);
 
-	Optional<FlightAlertNotification> findFirstByIdAndMemberIdAndIsDeletedFalse(Long id, Long memberId);
+	Optional<FlightAlertNotification> findFirstByIdAndSubscriptionMemberIdAndIsDeletedFalse(Long id, Long memberId);
 }

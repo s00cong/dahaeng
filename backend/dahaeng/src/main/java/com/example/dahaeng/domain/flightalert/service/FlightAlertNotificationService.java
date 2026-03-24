@@ -24,7 +24,7 @@ public class FlightAlertNotificationService {
 	@Transactional(readOnly = true)
 	public PageResponse<FlightAlertNotificationResponse> getNotifications(Long memberId, Pageable pageable) {
 		return PageResponse.from(
-			notificationRepository.findAllByMemberIdAndIsDeletedFalse(memberId, pageable)
+			notificationRepository.findAllBySubscriptionMemberIdAndIsDeletedFalse(memberId, pageable)
 				.map(FlightAlertNotificationResponse::from)
 		);
 	}
@@ -32,13 +32,13 @@ public class FlightAlertNotificationService {
 	@Transactional(readOnly = true)
 	public UnreadFlightAlertCountResponse getUnreadCount(Long memberId) {
 		return new UnreadFlightAlertCountResponse(
-			notificationRepository.countByMemberIdAndIsReadFalseAndIsDeletedFalse(memberId)
+			notificationRepository.countBySubscriptionMemberIdAndIsReadFalseAndIsDeletedFalse(memberId)
 		);
 	}
 
 	public NoContentResponse markAsRead(Long memberId, Long notificationId) {
 		FlightAlertNotification notification = notificationRepository
-			.findFirstByIdAndMemberIdAndIsDeletedFalse(notificationId, memberId)
+			.findFirstByIdAndSubscriptionMemberIdAndIsDeletedFalse(notificationId, memberId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "항공권 알림을 찾을 수 없습니다."));
 		notification.markAsRead();
 		return new NoContentResponse("알림을 읽음 처리했습니다.", notification.getId());
