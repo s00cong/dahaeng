@@ -30,14 +30,14 @@ public record LivingCostComparisonResponse(
 				base.getCity().getId(),
 				base.getCity().getCityName(),
 				base.getCity().getCountry().getCountryName(),
-				base.getCity().getCountry().getCurrency().name(),
+				base.getCity().getCountry().getCurrency(),
 				base.getCity().getImgUrl()
 			),
 			new TargetResponse(
 				target.getCity().getId(),
 				target.getCity().getCityName(),
 				target.getCity().getCountry().getCountryName(),
-				target.getCity().getCountry().getCurrency().name(),
+				target.getCity().getCountry().getCurrency(),
 				target.getCity().getImgUrl()
 			),
 			base.getDailyBudget(),
@@ -69,14 +69,14 @@ public record LivingCostComparisonResponse(
 				base.getCountry().getId(),
 				base.getCountry().getCountryName(),
 				base.getCountry().getContinent().name(),
-				base.getCountry().getCurrency().name(),
+				base.getCountry().getCurrency(),
 				base.getCountry().getImgUrl()
 			),
 			new TargetResponse(
 				target.getCountry().getId(),
 				target.getCountry().getCountryName(),
 				target.getCountry().getContinent().name(),
-				target.getCountry().getCurrency().name(),
+				target.getCountry().getCurrency(),
 				target.getCountry().getImgUrl()
 			),
 			base.getDailyBudget(),
