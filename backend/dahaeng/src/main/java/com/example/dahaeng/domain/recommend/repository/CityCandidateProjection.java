@@ -20,7 +20,11 @@ public interface CityCandidateProjection {
     String getDangerAttention();
     String getDangerAttentionPartial();
     String getDangerControl();
+    String getDangerControlPartial();
     String getDangerLimita();
+    String getDangerLimitaPartial();
+    String getDangerEvacuateRegionTy();
+    String getDangerForbiddenRegionTy();
 
     String getCurrency();
     String getOriginAirport();

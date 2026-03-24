@@ -15,6 +15,8 @@ import com.example.dahaeng.domain.flightalert.entity.FlightAlertSubscription;
 import com.example.dahaeng.domain.flightalert.repository.FlightAlertNotificationRepository;
 import com.example.dahaeng.domain.flightalert.repository.FlightAlertSubscriptionRepository;
 import com.example.dahaeng.domain.member.entity.Member;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -47,8 +49,15 @@ class FlightAlertBatchServiceTest {
         FlightAlertSubscription subscription = subscription(350_000, null);
         when(subscriptionRepository.findAllByEnabledTrueAndIsDeletedFalse()).thenReturn(List.of(subscription));
         when(bookmarkRepository.existsByMemberIdAndCityIdAndIsDeletedFalse(1L, 10L)).thenReturn(true);
-        when(priceService.findLowestRoundTrip(10L)).thenReturn(Optional.of(
-                new FlightAlertPriceService.RoundTripPriceMatch(360_000, "2026-05-14", "2026-05-19", "2026-03-23")
+        when(priceService.findAlertCandidate(10L, 350_000)).thenReturn(Optional.of(
+                new FlightAlertPriceService.AlertCandidate(
+                        AlertType.NEAR_TARGET,
+                        360_000,
+                        LocalDate.parse("2026-04-12"),
+                        LocalDate.parse("2026-05-14"),
+                        2,
+                        LocalDateTime.parse("2026-03-23T00:00:00")
+                )
         ));
         when(notificationRepository.save(any(FlightAlertNotification.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -57,6 +66,9 @@ class FlightAlertBatchServiceTest {
         ArgumentCaptor<FlightAlertNotification> captor = ArgumentCaptor.forClass(FlightAlertNotification.class);
         verify(notificationRepository).save(captor.capture());
         assertThat(captor.getValue().getAlertType()).isEqualTo(AlertType.NEAR_TARGET);
+        assertThat(captor.getValue().getNearestMatchDate()).isEqualTo(LocalDate.parse("2026-04-12"));
+        assertThat(captor.getValue().getBestPriceDate()).isEqualTo(LocalDate.parse("2026-05-14"));
+        assertThat(captor.getValue().getMatchedDateCount()).isEqualTo(2);
         assertThat(subscription.getLastNotifiedPrice()).isEqualTo(360_000);
     }
 
@@ -65,8 +77,15 @@ class FlightAlertBatchServiceTest {
         FlightAlertSubscription subscription = subscription(350_000, 360_000);
         when(subscriptionRepository.findAllByEnabledTrueAndIsDeletedFalse()).thenReturn(List.of(subscription));
         when(bookmarkRepository.existsByMemberIdAndCityIdAndIsDeletedFalse(1L, 10L)).thenReturn(true);
-        when(priceService.findLowestRoundTrip(10L)).thenReturn(Optional.of(
-                new FlightAlertPriceService.RoundTripPriceMatch(360_000, "2026-05-14", "2026-05-19", "2026-03-23")
+        when(priceService.findAlertCandidate(10L, 350_000)).thenReturn(Optional.of(
+                new FlightAlertPriceService.AlertCandidate(
+                        AlertType.NEAR_TARGET,
+                        360_000,
+                        LocalDate.parse("2026-04-12"),
+                        LocalDate.parse("2026-05-14"),
+                        2,
+                        LocalDateTime.parse("2026-03-23T00:00:00")
+                )
         ));
 
         batchService.evaluateActiveSubscriptions();

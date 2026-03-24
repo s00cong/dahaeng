@@ -42,7 +42,7 @@ public class RecommendFacade {
     public RecommendCitySummaryResponse recommend(RecommendCitiesRequest request) {
         RecommendCitiesRequest requestWithRecommendId = new RecommendCitiesRequest(
                 request.selectedTags(),
-                request.userDailyBudget(),
+                request.userTotalBudget(),
                 request.travelDays(),
                 request.month(),
                 UUID.randomUUID()
@@ -119,20 +119,25 @@ public class RecommendFacade {
                 nz(city.getAvgHotelPrice())
         );
         double expectedTotalCost = flight + (dailyLivingCost.total() * request.travelDays());
-        double totalBudget = request.userDailyBudget() * request.travelDays();
+        double totalBudget = nz(request.userTotalBudget());
 
         if (expectedTotalCost > totalBudget * 1.3) {
             return null;
         }
 
-        double tagRaw = averageTagScore(cityTags, climateTags);
+        TagMetrics tagMetrics = calculateTagMetrics(cityTags, climateTags, request.selectedTags());
         RecommendationScoreCalculator.ScoreBreakdown scoreBreakdown = RecommendationScoreCalculator.calculate(
-                tagRaw,
+                tagMetrics.averageScore(),
+                tagMetrics.matchRate(),
                 request,
                 flight,
                 dailyLivingCost.total(),
                 city.getDangerAttention(),
                 city.getDangerAttentionPartial(),
+                city.getDangerControlPartial(),
+                city.getDangerLimitaPartial(),
+                city.getDangerEvacuateRegionTy(),
+                city.getDangerForbiddenRegionTy(),
                 city.getNewsPenaltyScore()
         );
 
@@ -174,46 +179,49 @@ public class RecommendFacade {
         return value == null ? 0.0 : value.doubleValue();
     }
 
-    private double averageTagScore(List<CityTag> cityTags) {
-        if (cityTags == null || cityTags.isEmpty()) {
-            return 0.0;
-        }
-
-        return cityTags.stream()
+    private TagMetrics calculateTagMetrics(
+            List<CityTag> cityTags,
+            List<CityClimateTag> climateTags,
+            List<String> selectedTags
+    ) {
+        long regularMatchedCount = cityTags == null ? 0 : cityTags.stream()
                 .map(CityTag::getTagScore)
                 .filter(Objects::nonNull)
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0.0);
-    }
+                .count();
+        long climateMatchedCount = climateTags == null ? 0 : climateTags.stream()
+                .map(CityClimateTag::getScore)
+                .filter(Objects::nonNull)
+                .count();
+        long matchedCount = regularMatchedCount + climateMatchedCount;
 
-    private double averageTagScore(List<CityTag> cityTags, List<CityClimateTag> climateTags) {
-        boolean hasRegularTags = cityTags != null && !cityTags.isEmpty();
-        boolean hasClimateTags = climateTags != null && !climateTags.isEmpty();
+        if (matchedCount == 0) {
+            return new TagMetrics(0.0, 0.0);
+        }
 
-        if (!hasRegularTags && !hasClimateTags) {
-            return 0.0;
+        double scoreSum = 0.0;
+        if (cityTags != null) {
+            scoreSum += cityTags.stream()
+                    .map(CityTag::getTagScore)
+                    .filter(Objects::nonNull)
+                    .mapToDouble(Double::doubleValue)
+                    .sum();
         }
-        if (!hasClimateTags) {
-            return averageTagScore(cityTags);
-        }
-        if (!hasRegularTags) {
-            return climateTags.stream()
+        if (climateTags != null) {
+            scoreSum += climateTags.stream()
                     .map(CityClimateTag::getScore)
                     .filter(Objects::nonNull)
                     .mapToDouble(Double::doubleValue)
-                    .average()
-                    .orElse(0.0);
+                    .sum();
         }
 
-        double regularAverage = averageTagScore(cityTags);
-        double climateAverage = climateTags.stream()
-                .map(CityClimateTag::getScore)
+        double averageScore = scoreSum / matchedCount;
+        long selectedTagCount = selectedTags == null ? 0 : selectedTags.stream()
                 .filter(Objects::nonNull)
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0.0);
-        return (regularAverage + climateAverage) / 2.0;
+                .filter(tag -> !tag.isBlank())
+                .count();
+        double matchRate = selectedTagCount == 0 ? 0.0 : (double) matchedCount / selectedTagCount;
+
+        return new TagMetrics(averageScore, Math.min(1.0, matchRate));
     }
 
     private List<String> extractClimateTags(List<String> selectedTags) {
@@ -225,5 +233,11 @@ public class RecommendFacade {
 
     private double round(double value) {
         return Math.round(value * 10.0) / 10.0;
+    }
+
+    private record TagMetrics(
+            double averageScore,
+            double matchRate
+    ) {
     }
 }

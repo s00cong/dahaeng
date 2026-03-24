@@ -30,7 +30,11 @@ public interface RecommendQueryRepository extends Repository<City, Long> {
             d.attention as dangerAttention,
             d.attention_partial as dangerAttentionPartial,
             d.control as dangerControl,
+            d.control_partial as dangerControlPartial,
             d.limita as dangerLimita,
+            d.limita_partial as dangerLimitaPartial,
+            d.evacuate_region_ty as dangerEvacuateRegionTy,
+            d.forbidden__region_ty as dangerForbiddenRegionTy,
             co.currency as currency,
             fs.origin_airport as originAirport
         from city c
