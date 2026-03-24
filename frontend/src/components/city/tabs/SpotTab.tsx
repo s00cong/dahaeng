@@ -1,34 +1,26 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft,
   MapPin,
-  Mountain,
-  ExternalLink,
   Globe,
   Star,
   BookOpen,
-  Compass,
   Share2,
-  Wifi,
-  Dog,
-  Accessibility,
   Clock,
-  Building2,
+  Sparkles,
+  Route,
 } from "lucide-react";
-import Map, { Marker, Popup, NavigationControl } from "react-map-gl/maplibre";
+import Map, { Marker, Popup, NavigationControl, Source, Layer } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CityDetail } from "@/schemas/city.schema";
 import { useCityList } from "@/hooks/city/useCityList";
 import { usePlaces } from "@/hooks/spot/usePlaces";
-import { useOpenTripMapSpots } from "@/hooks/spot/useOpenTripMapSpots";
-import { useGeoapifySpots } from "@/hooks/spot/useGeoapifySpots";
-import { type OtmSpot, getKindLabel } from "@/api/opentripmap.api";
-import { type GeoapifySpot } from "@/api/geoapify.api";
 import type { Place } from "@/api/places.api";
 import { useNearbyAttractions } from "@/hooks/spot/useNearbyAttractions";
 import type { NearbyAttractionFeature } from "@/api/nearbyAttractions.api";
+import { useTravelCourse } from "@/hooks/spot/useTravelCourse";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 
 
 interface SpotTabProps {
@@ -52,14 +44,25 @@ function SectionHeader({ icon, title, sub }: { icon: React.ReactNode; title: str
 
 type TouristSpot = NonNullable<CityDetail["touristSpot"]>[number];
 
-function TouristSpotCard({ spot, cityName }: { spot: TouristSpot; cityName: string }) {
+function TouristSpotCard({
+  spot,
+  cityName,
+  courseOrder,
+  courseDescription,
+}: {
+  spot: TouristSpot;
+  cityName: string;
+  courseOrder?: number;
+  courseDescription?: string;
+}) {
   const tags = spot.tags ?? [];
   const spotScore = spot.spotScore != null ? Math.round(spot.spotScore * 100) : null;
 
-  const descriptionText =
+  const descriptionText = courseDescription ?? (
     spot.description && spot.description !== "Overture Place" && spot.description !== spot.name
       ? spot.description
-      : null;
+      : null
+  );
 
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${spot.name} ${cityName}`)}`;
 
@@ -68,10 +71,17 @@ function TouristSpotCard({ spot, cityName }: { spot: TouristSpot; cityName: stri
       href={mapUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer">
-      {/* 이름 + 종합 점수 */}
+      className={`flex flex-col gap-2 rounded-xl border bg-white p-3 hover:shadow-sm transition-all cursor-pointer ${courseOrder != null ? 'border-indigo-200 hover:border-indigo-300' : 'border-border hover:border-blue-200'}`}>
+      {/* 순번 뱃지 + 이름 + 점수 */}
       <div className="flex items-start justify-between gap-1">
-        <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2">{spot.name}</p>
+        <div className="flex items-start gap-1.5 min-w-0">
+          {courseOrder != null && (
+            <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold mt-0.5">
+              {courseOrder}
+            </span>
+          )}
+          <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2">{spot.name}</p>
+        </div>
         {spotScore != null && (
           <div className="flex items-center gap-0.5 shrink-0">
             <Star className="size-2.5 fill-amber-400 text-amber-400" />
@@ -168,273 +178,18 @@ function PlaceCard({ place }: { place: Place }) {
   );
 }
 
-// ── 3. OpenTripMap 카드 ───────────────────────────────────────────────────────
 
-function OtmSpotCard({ spot, onClick, onImageError }: { spot: OtmSpot; onClick: () => void; onImageError: (xid: string) => void }) {
-  const kindLabel = getKindLabel(spot.kinds);
+// ── 3. 근처 관광지 카드 (/api/{cityId}/nearby-attractions) ────────────────────
 
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col rounded-xl overflow-hidden border border-border hover:border-blue-300 hover:shadow-md transition-all text-left group"
-    >
-      <div className="relative h-32 bg-slate-200 shrink-0">
-        <img
-          src={spot.imageUrl}
-          alt={spot.name}
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          onError={() => onImageError(spot.xid)}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-        <div className="absolute bottom-2 left-2">
-          <span className="text-[9px] font-medium text-white bg-blue-500/80 rounded-full px-1.5 py-0.5">
-            {kindLabel}
-          </span>
-        </div>
-      </div>
-      <div className="px-2.5 py-2 bg-white flex flex-col gap-0.5">
-        <p className="text-xs font-semibold text-foreground truncate">{spot.name}</p>
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-          {spot.addressCity && (
-            <span className="truncate">{spot.addressCity}</span>
-          )}
-          {spot.dist > 0 && (
-            <span className="shrink-0 flex items-center gap-0.5">
-              <MapPin className="size-2.5" />
-              {spot.dist >= 1000
-                ? `${(spot.dist / 1000).toFixed(1)}km`
-                : `${Math.round(spot.dist)}m`}
-            </span>
-          )}
-        </div>
-      </div>
-    </button>
-  );
-}
-
-// ── OpenTripMap 상세 ──────────────────────────────────────────────────────────
-
-function OtmSpotDetail({ spot, onBack }: { spot: OtmSpot; onBack: () => void }) {
-  const [imgError, setImgError] = useState(false);
-  const kindLabel = getKindLabel(spot.kinds);
-
-  return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 px-5 py-3 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
-      >
-        <ArrowLeft className="size-4" />
-        관광지 목록으로
-      </button>
-
-      <div className="relative h-52 bg-slate-200 mx-5 rounded-xl overflow-hidden shrink-0">
-        {spot.imageUrl && !imgError ? (
-          <img
-            src={spot.imageUrl}
-            alt={spot.name}
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300">
-            <Mountain className="size-12 text-slate-400" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-      </div>
-
-      <div className="flex flex-col gap-4 p-5">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
-              {kindLabel}
-            </span>
-          </div>
-          <h3 className="text-xl font-bold text-foreground">{spot.name}</h3>
-          {spot.addressCity && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <MapPin className="size-3 shrink-0" />{spot.addressCity}
-            </p>
-          )}
-        </div>
-
-        {spot.description && (
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-            <p className="text-xs text-slate-600 leading-relaxed">{spot.description}</p>
-          </div>
-        )}
-
-        {(spot.url || spot.wikipedia || spot.wikiVoyage || spot.otm) && (
-          <div className="flex flex-col gap-2">
-            <h4 className="text-xs font-semibold text-foreground">바로가기</h4>
-            <div className="flex flex-col gap-1.5">
-              {spot.url && (
-                <a href={spot.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-blue-300 hover:text-blue-600 transition-colors text-xs text-muted-foreground">
-                  <Globe className="size-3.5 shrink-0" />공식 홈페이지<ExternalLink className="size-3 ml-auto" />
-                </a>
-              )}
-              {spot.wikipedia && (
-                <a href={spot.wikipedia} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-blue-300 hover:text-blue-600 transition-colors text-xs text-muted-foreground">
-                  <BookOpen className="size-3.5 shrink-0" />위키백과<ExternalLink className="size-3 ml-auto" />
-                </a>
-              )}
-              {spot.wikiVoyage && (
-                <a href={spot.wikiVoyage} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-blue-300 hover:text-blue-600 transition-colors text-xs text-muted-foreground">
-                  <Compass className="size-3.5 shrink-0" />여행 가이드 (WikiVoyage)<ExternalLink className="size-3 ml-auto" />
-                </a>
-              )}
-              {spot.otm && (
-                <a href={spot.otm} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border hover:border-blue-300 hover:text-blue-600 transition-colors text-xs text-muted-foreground">
-                  <MapPin className="size-3.5 shrink-0" />OpenTripMap<ExternalLink className="size-3 ml-auto" />
-                </a>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── 4. Geoapify 카드 ──────────────────────────────────────────────────────────
-
-function GeoapifySpotCard({ spot }: { spot: GeoapifySpot }) {
-  // 이름 표시 우선순위: 한국어 > 영어+현지어
-  const mainName = spot.nameKo ?? spot.nameEn ?? spot.name;
-  // 메인과 다른 보조 이름 (현지 원어)
-  const subName = spot.nameKo
-    ? (spot.name !== spot.nameKo ? spot.name : undefined)
-    : (spot.nameEn && spot.name !== spot.nameEn ? spot.name : undefined);
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}`;
-
-  return (
-    <div className="flex flex-col rounded-xl border border-border bg-white overflow-hidden hover:border-violet-200 hover:shadow-sm transition-all">
-      {/* 이미지 */}
-      {spot.imageUrl && (
-        <div className="relative h-28 bg-slate-200 shrink-0">
-          <img
-            src={spot.imageUrl || undefined}
-            alt={mainName}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              const wrapper = e.currentTarget.parentElement as HTMLElement;
-              if (wrapper) wrapper.style.display = 'none';
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-          <span className="absolute bottom-1.5 left-2 text-[9px] font-medium text-white bg-violet-500/80 rounded-full px-1.5 py-0.5">
-            {spot.categoryLabel}
-          </span>
-        </div>
-      )}
-
-      <div className="p-3 flex flex-col gap-2">
-        {/* 이미지 없을 때 카테고리 뱃지 */}
-        {!spot.imageUrl && (
-          <span className="self-start text-[9px] font-medium text-violet-600 bg-violet-50 border border-violet-100 rounded-full px-1.5 py-0.5">
-            {spot.categoryLabel}
-          </span>
-        )}
-
-        {/* 이름: 메인(한국어 or 영어) + 보조(현지어) */}
-        <div>
-          <p className="text-xs font-semibold text-foreground leading-snug">{mainName}</p>
-          {subName && (
-            <p className="text-[10px] text-muted-foreground">{subName}</p>
-          )}
-        </div>
-
-        {/* 설명 */}
-        {spot.description && (
-          <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
-            {spot.description}
-          </p>
-        )}
-
-        {/* 운영시간 */}
-        {spot.openingHours && (
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Clock className="size-2.5 shrink-0" />
-            <span className="truncate">{spot.openingHours}</span>
-          </div>
-        )}
-
-        {/* 건물 정보 */}
-        {(spot.building?.architecture || spot.historic?.startDate) && (
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Building2 className="size-2.5 shrink-0" />
-            <span>
-              {[
-                spot.building?.architecture,
-                spot.historic?.startDate ? `${spot.historic.startDate}년` : undefined,
-              ].filter(Boolean).join(' · ')}
-            </span>
-          </div>
-        )}
-
-        {/* 편의시설 아이콘 */}
-        {spot.facilities && (
-          <div className="flex items-center gap-2">
-            {spot.facilities.wheelchair && (
-              <span title="휠체어 접근 가능">
-                <Accessibility className="size-3 text-blue-400" />
-              </span>
-            )}
-            {spot.facilities.internetAccess && (
-              <span title="와이파이 제공">
-                <Wifi className="size-3 text-green-400" />
-              </span>
-            )}
-            {spot.facilities.dogs === false && (
-              <span title="반려동물 불가">
-                <Dog className="size-3 text-red-300" />
-              </span>
-            )}
-            {spot.isFree && (
-              <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-full px-1.5 py-0.5">
-                무료
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* 링크 */}
-        <div className="flex gap-1.5 mt-1 flex-wrap">
-          <a href={mapUrl} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
-            <MapPin className="size-2.5" />지도
-          </a>
-          {spot.website && (
-            <a href={spot.website} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
-              <Globe className="size-2.5" />웹사이트
-            </a>
-          )}
-          {spot.wikipedia && (
-            <a href={spot.wikipedia} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-200 hover:border-violet-300 hover:text-violet-600 transition-colors text-[10px] text-muted-foreground">
-              <BookOpen className="size-2.5" />위키
-            </a>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── 5. 근처 관광지 카드 (/api/{cityId}/nearby-attractions) ────────────────────
-
-function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature }) {
+function NearbyAttractionCard({
+  feature,
+  courseOrder,
+  courseDescription,
+}: {
+  feature: NearbyAttractionFeature;
+  courseOrder?: number;
+  courseDescription?: string;
+}) {
   const p = feature.properties;
   const mainName = p.nameKo ?? p.nameEn ?? p.name;
   const subName = p.nameKo
@@ -445,7 +200,7 @@ function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature })
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
 
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-white overflow-hidden hover:border-orange-200 hover:shadow-sm transition-all">
+    <div className={`flex flex-col rounded-xl border bg-white overflow-hidden hover:shadow-sm transition-all ${courseOrder != null ? 'border-indigo-200 hover:border-indigo-300' : 'border-border hover:border-orange-200'}`}>
       {/* 이미지 */}
       {p.imageUrl && (
         <div className="relative h-28 bg-slate-200 shrink-0">
@@ -477,18 +232,25 @@ function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature })
         </span>
       )}
 
-      {/* 이름 */}
-      <div>
-        <p className="text-xs font-semibold text-foreground leading-snug">{mainName}</p>
-        {subName && (
-          <p className="text-[10px] text-muted-foreground">{subName}</p>
+      {/* 순번 배지 + 이름 */}
+      <div className="flex items-start gap-1.5">
+        {courseOrder != null && (
+          <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold mt-0.5">
+            {courseOrder}
+          </span>
         )}
+        <div>
+          <p className="text-xs font-semibold text-foreground leading-snug">{mainName}</p>
+          {subName && (
+            <p className="text-[10px] text-muted-foreground">{subName}</p>
+          )}
+        </div>
       </div>
 
-      {/* 설명 */}
-      {p.description && (
+      {/* 코스 설명 (우선) 또는 기존 설명 */}
+      {(courseDescription ?? p.description) && (
         <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
-          {p.description}
+          {courseDescription ?? p.description}
         </p>
       )}
 
@@ -532,24 +294,6 @@ function NearbyAttractionCard({ feature }: { feature: NearbyAttractionFeature })
   );
 }
 
-// ── 스켈레톤 ─────────────────────────────────────────────────────────────────
-
-function CardSkeleton({ count = 3 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-3 gap-3">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="rounded-xl overflow-hidden border border-border">
-          <Skeleton className="h-32 w-full" />
-          <div className="p-2.5 flex flex-col gap-1.5">
-            <Skeleton className="h-3 w-3/4" />
-            <Skeleton className="h-2.5 w-1/2" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── 지도 마커 타입 ────────────────────────────────────────────────────────────
 
 interface MapMarker {
@@ -564,12 +308,29 @@ interface MapMarker {
   description?: string;
   address?: string;
   category?: string;
+  courseOrder?: number;
+  courseDescription?: string;
 }
 
 // ── 관광지 지도 컴포넌트 ──────────────────────────────────────────────────────
 
-function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; centerLat: number; centerLon: number }) {
+function SpotMap({
+  markers,
+  centerLat,
+  centerLon,
+  courseRoute,
+}: {
+  markers: MapMarker[];
+  centerLat: number;
+  centerLon: number;
+  courseRoute?: [number, number][];
+}) {
   const [popup, setPopup] = useState<MapMarker | null>(null);
+
+  const routeGeoJSON: GeoJSON.Feature<GeoJSON.LineString> | null =
+    courseRoute && courseRoute.length >= 2
+      ? { type: 'Feature', geometry: { type: 'LineString', coordinates: courseRoute }, properties: {} }
+      : null;
 
   return (
     <div className="rounded-xl overflow-hidden border border-border" style={{ height: 280 }}>
@@ -581,6 +342,17 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
       >
         <NavigationControl position="top-right" />
 
+        {/* 코스 경로 선 */}
+        {routeGeoJSON && (
+          <Source id="course-route" type="geojson" data={routeGeoJSON}>
+            <Layer
+              id="course-route-line"
+              type="line"
+              paint={{ 'line-color': '#6366f1', 'line-width': 2.5, 'line-dasharray': [3, 2] }}
+            />
+          </Source>
+        )}
+
         {markers.map((m) => (
           <Marker
             key={m.id}
@@ -589,21 +361,38 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
             anchor="bottom"
             onClick={(e) => { e.originalEvent.stopPropagation(); setPopup(m); }}
           >
-            <div
-              className={`flex items-center justify-center rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform ${
-                m.type === "ai"
-                  ? "w-7 h-7 bg-amber-400"
-                  : m.type === "nearby"
-                    ? "w-6 h-6 bg-orange-400"
-                    : "w-6 h-6 bg-blue-500"
-              }`}
-              title={m.name}
-            >
-              {m.type === "ai"
-                ? <Star className="size-3.5 text-white fill-white" />
-                : <MapPin className="size-3 text-white" />
-              }
-            </div>
+            {m.type === "ai" ? (
+              /* AI 추천: 항상 별 아이콘, 코스 포함 시 indigo로 색 변경 */
+              <div
+                className={`relative flex items-center justify-center w-7 h-7 rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform ${
+                  m.courseOrder != null ? "bg-indigo-500" : "bg-amber-400"
+                }`}
+                title={m.name}
+              >
+                <Star className="size-3.5 text-white fill-white" />
+                {m.courseOrder != null && (
+                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-white border border-indigo-400 text-indigo-600 text-[9px] font-bold shadow">
+                    {m.courseOrder}
+                  </span>
+                )}
+              </div>
+            ) : m.courseOrder != null ? (
+              /* 근처 관광지 + 코스 포함: 번호 뱃지 */
+              <div
+                className="flex items-center justify-center w-7 h-7 rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform bg-indigo-500 text-white text-[11px] font-bold"
+                title={m.name}
+              >
+                {m.courseOrder}
+              </div>
+            ) : (
+              /* 근처 관광지 기본 */
+              <div
+                className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform bg-orange-400"
+                title={m.name}
+              >
+                <MapPin className="size-3 text-white" />
+              </div>
+            )}
           </Marker>
         ))}
 
@@ -665,9 +454,11 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
                   <span className="text-[10px] text-blue-600">#{popup.tagName}</span>
                 )}
 
-                {/* 설명 */}
-                {popup.description && (
-                  <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">{popup.description}</p>
+                {/* 코스 설명 (우선) 또는 기존 설명 */}
+                {(popup.courseDescription ?? popup.description) && (
+                  <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">
+                    {popup.courseDescription ?? popup.description}
+                  </p>
                 )}
 
                 {/* 주소 */}
@@ -689,13 +480,6 @@ function SpotMap({ markers, centerLat, centerLon }: { markers: MapMarker[]; cent
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 
 export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
-  const [selectedOtmSpot, setSelectedOtmSpot] = useState<OtmSpot | null>(null);
-  const [failedXids, setFailedXids] = useState<Set<string>>(new Set());
-
-  const handleImageError = useCallback((xid: string) => {
-    setFailedXids((prev) => new Set(prev).add(xid));
-  }, []);
-
   // recommend=false일 때 latitude/longitude가 0 → cityList에서 실제 좌표 보완
   const { data: cities } = useCityList();
   const cityInfo = cities?.find((c) => c.cityId === city.cityId);
@@ -703,19 +487,34 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
   const lon = city.longitude || cityInfo?.longitude;
 
   const { data: places, isLoading: isPlacesLoading } = usePlaces(city.cityId);
-  const { data: otmSpots, isLoading: isOtmLoading } = useOpenTripMapSpots(lat, lon);
-  const { data: geoapifySpots, isLoading: isGeoapifyLoading } = useGeoapifySpots(lat, lon);
   const { data: nearbyAttractions } = useNearbyAttractions(city.cityId);
+  const { courses, selectedCourse, selectedIndex, setSelectedIndex, isLoading: isCourseLoading, error: courseError, generate, reset } = useTravelCourse();
 
-  // 이미지 로드 실패한 spot 제거
-  const visibleOtmSpots = otmSpots?.filter((s) => !failedXids.has(s.xid)) ?? [];
+  const cityNameKo = CITY_NAME_KO[city.cityName] ?? city.cityName;
 
   // recommend=true 일 때 서버 AI 추천 관광지
   const touristSpots = isRecommended && city.touristSpot && city.touristSpot.length > 0
     ? city.touristSpot
     : null;
 
-  // 지도 마커 생성 (AI 추천 + 근처 관광지, 좌표 있는 것만)
+  // 코스 이름 → { order, description } 맵
+  const courseMap = useMemo(() => {
+    const m = new globalThis.Map<string, { order: number; description: string }>();
+    if (selectedCourse) {
+      selectedCourse.attractions.forEach((a) => m.set(a.name, { order: a.order, description: a.description }));
+    }
+    return m;
+  }, [selectedCourse]);
+
+  // 코스 경로 좌표 (순서대로)
+  const courseRoute = useMemo<[number, number][]>(() => {
+    if (!selectedCourse) return [];
+    return [...selectedCourse.attractions]
+      .sort((a, b) => a.order - b.order)
+      .map((a) => [a.lon, a.lat] as [number, number]);
+  }, [selectedCourse]);
+
+  // 지도 마커 생성
   const mapMarkers = useMemo<MapMarker[]>(() => {
     const markers: MapMarker[] = [];
     touristSpots?.forEach((s, i) => {
@@ -724,6 +523,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
           s.description && s.description !== "Overture Place" && s.description !== s.name
             ? s.description
             : undefined;
+        const courseInfo = courseMap.get(s.name);
         markers.push({
           id: `ai-${i}`,
           lat: s.lat,
@@ -733,54 +533,60 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
           tagName: s.tags?.[0]?.name,
           score: s.spotScore != null ? Math.round(s.spotScore * 100) : undefined,
           description: descriptionText,
+          courseOrder: courseInfo?.order,
+          courseDescription: courseInfo?.description,
         });
       }
     });
     nearbyAttractions?.forEach((f, i) => {
       const p = f.properties;
       if (p.lat != null && p.lon != null) {
+        const name = p.nameKo ?? p.nameEn ?? p.name;
+        const info = courseMap.get(name);
         markers.push({
           id: `nearby-${i}`,
           lat: p.lat,
           lon: p.lon,
-          name: p.name,
+          name,
           type: "nearby",
           imageUrl: p.imageUrl,
           description: p.description ?? undefined,
           address: p.formatted ?? undefined,
           category: p.categories?.[0] ?? undefined,
+          courseOrder: info?.order,
+          courseDescription: info?.description,
         });
       }
     });
     return markers;
-  }, [touristSpots, nearbyAttractions]);
+  }, [touristSpots, nearbyAttractions, courseMap]);
+
+  // 근처 관광지 정렬: 코스 포함(순서대로) → 이미지 있음 → 나머지
+  const sortedNearby = useMemo(() => {
+    if (!nearbyAttractions) return [];
+    return [...nearbyAttractions].sort((a, b) => {
+      const nameA = a.properties.nameKo ?? a.properties.nameEn ?? a.properties.name;
+      const nameB = b.properties.nameKo ?? b.properties.nameEn ?? b.properties.name;
+      const orderA = courseMap.get(nameA)?.order ?? Infinity;
+      const orderB = courseMap.get(nameB)?.order ?? Infinity;
+      if (orderA !== orderB) return orderA - orderB;
+      return (b.properties.imageUrl ? 1 : 0) - (a.properties.imageUrl ? 1 : 0);
+    });
+  }, [nearbyAttractions, courseMap]);
 
   const centerLat = lat ?? city.latitude ?? 0;
   const centerLon = lon ?? city.longitude ?? 0;
 
   return (
     <AnimatePresence mode="wait">
-      {/* OpenTripMap 상세 뷰 */}
-      {selectedOtmSpot ? (
-        <motion.div
-          key="otm-detail"
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 24 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="h-full"
-        >
-          <OtmSpotDetail spot={selectedOtmSpot} onBack={() => setSelectedOtmSpot(null)} />
-        </motion.div>
-      ) : (
-        <motion.div
-          key="list"
-          initial={{ opacity: 0, x: -24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="h-full overflow-y-auto"
-        >
+      <motion.div
+        key="list"
+        initial={{ opacity: 0, x: -24 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -24 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="h-full overflow-y-auto"
+      >
           <div className="p-5 flex flex-col gap-6 pb-8">
 
             {/* ── Section 0: 관광지 지도 ── */}
@@ -791,7 +597,12 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                   title="관광지 지도"
                   sub={`${mapMarkers.length}곳`}
                 />
-                <SpotMap markers={mapMarkers} centerLat={centerLat} centerLon={centerLon} />
+                <SpotMap
+                  markers={mapMarkers}
+                  centerLat={centerLat}
+                  centerLon={centerLon}
+                  courseRoute={courseRoute.length >= 2 ? courseRoute : undefined}
+                />
               </section>
             )}
 
@@ -804,9 +615,18 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                   sub={`${touristSpots.length}곳`}
                 />
                 <div className="grid grid-cols-2 gap-2.5">
-                  {touristSpots.map((spot, i) => (
-                    <TouristSpotCard key={i} spot={spot} cityName={city.cityName} />
-                  ))}
+                  {touristSpots.map((spot, i) => {
+                    const info = courseMap.get(spot.name);
+                    return (
+                      <TouristSpotCard
+                        key={i}
+                        spot={spot}
+                        cityName={city.cityName}
+                        courseOrder={info?.order}
+                        courseDescription={info?.description}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -828,7 +648,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                   ))}
                 </div>
               ) : places && places.length > 0 ? (
-                <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {places.map((place) => (
                     <PlaceCard key={place.id} place={place} />
                   ))}
@@ -838,73 +658,84 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
               )}
             </section>
 
-            {/* ── Section 3: 주변 명소 (OpenTripMap) ── */}
-            <section>
-              <SectionHeader
-                icon={<Compass className="size-4 text-emerald-500" />}
-                title="주변 명소"
-                sub="OpenTripMap"
-              />
-              {isOtmLoading ? (
-                <CardSkeleton count={6} />
-              ) : visibleOtmSpots.length > 0 ? (
-                <div className="grid grid-cols-3 gap-3">
-                  {visibleOtmSpots.map((spot) => (
-                    <OtmSpotCard key={spot.xid} spot={spot} onClick={() => setSelectedOtmSpot(spot)} onImageError={handleImageError} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground py-4 text-center">주변 명소 데이터를 불러올 수 없습니다.</p>
-              )}
-            </section>
-
-            {/* ── Section 4: 관광지 (Geoapify) ── */}
-            <section>
-              <SectionHeader
-                icon={<Building2 className="size-4 text-violet-500" />}
-                title="관광 명소"
-                sub="Geoapify"
-              />
-              {isGeoapifyLoading ? (
-                <div className="flex flex-col gap-3">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="rounded-xl border border-border p-3 flex flex-col gap-2">
-                      <Skeleton className="h-3.5 w-2/3" />
-                      <Skeleton className="h-3 w-full" />
-                      <Skeleton className="h-3 w-4/5" />
-                    </div>
-                  ))}
-                </div>
-              ) : geoapifySpots && geoapifySpots.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {geoapifySpots.map((spot) => (
-                    <GeoapifySpotCard key={spot.placeId} spot={spot} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground py-4 text-center">관광지 데이터를 불러올 수 없습니다.</p>
-              )}
-            </section>
-
-            {/* ── Section 5: 근처 관광지 (/api/{cityId}/nearby-attractions) ── */}
+            {/* ── Section 3: 근처 관광지 + AI 여행 코스 ── */}
             {nearbyAttractions && nearbyAttractions.length > 0 && (
               <section>
-                <SectionHeader
-                  icon={<MapPin className="size-4 text-orange-500" />}
-                  title="근처 관광지"
-                  sub={`${nearbyAttractions.length}곳`}
-                />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="size-4 text-orange-500" />
+                    <h3 className="text-sm font-semibold text-foreground">근처 관광지</h3>
+                    <span className="text-xs text-muted-foreground">{nearbyAttractions.length}곳</span>
+                  </div>
+                  {courses ? (
+                    <button
+                      onClick={reset}
+                      className="text-[10px] text-slate-400 hover:text-red-400 transition-colors"
+                    >
+                      초기화
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => nearbyAttractions && generate(nearbyAttractions, cityNameKo, touristSpots ?? undefined, city.tags ?? undefined)}
+                      disabled={isCourseLoading}
+                      className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-2.5 py-1 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                    >
+                      {isCourseLoading ? (
+                        <>
+                          <Route className="size-3 animate-pulse" />
+                          코스 생성 중...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="size-3" />
+                          AI 여행 코스
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                {courseError && (
+                  <p className="text-xs text-red-500 mb-2">{courseError}</p>
+                )}
+
+                {/* 코스 탭 선택 */}
+                {courses && (
+                  <div className="flex gap-1.5 mb-3 flex-wrap">
+                    {courses.courses.map((c, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setSelectedIndex(i)}
+                        className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                          selectedIndex === i
+                            ? 'bg-indigo-500 text-white border-indigo-500'
+                            : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100'
+                        }`}
+                      >
+                        {c.courseTitle}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-2.5">
-                  {nearbyAttractions.map((feature, i) => (
-                    <NearbyAttractionCard key={i} feature={feature} />
-                  ))}
+                  {sortedNearby.map((feature, i) => {
+                    const name = feature.properties.nameKo ?? feature.properties.nameEn ?? feature.properties.name;
+                    const info = courseMap.get(name);
+                    return (
+                      <NearbyAttractionCard
+                        key={i}
+                        feature={feature}
+                        courseOrder={info?.order}
+                        courseDescription={info?.description}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             )}
 
           </div>
         </motion.div>
-      )}
     </AnimatePresence>
   );
 }

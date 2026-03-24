@@ -28,11 +28,12 @@ interface UiState {
   // 추천 상태
   isRecommendActive: boolean;
   isRecommendLoading: boolean;
+  isRecommendError: boolean;
 
   recommendResults: RecommendResultItem[];
   recommendRequest: {
     selectedTags: string[];
-    userDailyBudget: number;
+    userTotalBudget: number;
     travelDays: number;
     month: number;
     recommendId?: string;
@@ -65,10 +66,11 @@ interface UiState {
   setGlobeTravelMonth: (year: number, month: number) => void;
   setRecommendActive: (v: boolean) => void;
   setRecommendLoading: (v: boolean) => void;
+  setRecommendError: (v: boolean) => void;
   setRecommendResults: (results: RecommendResultItem[]) => void;
   setRecommendRequest: (req: {
     selectedTags: string[];
-    userDailyBudget: number;
+    userTotalBudget: number;
     travelDays: number;
     month: number;
     recommendId?: string;
@@ -126,10 +128,12 @@ export const useUiStore = create<UiState>((set) => ({
     set({ globeTravelYear: year, globeTravelMonth: month }),
   isRecommendActive: false,
   isRecommendLoading: false,
+  isRecommendError: false,
   recommendResults: [],
   recommendRequest: null,
   setRecommendActive: (v) => set({ isRecommendActive: v }),
   setRecommendLoading: (v) => set({ isRecommendLoading: v }),
+  setRecommendError: (v) => set({ isRecommendError: v }),
   setRecommendResults: (results) => set({ recommendResults: results }),
   setRecommendRequest: (req) => set({ recommendRequest: req, bookmarkedCityIds: [] }),
   bookmarkedCityIds: [],

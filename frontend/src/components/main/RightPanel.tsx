@@ -253,11 +253,11 @@ export function RightPanel() {
                 </div>
               ) : city?.tags && city.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {[...city.tags]
-                    .filter((tag) => (tag.tagScore ?? 0) >= 0.6)
-                    .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
-                    .slice(0, 10)
-                    .map((tag) => (
+                  {(() => {
+                    const sorted = [...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0));
+                    const high = sorted.filter((t) => (t.tagScore ?? 0) >= 0.6);
+                    return high.length >= 5 ? high.slice(0, 5) : [...high, ...sorted.filter((t) => (t.tagScore ?? 0) >= 0.2 && (t.tagScore ?? 0) < 0.6)].slice(0, 5);
+                  })().map((tag) => (
                       <span
                         key={tag.name}
                         className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"

@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { authApi } from '@/api/auth.api';
 
 const POPUP_WIDTH = 500;
@@ -32,5 +33,8 @@ export const useGoogleLogin = () =>
         'googleLogin',
         `popup,width=${POPUP_WIDTH},height=${POPUP_HEIGHT},left=${left},top=${top}`,
       );
+    },
+    onError: () => {
+      toast.error('Google 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
     },
   });

@@ -203,7 +203,7 @@ export const cityApi = {
     recommend: boolean,
     recommendParams?: {
       selectedTags: string[];
-      userDailyBudget: number;
+      userTotalBudget: number;
       travelDays: number;
       month: number;
       recommendId?: string;
@@ -212,7 +212,7 @@ export const cityApi = {
     try {
     const { data } = await axiosInstance.get(`/api/city/${cityId}`, {
       params: recommend && recommendParams
-        ? { recommend, selectedTags: recommendParams.selectedTags, userDailyBudget: recommendParams.userDailyBudget, travelDays: recommendParams.travelDays, month: recommendParams.month, recommendId: recommendParams.recommendId }
+        ? { recommend, selectedTags: recommendParams.selectedTags, userTotalBudget: recommendParams.userTotalBudget, travelDays: recommendParams.travelDays, month: recommendParams.month, recommendId: recommendParams.recommendId }
         : { recommend },
       timeout: recommend ? 60_000 : 10_000,
     });
@@ -280,7 +280,7 @@ export const cityApi = {
   // POST /api/recommend → RecommendCitySummaryResponse
   recommend: async (body: {
     selectedTags: string[];
-    userDailyBudget: number;
+    userTotalBudget: number;
     travelDays: number;
     month: number;
   }) => {
@@ -288,7 +288,7 @@ export const cityApi = {
       recommendId: z.string().nullable().optional(),
       requestContext: z.object({
         selectedTags: z.array(z.string()),
-        userDailyBudget: z.number(),
+        userTotalBudget: z.number(),
         travelDays: z.number(),
         month: z.number(),
       }).optional(),

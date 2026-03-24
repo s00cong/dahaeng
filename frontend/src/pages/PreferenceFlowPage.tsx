@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   ListChecks,
@@ -287,12 +288,13 @@ const PreferenceFlowPage = () => {
       usePreferenceStore.getState().setSelectedTags(tagNames);
       await youtubeApi.updateSyncPreference(true);
       setYoutubeAutoSelected(true);
+      setLoadingStep("idle");
+      setStep("select");
     } catch {
-      // 실패 시에도 select 단계로 진행 (자동 선택 없이)
+      setLoadingStep("idle");
       setYoutubeAutoSelected(false);
+      toast.error("YouTube 분석에 실패했습니다. 뒤로가기 후 직접 선택해주세요.");
     }
-    setLoadingStep("idle");
-    setStep("select");
   };
 
   if (step === "onboarding") {
