@@ -50,7 +50,8 @@ class RecommendFacadeTest {
         when(recommendQueryRepository.findCityCandidates(anyString())).thenReturn(List.of(
                 city(1L, 82L, "Seoul", "South Korea", 500, 100, 20.0, 30.0, 5.0, 3.0, 6.0, null, null, null),
                 city(2L, 86L, "Tokyo", "Japan", 300000, 120000, 20.0, 50.0, 6.0, 3.0, 5.0, null, null, null),
-                city(3L, 44L, "Osaka", "Japan", 280000, 100000, 18.0, 40.0, 5.0, 2.0, 5.0, null, null, null)
+                city(3L, 44L, "Osaka", "Japan", 280000, 100000, 18.0, 40.0, 5.0, 2.0, 5.0, null, null, null),
+                city(4L, 33L, "Paris", "France", 900000, 120000, 20.0, 50.0, 6.0, 3.0, 5.0, null, null, null)
         ));
         when(dangerService.dangers(anyLong())).thenReturn(
                 new CountryDangerResponse("Test Country", List.of(new CountryDanger("safe", "ok")))
@@ -64,7 +65,7 @@ class RecommendFacadeTest {
         assertThat(response.recommendations())
                 .extracting(RecommendCitySummaryResponse.RecommendationItem::name)
                 .doesNotContain("Seoul")
-                .containsExactlyInAnyOrder("Tokyo", "Osaka");
+                .containsExactlyInAnyOrder("Tokyo", "Osaka", "Paris");
 
         RecommendCitySummaryResponse.Scores scores = response.recommendations().get(0).scores();
         assertThat(scores).isNotNull();
