@@ -108,5 +108,7 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 		@Param("member") Member member
 	);
 
+	boolean existsByMemberIdAndCityIdAndIsDeletedFalse(Long memberId, Long cityId);
+
 	boolean existsByIsDeletedFalseAndCityIdAndRecommendId(Long cityId, UUID recommendId);
 }
