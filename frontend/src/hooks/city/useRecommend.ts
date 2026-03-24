@@ -6,6 +6,8 @@ export const useRecommend = () => {
   const setRecommendResults = useUiStore((s) => s.setRecommendResults);
   const setRecommendRequest = useUiStore((s) => s.setRecommendRequest);
   const setRecommendLoading = useUiStore((s) => s.setRecommendLoading);
+  const setRecommendError = useUiStore((s) => s.setRecommendError);
+
   return useMutation({
     mutationFn: (body: {
       selectedTags: string[];
@@ -15,10 +17,14 @@ export const useRecommend = () => {
     }) => cityApi.recommend(body),
     onMutate: () => {
       setRecommendLoading(true);
+      setRecommendError(false);
     },
     onSuccess: (data, variables) => {
       setRecommendResults(data.recommendations);
       setRecommendRequest({ ...variables, recommendId: data.recommendId });
+    },
+    onError: () => {
+      setRecommendError(true);
     },
     onSettled: () => {
       setRecommendLoading(false);

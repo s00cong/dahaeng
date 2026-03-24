@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MapPin, Loader2, RefreshCw, SearchX } from "lucide-react";
+import { MapPin, Loader2, RefreshCw, SearchX, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCityList } from "@/hooks/city/useCityList";
 import { useUiStore } from "@/stores/uiStore";
@@ -11,7 +11,7 @@ const TOP_N = 3;
 
 export function TopMatchingList() {
   const { data: citiesFromApi, isLoading } = useCityList();
-  const { isRecommendActive, isRecommendLoading, recommendResults } =
+  const { isRecommendActive, isRecommendLoading, isRecommendError, recommendResults } =
     useUiStore();
 
   const cities = citiesFromApi ?? [];
@@ -96,8 +96,21 @@ export function TopMatchingList() {
         </div>
       )}
 
+      {/* 추천 API 오류 */}
+      {!isLoading && !isRecommendLoading && isRecommendError && (
+        <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+          <AlertCircle className="size-8 text-red-400" aria-hidden="true" />
+          <p className="text-xs font-medium text-slate-600">
+            추천 호출에 실패했습니다
+          </p>
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            다시 추천 업데이트를 눌러주세요
+          </p>
+        </div>
+      )}
+
       {/* 추천 전 안내 메시지 */}
-      {!isLoading && !isRecommendLoading && !isRecommendActive && (
+      {!isLoading && !isRecommendLoading && !isRecommendError && !isRecommendActive && (
         <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
           <RefreshCw className="size-8 text-slate-300" aria-hidden="true" />
           <p className="text-xs font-medium text-slate-600">
@@ -114,6 +127,7 @@ export function TopMatchingList() {
       {/* 추천 결과 없음 */}
       {!isLoading &&
         !isRecommendLoading &&
+        !isRecommendError &&
         isRecommendActive &&
         topCities.length === 0 && (
           <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
@@ -132,6 +146,7 @@ export function TopMatchingList() {
       {/* 목록 */}
       {!isLoading &&
         !isRecommendLoading &&
+        !isRecommendError &&
         isRecommendActive &&
         topCities.length > 0 && (
           <ul className="flex flex-col overflow-y-auto flex-1" role="list">

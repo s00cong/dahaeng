@@ -44,6 +44,7 @@ export function TripSettingsPanel() {
     setGlobeDuration,
     setGlobeTravelMonth,
     setRecommendActive,
+    setRecommendError,
   } = useUiStore();
 
   const [budgetInput, setBudgetInput] = useState<string>("");
@@ -169,6 +170,7 @@ export function TripSettingsPanel() {
       setGlobeDuration(duration);
       setGlobeTravelMonth(selectedYear, selectedMonth);
       setRecommendActive(true);
+      setRecommendError(false);
       recommend({
         selectedTags,
         userTotalBudget: budget,
@@ -186,6 +188,7 @@ export function TripSettingsPanel() {
     setGlobeDuration,
     setGlobeTravelMonth,
     setRecommendActive,
+    setRecommendError,
     recommend,
   ]);
 

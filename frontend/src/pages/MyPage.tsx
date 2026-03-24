@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { youtubeApi } from "@/api/youtube.api";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
@@ -81,9 +82,11 @@ function ProfileAvatar({ profileImageUrl, name }: ProfileAvatarProps) {
 function Toggle({
   checked,
   onChange,
+  disabled,
 }: {
   checked: boolean;
   onChange: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
@@ -91,7 +94,8 @@ function Toggle({
       role="switch"
       aria-checked={checked}
       onClick={onChange}
-      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none"
+      disabled={disabled}
+      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
       style={{ backgroundColor: checked ? "#3b82f6" : "#374151" }}
     >
       <span
@@ -153,7 +157,7 @@ function YoutubeModal({
         }
         window.location.href = resolvedUrl;
       } catch {
-        onConfirm();
+        toast.error("YouTube 연동에 실패했습니다. 다시 시도해주세요.");
       } finally {
         setIsLoading(false);
       }
@@ -352,8 +356,16 @@ const MyPage = () => {
   const queryClient = useQueryClient();
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
-  const { data: memberTags = [] } = useMemberTags();
-  const { data: tagList = [] } = useTagList();
+  const { data: memberTags = [], isError: isMemberTagsError, isLoading: isMemberTagsLoading } = useMemberTags();
+  const { data: tagList = [], isError: isTagListError, isLoading: isTagListLoading } = useTagList();
+  const isTagLoading = isMemberTagsLoading || isTagListLoading;
+  const isTagError = isMemberTagsError || isTagListError;
+
+  useEffect(() => {
+    if (isTagError) {
+      toast.error("태그를 불러오지 못했습니다. 페이지를 새로고침 해주세요.");
+    }
+  }, [isTagError]);
 
   // 저장된 tagId → 태그명 변환
   const savedTagIds = memberTags.map((t) => t.tagId);
@@ -362,7 +374,7 @@ const MyPage = () => {
     .map((t) => t.tagName);
 
   // YouTube 연동 상태 (서버에서 조회)
-  const { data: syncStatus } = useQuery({
+  const { data: syncStatus, isLoading: isSyncLoading, isError: isSyncError } = useQuery({
     queryKey: ["youtube", "sync-status"],
     queryFn: youtubeApi.getSyncStatus,
   });
@@ -393,7 +405,7 @@ const MyPage = () => {
             queryKey: ["youtube", "sync-status"],
           }),
         )
-        .catch(console.error);
+        .catch(() => toast.error("YouTube 연동 해제에 실패했습니다. 다시 시도해주세요."));
     } else if (action === "connect" && isYoutubeAccountLinked) {
       // 계정은 연결됐지만 sync만 꺼져 있던 경우 → 재활성화
       youtubeApi
@@ -403,7 +415,7 @@ const MyPage = () => {
             queryKey: ["youtube", "sync-status"],
           }),
         )
-        .catch(console.error);
+        .catch(() => toast.error("YouTube 연동에 실패했습니다. 다시 시도해주세요."));
     }
     // 계정 자체가 미연동인 경우 → 모달 내부에서 OAuth 리다이렉트 처리
   };
@@ -519,7 +531,19 @@ const MyPage = () => {
                 </button>
               </div>
 
-              {savedTagNames.length > 0 ? (
+              {isTagLoading ? (
+                <div className="flex items-center gap-2 mb-3">
+                  <Loader2 className="size-4 animate-spin text-white/40" />
+                  <span className="text-sm text-white/40">태그 불러오는 중...</span>
+                </div>
+              ) : isTagError ? (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <AlertTriangle className="size-4 text-red-400 shrink-0" />
+                  <span className="text-sm text-red-300">
+                    태그를 불러오지 못했습니다. 다시 시도해주세요.
+                  </span>
+                </div>
+              ) : savedTagNames.length > 0 ? (
                 <div className="flex flex-wrap gap-2 mb-3">
                   {savedTagNames.map((tag) => (
                     <span
@@ -585,19 +609,31 @@ const MyPage = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {youtubeConnected && (
+                  {isSyncLoading ? (
+                    <span className="flex items-center gap-1 text-xs text-white/40">
+                      <Loader2 className="size-3 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : isSyncError ? (
+                    <span className="flex items-center gap-1 text-xs text-red-400">
+                      <AlertTriangle className="size-3" />
+                      연결 실패
+                    </span>
+                  ) : youtubeConnected ? (
                     <span className="text-xs font-bold text-teal-400 tracking-widest">
                       CONNECTED
                     </span>
-                  )}
+                  ) : null}
                   <Toggle
                     checked={youtubeConnected}
                     onChange={handleYoutubeToggleClick}
+                    disabled={isSyncLoading || isSyncError}
                   />
                   <button
                     type="button"
                     onClick={handleYoutubeToggleClick}
-                    className={`text-xs font-medium transition-colors ${youtubeConnected ? "text-white/40 hover:text-white/70" : "text-blue-400 hover:text-blue-300"}`}
+                    disabled={isSyncLoading || isSyncError}
+                    className={`text-xs font-medium transition-colors disabled:opacity-40 ${youtubeConnected ? "text-white/40 hover:text-white/70" : "text-blue-400 hover:text-blue-300"}`}
                   >
                     {youtubeConnected ? "연결 해제" : "연결하기"}
                   </button>
