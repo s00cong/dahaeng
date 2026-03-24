@@ -7,6 +7,9 @@ import {
   User,
   MapPin,
   Flag,
+  Bell,
+  PlaneTakeoff,
+  CheckCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -15,6 +18,10 @@ import { useUiStore } from "@/stores/uiStore";
 import { cn } from "@/lib/utils";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { useFlightAlertUnreadCount } from "@/hooks/flight-alert/useFlightAlertUnreadCount";
+import { useFlightAlertNotifications } from "@/hooks/flight-alert/useFlightAlertNotifications";
+import { useMarkNotificationRead } from "@/hooks/flight-alert/useMarkNotificationRead";
+import dayjs from "@/utils/dayjs";
 
 
 export function UnifiedNavBar() {
@@ -36,6 +43,12 @@ export function UnifiedNavBar() {
   const { openRightPanel, isCityModalOpen, setGlobeCountryTarget } =
     useUiStore();
   const { data: cities } = useCityList();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const { data: unreadData } = useFlightAlertUnreadCount();
+  const { data: notifData } = useFlightAlertNotifications(0);
+  const { mutate: markRead } = useMarkNotificationRead();
+  const unreadCount = unreadData?.count ?? 0;
 
   // 북마크 목록 벗어나면 검색어 초기화
   useEffect(() => {
@@ -84,11 +97,11 @@ export function UnifiedNavBar() {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setSearchOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -283,6 +296,104 @@ export function UnifiedNavBar() {
 
         {/* 우측 링크 + 사용자 */}
         <div className="flex items-center gap-2">
+          {/* 항공권 알림 벨 */}
+          <div ref={notifRef} className="relative">
+            <button
+              onClick={() => setNotifOpen((v) => !v)}
+              className={cn(
+                "relative flex items-center justify-center size-8 rounded-lg transition-all duration-300",
+                isFloating
+                  ? "text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+                  : "text-white hover:text-white/80 hover:bg-white/10",
+              )}
+              aria-label="항공권 알림"
+            >
+              <Bell className="size-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-0.5">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* 알림 드롭다운 */}
+            {notifOpen && (
+              <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <PlaneTakeoff className="size-4 text-blue-500" />
+                    <span className="text-sm font-semibold text-slate-800">항공권 알림</span>
+                  </div>
+                  {unreadCount > 0 && (
+                    <span className="text-xs text-red-500 font-medium">읽지 않음 {unreadCount}개</span>
+                  )}
+                </div>
+
+                <ul className="max-h-80 overflow-y-auto divide-y divide-slate-50">
+                  {!notifData?.content.length && (
+                    <li className="px-4 py-8 text-center text-sm text-slate-400">
+                      알림이 없습니다
+                    </li>
+                  )}
+                  {notifData?.content.map((n) => (
+                    <li
+                      key={n.notificationId}
+                      onClick={() => {
+                        if (!n.isRead) markRead(n.notificationId);
+                      }}
+                      className={cn(
+                        "flex gap-3 px-4 py-3 cursor-pointer transition-colors",
+                        n.isRead ? "hover:bg-slate-50" : "bg-blue-50/60 hover:bg-blue-50",
+                      )}
+                    >
+                      <div className={cn(
+                        "mt-0.5 size-7 rounded-full flex items-center justify-center shrink-0",
+                        n.alertType === "TARGET_HIT" ? "bg-emerald-100" : "bg-amber-100",
+                      )}>
+                        <PlaneTakeoff className={cn(
+                          "size-3.5",
+                          n.alertType === "TARGET_HIT" ? "text-emerald-600" : "text-amber-600",
+                        )} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-slate-800 truncate">
+                            {n.cityName}
+                          </span>
+                          <span className={cn(
+                            "shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                            n.alertType === "TARGET_HIT"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700",
+                          )}>
+                            {n.alertType === "TARGET_HIT" ? "목표가 달성" : "근접"}
+                          </span>
+                          {!n.isRead && (
+                            <span className="shrink-0 size-1.5 rounded-full bg-blue-500 ml-auto" />
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          ₩{n.matchedPrice.toLocaleString("ko-KR")}
+                          <span className="text-slate-400 ml-1">
+                            (목표 ₩{n.thresholdPrice.toLocaleString("ko-KR")})
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          최가 날짜: {n.nearestMatchDate} · {n.matchedDateCount}개 날짜
+                        </p>
+                        <p className="text-[10px] text-slate-300 mt-0.5">
+                          {dayjs(n.createdAt).format("MM.DD HH:mm")}
+                        </p>
+                      </div>
+                      {n.isRead && (
+                        <CheckCheck className="size-3.5 text-slate-300 shrink-0 mt-0.5" />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
           <Link
             to="/bookmarks"
             className={cn(

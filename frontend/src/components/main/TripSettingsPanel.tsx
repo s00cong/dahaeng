@@ -171,7 +171,7 @@ export function TripSettingsPanel() {
       setRecommendActive(true);
       recommend({
         selectedTags,
-        userDailyBudget: budget / duration,
+        userTotalBudget: budget,
         travelDays: duration,
         month: selectedMonth,
       });

@@ -7,6 +7,8 @@ import QueryErrorFallback from '@/components/common/QueryErrorFallback';
 import { CITY_NAME_KO } from '@/data/cityNameKo';
 import { Button } from '@/components/ui/button';
 import { BookmarkHeroSection } from '@/components/bookmark/BookmarkHeroSection';
+import { FlightAlertCard } from '@/components/bookmark/FlightAlertCard';
+import { FlightTrendCard } from '@/components/bookmark/FlightTrendCard';
 import { SavedFlightPriceCard } from '@/components/bookmark/SavedFlightPriceCard';
 import { ExchangeRateCard } from '@/components/bookmark/ExchangeRateCard';
 import { SavedNewsCard } from '@/components/bookmark/SavedNewsCard';
@@ -79,7 +81,7 @@ const BookmarkDetailPage = () => {
 
               {/* 2열 대시보드 그리드 */}
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[55fr_45fr]">
-                {/* 좌측 열: AI 추천 이유 + 항공권 */}
+                {/* 좌측 열: AI 추천 이유 + 항공권 + 6개월 추이 */}
                 <div className="flex flex-col gap-5">
                   <RecommendReasonCard data={data} />
                   <SavedFlightPriceCard
@@ -87,13 +89,15 @@ const BookmarkDetailPage = () => {
                     savedAirTicket={data.savedAirTicket}
                     savedHotel={data.savedHotel}
                   />
+                  <FlightTrendCard cityId={data.cityId} />
                 </div>
 
-                {/* 우측 열: 주요 이슈 + 환율 + 해외 물가 */}
+                {/* 우측 열: 주요 이슈 + 환율 + 해외 물가 + 항공권 알림 */}
                 <div className="flex flex-col gap-5 pb-8">
                   <SavedNewsCard news={data.newsAtSaved} summation={data.newsSummation} />
                   <ExchangeRateCard exchange={data.exchangeAtSaved} />
                   <CostSummaryCard cityId={data.cityId} />
+                  <FlightAlertCard cityId={data.cityId} cityName={data.cityName} />
                 </div>
               </div>
             </div>

@@ -40,4 +40,9 @@ export const queryKeys = {
     list: (keyword?: string, page?: number, size?: number) => ['bookmark', 'list', keyword, page, size] as const,
     detail: (id: number) => ['bookmark', 'detail', id] as const,
   },
+  flightAlert: {
+    subscriptions: ['flight-alert', 'subscriptions'] as const,
+    notifications: (page?: number) => ['flight-alert', 'notifications', page] as const,
+    unreadCount: ['flight-alert', 'unread-count'] as const,
+  },
 } as const;

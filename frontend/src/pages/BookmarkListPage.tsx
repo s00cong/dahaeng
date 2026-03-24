@@ -4,6 +4,7 @@ import { motion, type Variants } from "framer-motion";
 import { ChevronRight, BookmarkX } from "lucide-react";
 import { useBookmarkList } from "@/hooks/bookmark/useBookmarkList";
 import { useDeleteBookmark } from "@/hooks/bookmark/useDeleteBookmark";
+import { useFlightAlertSubscriptions } from "@/hooks/flight-alert/useFlightAlertSubscriptions";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import QueryErrorFallback from "@/components/common/QueryErrorFallback";
 import { BookmarkCard } from "@/components/bookmark/BookmarkCard";
@@ -422,6 +423,14 @@ const BookmarkListPage = () => {
     size: 9999,
   });
   const { mutate: deleteBookmark } = useDeleteBookmark();
+  const { data: subscriptions } = useFlightAlertSubscriptions();
+
+  // cityId → subscription 맵
+  const subscriptionMap = useMemo(() => {
+    const map = new Map<number, (typeof subscriptions)[number]>();
+    subscriptions?.filter((s) => s.enabled).forEach((s) => map.set(s.cityId, s));
+    return map;
+  }, [subscriptions]);
 
   // 제목 검색 + 대륙 필터 AND 적용
   const filteredAll = useMemo(() => {
@@ -559,7 +568,11 @@ const BookmarkListPage = () => {
                         delay: index * 0.05,
                       }}
                     >
-                      <BookmarkCard item={item} onDelete={handleDelete} />
+                      <BookmarkCard
+                        item={item}
+                        onDelete={handleDelete}
+                        subscription={subscriptionMap.get(item.cityId)}
+                      />
                     </motion.div>
                   ))}
 

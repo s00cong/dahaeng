@@ -14,7 +14,7 @@ export const useCityDetail = (
     enabled?: boolean;
     recommendParams?: {
       selectedTags: string[];
-      userDailyBudget: number;
+      userTotalBudget: number;
       travelDays: number;
       month: number;
       recommendId?: string;

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useCostDetail } from '@/hooks/cost/useCostDetail';
-import { costApi, SEOUL_CITY_ID } from '@/api/cost.api';
+import { costApi, SEOUL_CITY_ID, SEOUL_COUNTRY_ID } from '@/api/cost.api';
 import { useQuery } from '@tanstack/react-query';
 import { SalaryPopulationSection } from '@/components/cost/SalaryPopulationSection';
 import { SeoulCompareSection } from '@/components/cost/SeoulCompareSection';
@@ -90,12 +90,13 @@ const CountryCostDetailPage = () => {
 
   const { data, isLoading, isError, refetch } = useCostDetail(targetType, targetId);
 
-  // 서울 대비 비교
+  // 서울/한국 대비 비교
   const compareTargetType = targetType === 'country' ? 'COUNTRY' : 'CITY';
+  const baseId = targetType === 'country' ? SEOUL_COUNTRY_ID : SEOUL_CITY_ID;
   const { data: compareData, isLoading: isCompareLoading } = useQuery({
     queryKey: ['cost', 'compare', compareTargetType, targetId],
-    queryFn: () => costApi.getCostCompare(compareTargetType, SEOUL_CITY_ID, targetId),
-    enabled: targetId > 0 && targetId !== SEOUL_CITY_ID,
+    queryFn: () => costApi.getCostCompare(compareTargetType, baseId, targetId),
+    enabled: targetId > 0 && targetId !== baseId,
     staleTime: 60 * 60 * 1000,
   });
 
@@ -187,7 +188,7 @@ const CountryCostDetailPage = () => {
             </section>
 
             {/* C. 서울 대비 비교 */}
-            {targetId !== SEOUL_CITY_ID && (
+            {targetId !== baseId && (
               <section aria-label="서울 대비 물가 비교">
                 <SeoulCompareSection
                   data={compareData}
