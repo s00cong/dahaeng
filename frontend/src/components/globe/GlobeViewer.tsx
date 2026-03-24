@@ -49,8 +49,8 @@ const DANGER_CHOROPLETH = [
   { max: 2,        color: "#fbbf24", label: "여행유의" },
   { max: 3,        color: "#f97316", label: "여행주의" },
   { max: 4,        color: "#ef4444", label: "여행자제" },
-  { max: 5,        color: "#dc2626", label: "철수권고" },
-  { max: Infinity, color: "#7f1d1d", label: "여행금지" },
+  { max: 5,        color: "#ef4444", label: "철수권고" },
+  { max: Infinity, color: "#dc2626", label: "여행금지" },
 ] as const;
 
 function getChoroplethColor(value: number, mode: "cost" | "danger"): string {
@@ -963,7 +963,13 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           <div style={{ fontSize: 11, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
             {visualMode === "cost" ? "나라별 1일 평균 물가" : "나라별 여행 위험도"}
           </div>
-          {(visualMode === "cost" ? COST_CHOROPLETH : DANGER_CHOROPLETH).map(({ label, color }) => (
+          {(visualMode === "cost"
+            ? COST_CHOROPLETH
+            : [
+                ...DANGER_CHOROPLETH.slice(0, -2),
+                { color: DANGER_CHOROPLETH[DANGER_CHOROPLETH.length - 1].color, label: "철수권고/여행금지" },
+              ]
+          ).map(({ label, color }) => (
             <div key={label} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
               <div style={{ width: 14, height: 14, borderRadius: 3, background: color, flexShrink: 0, opacity: 0.72, border: "1px solid rgba(0,0,0,0.08)" }} />
               <span style={{ fontSize: 11, color: "#475569" }}>{label}</span>
