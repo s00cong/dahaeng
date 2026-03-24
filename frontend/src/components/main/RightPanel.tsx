@@ -1,6 +1,13 @@
 import { useRef, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Plane, Wallet, Shield, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  X,
+  Plane,
+  Wallet,
+  Shield,
+  ChevronRight,
+  ChevronLeft,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,12 +32,43 @@ function getMatchColor(score: number | undefined) {
 const DANGER_PRIORITY = ["여행금지", "출국권고", "여행자제", "여행유의"];
 
 function getDangerInfo(items: { level: string }[] | undefined) {
-  if (!items || items.length === 0) return { label: "안전", textColor: "text-emerald-600", bgColor: "bg-emerald-50", iconColor: "text-emerald-500" };
-  const topLevel = DANGER_PRIORITY.find((d) => items.some((i) => i.level === d));
-  if (topLevel === "여행금지") return { label: "여행금지", textColor: "text-red-600", bgColor: "bg-red-50", iconColor: "text-red-500" };
-  if (topLevel === "출국권고") return { label: "출국권고", textColor: "text-orange-600", bgColor: "bg-orange-50", iconColor: "text-orange-500" };
-  if (topLevel === "여행자제") return { label: "여행자제", textColor: "text-amber-600", bgColor: "bg-amber-50", iconColor: "text-amber-500" };
-  return { label: "여행유의", textColor: "text-yellow-600", bgColor: "bg-yellow-50", iconColor: "text-yellow-500" };
+  if (!items || items.length === 0)
+    return {
+      label: "안전",
+      textColor: "text-emerald-600",
+      bgColor: "bg-emerald-50",
+      iconColor: "text-emerald-500",
+    };
+  const topLevel = DANGER_PRIORITY.find((d) =>
+    items.some((i) => i.level === d),
+  );
+  if (topLevel === "여행금지")
+    return {
+      label: "여행금지",
+      textColor: "text-red-600",
+      bgColor: "bg-red-50",
+      iconColor: "text-red-500",
+    };
+  if (topLevel === "출국권고")
+    return {
+      label: "출국권고",
+      textColor: "text-orange-600",
+      bgColor: "bg-orange-50",
+      iconColor: "text-orange-500",
+    };
+  if (topLevel === "여행자제")
+    return {
+      label: "여행자제",
+      textColor: "text-amber-600",
+      bgColor: "bg-amber-50",
+      iconColor: "text-amber-500",
+    };
+  return {
+    label: "여행유의",
+    textColor: "text-yellow-600",
+    bgColor: "bg-yellow-50",
+    iconColor: "text-yellow-500",
+  };
 }
 
 export function RightPanel() {
@@ -48,7 +86,9 @@ export function RightPanel() {
   } = useUiStore();
 
   const { data: cities, isSuccess: citiesLoaded } = useCityList();
-  const selectedCityName = cities?.find((c) => c.cityId === selectedCityId)?.cityName;
+  const selectedCityName = cities?.find(
+    (c) => c.cityId === selectedCityId,
+  )?.cityName;
   const isRecommendedCity =
     isRecommendActive &&
     recommendResults.some((r) => r.city === selectedCityName);
@@ -58,7 +98,8 @@ export function RightPanel() {
     isRecommendedCity,
     {
       enabled: citiesLoaded,
-      recommendParams: isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+      recommendParams:
+        isRecommendedCity && recommendRequest ? recommendRequest : undefined,
     },
   );
 
@@ -113,10 +154,11 @@ export function RightPanel() {
             style={{ width: TAB_W, marginRight: GAP }}
             aria-label={isRightPanelCollapsed ? "패널 열기" : "패널 닫기"}
           >
-            {isRightPanelCollapsed
-              ? <ChevronLeft className="size-3.5" />
-              : <ChevronRight className="size-3.5" />
-            }
+            {isRightPanelCollapsed ? (
+              <ChevronLeft className="size-3.5" />
+            ) : (
+              <ChevronRight className="size-3.5" />
+            )}
           </button>
 
           {/* 패널 콘텐츠 */}
@@ -151,14 +193,23 @@ export function RightPanel() {
                 ) : (
                   <>
                     <h2 className="text-lg font-bold text-white leading-tight truncate flex items-baseline gap-1.5">
-                      {city?.cityName ? (CITY_NAME_KO[city.cityName] ?? city.cityName) : "도시 정보"}
+                      {city?.cityName
+                        ? (CITY_NAME_KO[city.cityName] ?? city.cityName)
+                        : "도시 정보"}
                       {city?.cityName && CITY_NAME_KO[city.cityName] && (
-                        <span className="text-xs font-normal text-white/60">{city.cityName}</span>
+                        <span className="text-xs font-normal text-white/60">
+                          {city.cityName}
+                        </span>
                       )}
                     </h2>
                     <div className="flex items-center gap-1 mt-0.5">
                       {flagUrl && (
-                        <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
+                        <img
+                          src={flagUrl}
+                          alt=""
+                          className="h-3 w-auto rounded-[2px] object-cover shrink-0"
+                          aria-hidden="true"
+                        />
                       )}
                       {(() => {
                         const en = city?.danger?.countryName;
@@ -166,7 +217,11 @@ export function RightPanel() {
                         return (
                           <span className="text-xs text-white/80 flex items-baseline gap-1">
                             {ko ?? en ?? "나라 정보"}
-                            {ko && <span className="text-[10px] text-white/50">{en}</span>}
+                            {ko && (
+                              <span className="text-[10px] text-white/50">
+                                {en}
+                              </span>
+                            )}
                           </span>
                         );
                       })()}
@@ -203,13 +258,13 @@ export function RightPanel() {
                     .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
                     .slice(0, 10)
                     .map((tag) => (
-                    <span
-                      key={tag.name}
-                      className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"
-                    >
-                      #{tag.name}
-                    </span>
-                  ))}
+                      <span
+                        key={tag.name}
+                        className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"
+                      >
+                        #{tag.name}
+                      </span>
+                    ))}
                 </div>
               ) : null}
 
@@ -218,7 +273,9 @@ export function RightPanel() {
                 {/* 예상 예산 */}
                 <div className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-blue-50">
                   <Wallet className="size-4 text-blue-500" />
-                  <span className="text-[10px] text-slate-500 text-center">일 예산</span>
+                  <span className="text-[10px] text-slate-500 text-center">
+                    일 예산
+                  </span>
                   {isLoading ? (
                     <Skeleton className="h-4 w-12" />
                   ) : (
@@ -235,14 +292,18 @@ export function RightPanel() {
                 {/* 항공권 */}
                 <div className="flex flex-col items-center gap-1 p-2.5 rounded-xl bg-amber-50">
                   <Plane className="size-4 text-amber-500" />
-                  <span className="text-[10px] text-slate-500 text-center">왕복 항공</span>
+                  <span className="text-[10px] text-slate-500 text-center">
+                    왕복 항공
+                  </span>
                   {isLoading ? (
                     <Skeleton className="h-4 w-12" />
                   ) : (
                     <span className="text-xs font-bold text-slate-800 text-center">
                       {(() => {
                         const price = city?.airTicketAndHotel?.airTicket;
-                        return price ? `₩${(price / 10000).toFixed(0)}만~` : "-";
+                        return price
+                          ? `₩${(price / 10000).toFixed(0)}만~`
+                          : "-";
                       })()}
                     </span>
                   )}
@@ -250,15 +311,22 @@ export function RightPanel() {
 
                 {/* 안전 */}
                 {(() => {
-                  const { label, textColor, bgColor, iconColor } = getDangerInfo(city?.danger?.items);
+                  const { label, textColor, bgColor, iconColor } =
+                    getDangerInfo(city?.danger?.items);
                   return (
-                    <div className={`flex flex-col items-center gap-1 p-2.5 rounded-xl ${bgColor}`}>
+                    <div
+                      className={`flex flex-col items-center gap-1 p-2.5 rounded-xl ${bgColor}`}
+                    >
                       <Shield className={`size-4 ${iconColor}`} />
-                      <span className="text-[10px] text-slate-500 text-center">안전도</span>
+                      <span className="text-[10px] text-slate-500 text-center">
+                        안전도
+                      </span>
                       {isLoading ? (
                         <Skeleton className="h-4 w-12" />
                       ) : (
-                        <span className={`text-[10px] font-bold text-center leading-tight ${textColor}`}>
+                        <span
+                          className={`text-[10px] font-bold text-center leading-tight ${textColor}`}
+                        >
                           {label}
                         </span>
                       )}
@@ -271,7 +339,9 @@ export function RightPanel() {
               <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
                 {isRecommendedCity ? (
                   <>
-                    <p className="text-xs font-semibold text-slate-700 mb-1.5">AI 추천 이유</p>
+                    <p className="text-xs font-semibold text-slate-700 mb-1.5">
+                      AI 추천 이유
+                    </p>
                     {isLoading ? (
                       <div className="flex flex-col gap-1.5">
                         <Skeleton className="h-3 w-full" />
@@ -279,13 +349,16 @@ export function RightPanel() {
                       </div>
                     ) : (
                       <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">
-                        {city?.recommendationReason ?? "추천 이유를 불러오는 중입니다."}
+                        {city?.recommendationReason ??
+                          "추천 이유를 불러오는 중입니다."}
                       </p>
                     )}
                   </>
                 ) : (
                   <>
-                    <p className="text-xs font-semibold text-slate-700 mb-1.5">위험도</p>
+                    <p className="text-xs font-semibold text-slate-700 mb-1.5">
+                      위험도
+                    </p>
                     {isLoading ? (
                       <div className="flex flex-col gap-1.5">
                         <Skeleton className="h-3 w-full" />
@@ -294,26 +367,39 @@ export function RightPanel() {
                     ) : city?.danger?.items && city.danger.items.length > 0 ? (
                       <ul className="flex flex-col divide-y divide-slate-100">
                         {city.danger.items.map((item, i) => (
-                          <li key={i} className="flex flex-col gap-1 py-1.5 first:pt-0 last:pb-0">
-                            <span className={`self-start text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                              item.level === "여행금지" ? "bg-red-100 text-red-600" :
-                              item.level === "출국권고" ? "bg-orange-100 text-orange-600" :
-                              item.level === "여행자제" ? "bg-amber-100 text-amber-600" :
-                              "bg-yellow-100 text-yellow-600"
-                            }`}>{item.level}</span>
-                            <p className="text-xs text-slate-500 leading-relaxed">{item.description}</p>
+                          <li
+                            key={i}
+                            className="flex flex-col gap-1 py-1.5 first:pt-0 last:pb-0"
+                          >
+                            <span
+                              className={`self-start text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                item.level === "여행금지"
+                                  ? "bg-red-100 text-red-600"
+                                  : item.level === "출국권고"
+                                    ? "bg-orange-100 text-orange-600"
+                                    : item.level === "여행자제"
+                                      ? "bg-amber-100 text-amber-600"
+                                      : "bg-yellow-100 text-yellow-600"
+                              }`}
+                            >
+                              {item.level}
+                            </span>
+                            <p className="text-xs text-slate-500 leading-relaxed">
+                              {item.description}
+                            </p>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-xs text-slate-500">위험 정보가 없습니다.</p>
+                      <p className="text-xs text-slate-500">
+                        위험 정보가 없습니다.
+                      </p>
                     )}
                   </>
                 )}
               </div>
             </div>
 
-            
             {/* ── 하단 고정 버튼 ── */}
             <div className="px-4 py-3 border-t border-slate-100 bg-white/80 shrink-0">
               <Button
