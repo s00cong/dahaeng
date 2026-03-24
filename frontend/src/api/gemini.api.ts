@@ -67,7 +67,7 @@ export async function generateTravelCourses(
   touristSpots?: NonNullable<CityDetail['touristSpot']>,
   cityTags?: NonNullable<CityDetail['tags']>,
 ): Promise<TravelCourses> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
+  const apiKey = 'AIzaSyCsVfoWZyTQzt_WOmZrkCfcx2MBxNS2ceI';
   const ai = new GoogleGenAI({ apiKey });
 
   const spots = features.slice(0, 20).map((f) => ({

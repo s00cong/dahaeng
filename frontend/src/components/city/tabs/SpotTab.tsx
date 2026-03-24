@@ -44,14 +44,25 @@ function SectionHeader({ icon, title, sub }: { icon: React.ReactNode; title: str
 
 type TouristSpot = NonNullable<CityDetail["touristSpot"]>[number];
 
-function TouristSpotCard({ spot, cityName }: { spot: TouristSpot; cityName: string }) {
+function TouristSpotCard({
+  spot,
+  cityName,
+  courseOrder,
+  courseDescription,
+}: {
+  spot: TouristSpot;
+  cityName: string;
+  courseOrder?: number;
+  courseDescription?: string;
+}) {
   const tags = spot.tags ?? [];
   const spotScore = spot.spotScore != null ? Math.round(spot.spotScore * 100) : null;
 
-  const descriptionText =
+  const descriptionText = courseDescription ?? (
     spot.description && spot.description !== "Overture Place" && spot.description !== spot.name
       ? spot.description
-      : null;
+      : null
+  );
 
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${spot.name} ${cityName}`)}`;
 
@@ -60,10 +71,17 @@ function TouristSpotCard({ spot, cityName }: { spot: TouristSpot; cityName: stri
       href={mapUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all cursor-pointer">
-      {/* 이름 + 종합 점수 */}
+      className={`flex flex-col gap-2 rounded-xl border bg-white p-3 hover:shadow-sm transition-all cursor-pointer ${courseOrder != null ? 'border-indigo-200 hover:border-indigo-300' : 'border-border hover:border-blue-200'}`}>
+      {/* 순번 뱃지 + 이름 + 점수 */}
       <div className="flex items-start justify-between gap-1">
-        <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2">{spot.name}</p>
+        <div className="flex items-start gap-1.5 min-w-0">
+          {courseOrder != null && (
+            <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold mt-0.5">
+              {courseOrder}
+            </span>
+          )}
+          <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2">{spot.name}</p>
+        </div>
         {spotScore != null && (
           <div className="flex items-center gap-0.5 shrink-0">
             <Star className="size-2.5 fill-amber-400 text-amber-400" />
@@ -343,7 +361,23 @@ function SpotMap({
             anchor="bottom"
             onClick={(e) => { e.originalEvent.stopPropagation(); setPopup(m); }}
           >
-            {m.courseOrder != null ? (
+            {m.type === "ai" ? (
+              /* AI 추천: 항상 별 아이콘, 코스 포함 시 indigo로 색 변경 */
+              <div
+                className={`relative flex items-center justify-center w-7 h-7 rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform ${
+                  m.courseOrder != null ? "bg-indigo-500" : "bg-amber-400"
+                }`}
+                title={m.name}
+              >
+                <Star className="size-3.5 text-white fill-white" />
+                {m.courseOrder != null && (
+                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-white border border-indigo-400 text-indigo-600 text-[9px] font-bold shadow">
+                    {m.courseOrder}
+                  </span>
+                )}
+              </div>
+            ) : m.courseOrder != null ? (
+              /* 근처 관광지 + 코스 포함: 번호 뱃지 */
               <div
                 className="flex items-center justify-center w-7 h-7 rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform bg-indigo-500 text-white text-[11px] font-bold"
                 title={m.name}
@@ -351,18 +385,12 @@ function SpotMap({
                 {m.courseOrder}
               </div>
             ) : (
+              /* 근처 관광지 기본 */
               <div
-                className={`flex items-center justify-center rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform ${
-                  m.type === "ai"
-                    ? "w-7 h-7 bg-amber-400"
-                    : "w-6 h-6 bg-orange-400"
-                }`}
+                className="flex items-center justify-center w-6 h-6 rounded-full border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform bg-orange-400"
                 title={m.name}
               >
-                {m.type === "ai"
-                  ? <Star className="size-3.5 text-white fill-white" />
-                  : <MapPin className="size-3 text-white" />
-                }
+                <MapPin className="size-3 text-white" />
               </div>
             )}
           </Marker>
@@ -495,6 +523,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
           s.description && s.description !== "Overture Place" && s.description !== s.name
             ? s.description
             : undefined;
+        const courseInfo = courseMap.get(s.name);
         markers.push({
           id: `ai-${i}`,
           lat: s.lat,
@@ -504,6 +533,8 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
           tagName: s.tags?.[0]?.name,
           score: s.spotScore != null ? Math.round(s.spotScore * 100) : undefined,
           description: descriptionText,
+          courseOrder: courseInfo?.order,
+          courseDescription: courseInfo?.description,
         });
       }
     });
@@ -584,9 +615,18 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                   sub={`${touristSpots.length}곳`}
                 />
                 <div className="grid grid-cols-2 gap-2.5">
-                  {touristSpots.map((spot, i) => (
-                    <TouristSpotCard key={i} spot={spot} cityName={city.cityName} />
-                  ))}
+                  {touristSpots.map((spot, i) => {
+                    const info = courseMap.get(spot.name);
+                    return (
+                      <TouristSpotCard
+                        key={i}
+                        spot={spot}
+                        cityName={city.cityName}
+                        courseOrder={info?.order}
+                        courseDescription={info?.description}
+                      />
+                    );
+                  })}
                 </div>
               </section>
             )}
@@ -608,7 +648,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                   ))}
                 </div>
               ) : places && places.length > 0 ? (
-                <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {places.map((place) => (
                     <PlaceCard key={place.id} place={place} />
                   ))}

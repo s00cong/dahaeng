@@ -103,7 +103,6 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
           data={costDetail.data}
           isLoading={costDetail.isLoading}
           seoulLivingCost={seoulDetail.data?.living_cost}
-          krwPerTarget={exchangeRate.data ? Math.round(exchangeRate.data.krw_per_1target) : undefined}
         />
       </motion.div>
     </AnimatePresence>
