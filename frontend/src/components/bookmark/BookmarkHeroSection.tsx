@@ -62,75 +62,78 @@ export function BookmarkHeroSection({
       {/* 어두운 그라디언트 오버레이 */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
 
-      {/* 좌하단 도시명 + 제목 */}
-      <div className="absolute bottom-8 left-8 flex flex-col">
-        <p className="text-sm font-medium text-white/75 uppercase tracking-widest">
-          저장된 도시
-        </p>
+      {/* 하단 바: 도시명+제목(좌) / 점수(우) — flex로 겹침 방지 */}
+      <div className="absolute bottom-8 left-8 right-8 flex items-end justify-between gap-4">
+        {/* 좌: 도시명 + 제목 */}
+        <div className="flex flex-col min-w-0">
+          <p className="text-sm font-medium text-white/75 uppercase tracking-widest">
+            저장된 도시
+          </p>
 
-        <h2 className="mt-1 text-lg font-bold text-white drop-shadow-md">
-          {CITY_NAME_KO[data.cityName] ?? data.cityName},{" "}
-          {COUNTRY_NAME_KO[data.countryName] ?? data.countryName}
-        </h2>
+          <h2 className="mt-1 text-lg font-bold text-white drop-shadow-md">
+            {CITY_NAME_KO[data.cityName] ?? data.cityName},{" "}
+            {COUNTRY_NAME_KO[data.countryName] ?? data.countryName}
+          </h2>
 
-        {/* 제목 편집 영역 */}
-        {isEditing ? (
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={titleValue}
-              onChange={(e) => setTitleValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && titleValue.trim().length >= 1)
-                  handleSave();
-                if (e.key === "Escape") handleCancel();
-              }}
-              className="bg-white/20 backdrop-blur-md border border-white/40 rounded-lg px-3 py-1 text-white text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/60 w-56"
-              placeholder="제목을 입력해주세요"
-            />
-            <button
-              onClick={handleSave}
-              disabled={titleValue.trim().length < 1}
-              aria-label="제목 저장"
-              className="flex items-center justify-center size-7 rounded-full bg-white/20 hover:bg-white/40 text-white disabled:opacity-40 transition-colors"
-            >
-              <Check className="size-4" />
-            </button>
-            <button
-              onClick={handleCancel}
-              aria-label="제목 수정 취소"
-              className="flex items-center justify-center size-7 rounded-full bg-white/20 hover:bg-white/40 text-white transition-colors"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="mt-3 flex items-center gap-2">
-            <span className="text-4xl font-semibold text-white drop-shadow">
-              {titleValue || (
-                <span className="text-white/50 font-normal text-base">
-                  제목 없음
-                </span>
-              )}
-            </span>
-            <button
-              onClick={() => setIsEditing(true)}
-              aria-label="제목 수정"
-              className="flex items-center justify-center size-6 rounded-full bg-white/20 hover:bg-white/40 text-white/80 hover:text-white transition-colors"
-            >
-              <Pencil className="size-3.5" />
-            </button>
+          {/* 제목 편집 영역 */}
+          {isEditing ? (
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={titleValue}
+                onChange={(e) => setTitleValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && titleValue.trim().length >= 1)
+                    handleSave();
+                  if (e.key === "Escape") handleCancel();
+                }}
+                className="bg-white/20 backdrop-blur-md border border-white/40 rounded-lg px-3 py-1 text-white text-base placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/60 w-56"
+                placeholder="제목을 입력해주세요"
+              />
+              <button
+                onClick={handleSave}
+                disabled={titleValue.trim().length < 1}
+                aria-label="제목 저장"
+                className="flex items-center justify-center size-7 rounded-full bg-white/20 hover:bg-white/40 text-white disabled:opacity-40 transition-colors"
+              >
+                <Check className="size-4" />
+              </button>
+              <button
+                onClick={handleCancel}
+                aria-label="제목 수정 취소"
+                className="flex items-center justify-center size-7 rounded-full bg-white/20 hover:bg-white/40 text-white transition-colors"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 flex items-start gap-2 min-w-0">
+              <span className="text-4xl font-semibold text-white drop-shadow break-words">
+                {titleValue || (
+                  <span className="text-white/50 font-normal text-sm">
+                    제목 없음
+                  </span>
+                )}
+              </span>
+              <button
+                onClick={() => setIsEditing(true)}
+                aria-label="제목 수정"
+                className="flex-shrink-0 flex items-center justify-center size-6 rounded-full bg-white/20 hover:bg-white/40 text-white/80 hover:text-white transition-colors"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 우: 매칭 점수 배지 */}
+        {data.matchingScore !== undefined && (
+          <div className="flex-shrink-0">
+            <MatchScoreBadge score={data.matchingScore} />
           </div>
         )}
       </div>
-
-      {/* 우하단 매칭 점수 배지 */}
-      {data.matchingScore !== undefined && (
-        <div className="absolute right-8 bottom-8">
-          <MatchScoreBadge score={data.matchingScore} />
-        </div>
-      )}
     </section>
   );
 }
