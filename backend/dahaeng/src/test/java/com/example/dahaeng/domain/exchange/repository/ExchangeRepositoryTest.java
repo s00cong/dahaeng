@@ -24,7 +24,7 @@ class ExchangeRepositoryTest {
 	@Test
 	void findOne() {
 		// given: 테스트용 데이터 생성
-		LocalDate eventDate = LocalDate.parse("2026-03-09");
+		LocalDate eventDate = LocalDate.now().plusYears(50);
 		Exchange sample = Exchange.builder()
 				.currency(Currency.USD)
 				.eventDate(eventDate)
