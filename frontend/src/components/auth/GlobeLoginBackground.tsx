@@ -161,13 +161,16 @@ export function GlobeLoginBackground({ phase, onAnimationEnd }: GlobeLoginBackgr
 
       // 우주 + 대기권 fog
       try {
-        map.setFog({
+        const fogCapableMap = map as maplibregl.Map & {
+          setFog?: (options: unknown) => void;
+        };
+        fogCapableMap.setFog?.({
           'space-color': '#000010',
           'star-intensity': 0.85,
           color: '#1a2744',
           'high-color': '#0d3b8e',
           'horizon-blend': 0.04,
-        } as any);
+        });
       } catch { /* ignore */ }
 
       // 국가 경계선

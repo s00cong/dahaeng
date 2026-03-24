@@ -33,7 +33,7 @@ function CityHeroSection({
 }: {
   name: string;
   imgUrl: string | null | undefined;
-  currency: string;
+  currency: string | null | undefined;
   parentRegion?: string;
 }) {
   const [imgError, setImgError] = useState(false);
@@ -59,7 +59,7 @@ function CityHeroSection({
         )}
         <h1 className="text-3xl font-bold text-white">{name}</h1>
         <Badge className="mt-2 bg-white/20 text-white border-white/30 text-xs">
-          {currency}
+          {currency ?? 'N/A'}
         </Badge>
       </div>
     </div>

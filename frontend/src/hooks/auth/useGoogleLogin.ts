@@ -17,7 +17,7 @@ export const useGoogleLogin = () =>
     onSuccess: (data) => {
       const loginUrl = data.loginUrl.startsWith('http')
         ? data.loginUrl
-        : new URL(data.loginUrl, import.meta.env.VITE_API_BASE_URL).toString();
+        : `${window.location.origin}${data.loginUrl.startsWith('/') ? '' : '/'}${data.loginUrl}`;
 
       const left = Math.round(window.screenX + (window.outerWidth - POPUP_WIDTH) / 2);
       const top = Math.round(window.screenY + (window.outerHeight - POPUP_HEIGHT) / 2);
