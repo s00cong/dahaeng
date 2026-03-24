@@ -11,6 +11,7 @@ import { queryKeys } from "@/utils/queryKeys";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
 import { COUNTRY_NAME_ISO3 } from "@/data/countryNameIso3";
+import { PARTIAL_EVAC_ZONES, EVAC_COLOR } from "@/data/partialEvacZones";
 import medal1Img from "@/assets/medal1.png";
 import medal2Img from "@/assets/medal2.png";
 import medal3Img from "@/assets/medal3.png";
@@ -36,12 +37,12 @@ function getMarkerColor(score: number | null | undefined): string {
 
 // ── 단계구분도(Choropleth) 색상 ────────────────────────────────────────────────
 const COST_CHOROPLETH = [
-  { max: 30000, color: "#059669", label: "3만 미만" },
-  { max: 60000, color: "#10b981", label: "3~6만" },
-  { max: 100000, color: "#84cc16", label: "6~10만" },
-  { max: 150000, color: "#fbbf24", label: "10~15만" },
-  { max: 200000, color: "#f97316", label: "15~20만" },
-  { max: Infinity, color: "#ef4444", label: "20만 초과" },
+  { max: 30000, color: "#fffbeb", label: "3만 미만" },
+  { max: 60000, color: "#fef3c7", label: "3~6만" },
+  { max: 100000, color: "#fde68a", label: "6~10만" },
+  { max: 150000, color: "#f59e0b", label: "10~15만" },
+  { max: 200000, color: "#d97706", label: "15~20만" },
+  { max: Infinity, color: "#92400e", label: "20만 초과" },
 ] as const;
 
 const DANGER_CHOROPLETH = [
@@ -49,7 +50,8 @@ const DANGER_CHOROPLETH = [
   { max: 2, color: "#fbbf24", label: "여행유의" },
   { max: 3, color: "#f97316", label: "여행주의" },
   { max: 4, color: "#ef4444", label: "여행자제" },
-  { max: Infinity, color: "#dc2626", label: "여행금지·철수" },
+  { max: 5, color: "#ef4444", label: "철수권고" },
+  { max: Infinity, color: "#dc2626", label: "여행금지" },
 ] as const;
 
 function getChoroplethColor(value: number, mode: "cost" | "danger"): string {
@@ -1185,6 +1187,50 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     source.setData({ ...countriesDataRef.current, features: updatedFeatures });
   }, [visualMode, cities, mapReady]);
 
+  // ── 3-1. 철수권고(일부) 지역 오버레이 ────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const SRC = "evac-zones";
+    const LYR = "evac-zones-fill";
+
+    if (visualMode !== "danger") {
+      if (map.getLayer(LYR)) map.removeLayer(LYR);
+      if (map.getSource(SRC)) map.removeSource(SRC);
+      return;
+    }
+
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: PARTIAL_EVAC_ZONES.map((zone, i) => ({
+        type: "Feature",
+        id: i,
+        properties: { color: EVAC_COLOR },
+        geometry: zone.geometry,
+      })),
+    };
+
+    const existing = map.getSource(SRC) as maplibregl.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(fc);
+    } else {
+      map.addSource(SRC, { type: "geojson", data: fc });
+      map.addLayer(
+        {
+          id: LYR,
+          type: "fill",
+          source: SRC,
+          paint: {
+            "fill-color": ["get", "color"],
+            "fill-opacity": 0.72,
+          },
+        },
+        map.getLayer("country-border") ? "country-border" : undefined,
+      );
+    }
+  }, [visualMode, mapReady]);
+
   // ── 4. 나라 검색 → 글로브 카메라 이동 ──────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;
@@ -1609,32 +1655,39 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
               ? "나라별 1일 평균 물가"
               : "나라별 여행 위험도"}
           </div>
-          {(visualMode === "cost" ? COST_CHOROPLETH : DANGER_CHOROPLETH).map(
-            ({ label, color }) => (
+          {(visualMode === "cost"
+            ? COST_CHOROPLETH
+            : [
+                ...DANGER_CHOROPLETH.slice(0, -2),
+                {
+                  color: DANGER_CHOROPLETH[DANGER_CHOROPLETH.length - 1].color,
+                  label: "철수권고/여행금지",
+                },
+              ]
+          ).map(({ label, color }) => (
+            <div
+              key={label}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                marginBottom: 4,
+              }}
+            >
               <div
-                key={label}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  marginBottom: 4,
+                  width: 14,
+                  height: 14,
+                  borderRadius: 3,
+                  background: color,
+                  flexShrink: 0,
+                  opacity: 0.72,
+                  border: "1px solid rgba(0,0,0,0.08)",
                 }}
-              >
-                <div
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: 3,
-                    background: color,
-                    flexShrink: 0,
-                    opacity: 0.72,
-                    border: "1px solid rgba(0,0,0,0.08)",
-                  }}
-                />
-                <span style={{ fontSize: 11, color: "#475569" }}>{label}</span>
-              </div>
-            ),
-          )}
+              />
+              <span style={{ fontSize: 11, color: "#475569" }}>{label}</span>
+            </div>
+          ))}
         </div>
       )}
 

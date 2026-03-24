@@ -324,6 +324,7 @@ export function UnifiedNavBar() {
                 src={user.profileImageUrl}
                 alt={user.nickname ?? "사용자"}
                 className="size-full object-cover"
+                referrerPolicy="no-referrer"
               />
             ) : (
               <User
