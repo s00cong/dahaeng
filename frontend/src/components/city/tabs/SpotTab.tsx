@@ -30,6 +30,7 @@ import type { Place } from "@/api/places.api";
 import { useNearbyAttractions } from "@/hooks/spot/useNearbyAttractions";
 import type { NearbyAttractionFeature } from "@/api/nearbyAttractions.api";
 
+
 interface SpotTabProps {
   city: CityDetail;
   isRecommended?: boolean;

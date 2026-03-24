@@ -136,9 +136,20 @@ function YoutubeModal({
       setIsLoading(true);
       try {
         const { loginUrl } = await authApi.getYoutubeConsentUrl();
-        window.location.href = loginUrl.startsWith("http")
+        const resolvedUrl = loginUrl.startsWith("http")
           ? loginUrl
-          : `${window.location.origin}${loginUrl.startsWith("/") ? "" : "/"}${loginUrl}`;
+          : new URL(loginUrl, import.meta.env.VITE_API_BASE_URL).toString();
+        // 허용된 origin만 리다이렉트 (오픈 리다이렉트 방어)
+        const resolvedOrigin = new URL(resolvedUrl).origin;
+        const allowedOrigins = [
+          new URL(import.meta.env.VITE_API_BASE_URL).origin,
+          'https://accounts.google.com',
+        ];
+        if (!allowedOrigins.includes(resolvedOrigin)) {
+          console.error('Blocked unsafe redirect:', resolvedUrl);
+          throw new Error('Invalid redirect URL');
+        }
+        window.location.href = resolvedUrl;
       } catch {
         onConfirm();
       } finally {
