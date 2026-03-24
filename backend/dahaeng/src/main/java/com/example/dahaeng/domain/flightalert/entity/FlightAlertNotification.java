@@ -3,8 +3,6 @@ package com.example.dahaeng.domain.flightalert.entity;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import com.example.dahaeng.domain.city.entity.City;
-import com.example.dahaeng.domain.member.entity.Member;
 import com.example.dahaeng.global.entity.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -39,14 +37,6 @@ public class FlightAlertNotification extends BaseEntity {
 	@JoinColumn(name = "subscription_id", nullable = false)
 	private FlightAlertSubscription subscription;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "member_id", nullable = false)
-	private Member member;
-
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "city_id", nullable = false)
-	private City city;
-
 	@Enumerated(EnumType.STRING)
 	@Column(name = "alert_type", nullable = false, length = 20)
 	private AlertType alertType;
@@ -57,14 +47,17 @@ public class FlightAlertNotification extends BaseEntity {
 	@Column(name = "matched_price", nullable = false)
 	private Integer matchedPrice;
 
-	@Column(name = "departure_date", nullable = false)
-	private LocalDate departureDate;
+	@Column(name = "nearest_match_date", nullable = false)
+	private LocalDate nearestMatchDate;
 
-	@Column(name = "return_date", nullable = false)
-	private LocalDate returnDate;
+	@Column(name = "best_price_date", nullable = false)
+	private LocalDate bestPriceDate;
 
-	@Column(name = "collected_date", nullable = false)
-	private LocalDate collectedDate;
+	@Column(name = "matched_date_count", nullable = false)
+	private Integer matchedDateCount;
+
+	@Column(name = "collected_at", nullable = false)
+	private LocalDateTime collectedAt;
 
 	@Builder.Default
 	@Column(name = "is_read", nullable = false)
