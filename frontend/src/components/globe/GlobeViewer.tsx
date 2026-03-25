@@ -341,20 +341,6 @@ function normalizeLongitudes(points: [number, number][]): [number, number][] {
   return result;
 }
 
-/**
- * 대권 호의 최고 위도를 실제 항공 노선 수준(기본 68°N)으로 부드럽게 압축
- * 순수 대권은 서울↔뉴욕이 ~77°N까지 올라가지만 실제 항공편은 ~65~72°N
- */
-function limitArcPeakLatitude(
-  points: [number, number][],
-  peakLat = 68,
-): [number, number][] {
-  const actualPeak = Math.max(...points.map((p) => p[1]));
-  if (actualPeak <= peakLat) return points;
-  // 초과분을 비율로 압축 (부드러운 형태 유지)
-  const overRatio = peakLat / actualPeak;
-  return points.map(([lng, lat]) => [lng, lat > 0 ? lat * overRatio : lat]);
-}
 
 /**
  * 안티메리디안(±180°) 경계에서 LineString을 분리 → MultiLineString 세그먼트 반환
@@ -461,6 +447,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     isRightPanelOpen,
     isRightPanelCollapsed,
     isLeftSidebarCollapsed,
+    planeTrackingDest,
+    setPlaneTrackingDest,
   } = useUiStore();
 
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -1589,6 +1577,102 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       }
     };
   }, [selectedCityCoords, mapReady, avgDurationText]);
+
+  // ── 8. 비행 추적 모드: 카메라가 서울 출발 비행기를 따라가는 애니메이션 ─────
+  const TRACK_DURATION_MS = 8000;
+  useEffect(() => {
+    const map = mapRef.current;
+    const container = mapContainer.current;
+    if (!map || !mapReady || !planeTrackingDest || !container) return;
+
+    const dest: [number, number] = [planeTrackingDest.lng, planeTrackingDest.lat];
+
+    const startTrackingAnim = () => {
+      // 기존 애니메이션 정리
+      if (flightAnimRef.current !== null) {
+        cancelAnimationFrame(flightAnimRef.current);
+        flightAnimRef.current = null;
+      }
+      if (flightOverlayRef.current) {
+        flightOverlayRef.current.remove();
+        flightOverlayRef.current = null;
+      }
+
+      const rawArc = greatCircleArc(SEOUL, dest, 600);
+      const arcPoints = resampleByMercatorDistance(normalizeLongitudes(rawArc), 200);
+
+      const outerEl = container.parentElement as HTMLDivElement;
+      const overlay = document.createElement("div");
+      overlay.style.cssText =
+        "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;overflow:hidden;";
+      outerEl.appendChild(overlay);
+      flightOverlayRef.current = overlay;
+
+      const planeEl = document.createElement("div");
+      planeEl.style.cssText =
+        "position:absolute;width:40px;height:40px;transform-origin:20px 20px;will-change:transform;";
+      planeEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24">
+        <path fill="#facc15" stroke="#1a2e4a" stroke-width="0.8"
+          d="M12 2c-.6 0-1 .4-1 1v7.3L4 14v2l7-2v4.2l-2 1.3V21l3-.8 3 .8v-1.5l-2-1.3V14l7 2v-2l-7-3.7V3c0-.6-.4-1-1-1z"/>
+      </svg>`;
+      overlay.appendChild(planeEl);
+
+      const PLANE_HALF = 20;
+      let startTime: number | null = null;
+
+      const animate = (timestamp: number) => {
+        if (startTime === null) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const t = Math.min(elapsed / TRACK_DURATION_MS, 1);
+
+        const rawIdx = t * (arcPoints.length - 1);
+        const i0 = Math.floor(rawIdx);
+        const i1 = Math.min(i0 + 1, arcPoints.length - 1);
+        const frac = rawIdx - i0;
+
+        const lng =
+          arcPoints[i0][0] + (arcPoints[i1][0] - arcPoints[i0][0]) * frac;
+        const lat =
+          arcPoints[i0][1] + (arcPoints[i1][1] - arcPoints[i0][1]) * frac;
+
+        // 카메라를 비행기 위치로 이동 (추적 효과)
+        map.jumpTo({ center: [lng, lat] });
+
+        const px = map.project([lng, lat]);
+        const bearingNext = arcPoints[Math.min(i0 + 1, arcPoints.length - 1)];
+        const bearing = getBearing([lng, lat], bearingNext);
+        planeEl.style.transform = `translate3d(${px.x - PLANE_HALF}px,${px.y - PLANE_HALF}px,0) rotate(${bearing}deg)`;
+
+        if (t < 1) {
+          flightAnimRef.current = requestAnimationFrame(animate);
+        } else {
+          // 애니메이션 완료: 정리 후 목적지 최종 줌인
+          overlay.remove();
+          flightOverlayRef.current = null;
+          flightAnimRef.current = null;
+          setPlaneTrackingDest(null);
+          map.flyTo({ center: dest, zoom: 3.7, duration: 1200 });
+        }
+      };
+
+      flightAnimRef.current = requestAnimationFrame(animate);
+    };
+
+    // 카메라가 서울에 도착한 후 비행 추적 시작
+    map.once("moveend", startTrackingAnim);
+
+    return () => {
+      map.off("moveend", startTrackingAnim);
+      if (flightAnimRef.current !== null) {
+        cancelAnimationFrame(flightAnimRef.current);
+        flightAnimRef.current = null;
+      }
+      if (flightOverlayRef.current) {
+        flightOverlayRef.current.remove();
+        flightOverlayRef.current = null;
+      }
+    };
+  }, [planeTrackingDest, mapReady, setPlaneTrackingDest]);
 
   const legendRight = isRightPanelOpen
     ? isRightPanelCollapsed

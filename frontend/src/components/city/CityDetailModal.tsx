@@ -13,6 +13,7 @@ import { YoutubeTab } from "@/components/city/tabs/YoutubeTab";
 import { CostCompareTab } from "@/components/city/tabs/CostCompareTab";
 import { FlightTab } from "@/components/city/tabs/FlightTab";
 import { SpotTab } from "@/components/city/tabs/SpotTab";
+import { FlightLoadingOverlay } from "@/components/city/FlightLoadingOverlay";
 // 배경 오버레이 페이드 인/아웃 애니메이션 정의
 const backdropVariants: Variants = {
   hidden: { opacity: 0 },
@@ -75,9 +76,8 @@ export function CityDetailModal() {
 
   const { isGuest } = useAuthStore();
   const { data: cities } = useCityList();
-  const selectedCityName = cities?.find(
-    (c) => c.cityId === selectedCityId,
-  )?.cityName;
+  const selectedCity = cities?.find((c) => c.cityId === selectedCityId);
+  const selectedCityName = selectedCity?.cityName;
   const isRecommendedCity =
     isRecommendActive &&
     recommendResults.some((r) => r.city === selectedCityName);
@@ -147,8 +147,7 @@ export function CityDetailModal() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="fixed top-12 left-18 right-18 bottom-12 z-50
-                       rounded-2xl overflow-hidden flex flex-row shadow-2xl"
+            className="fixed top-12 left-18 right-18 bottom-12 z-50 rounded-2xl overflow-hidden flex flex-row shadow-2xl"
           >
             {/* 우측 상단 X 버튼으로 모달 닫기 */}
             <button
@@ -158,6 +157,26 @@ export function CityDetailModal() {
             >
               <X className="size-4" />
             </button>
+
+            {/* recommend=true 최초 로딩 시 비행 애니메이션 오버레이 */}
+            <AnimatePresence>
+              {isLoading && showRecommendTabs && selectedCity && (
+                <motion.div
+                  key="flight-loading"
+                  className="absolute inset-0 z-30 rounded-2xl overflow-hidden"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <FlightLoadingOverlay
+                    destLon={selectedCity.longitude}
+                    destLat={selectedCity.latitude}
+                    destName={selectedCity.cityName}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* 좌측: 로딩 중이거나 데이터 없으면 스켈레톤, 준비되면 히어로 카드 렌더링 */}
             {isLoading || !city ? (

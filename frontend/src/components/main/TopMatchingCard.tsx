@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import defaultCityImg from "@/assets/no-picture.png";
 import { Badge } from "@/components/ui/badge";
 import { useUiStore } from "@/stores/uiStore";
@@ -87,29 +88,40 @@ function getMatchColor(score: number | undefined): string {
 }
 
 export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
-  const { openRightPanel } = useUiStore();
+  const { openRightPanel, setPlaneTrackingDest } = useUiStore();
   const { data: flagMap } = useCountryFlagMap();
   const flagUrl = flagMap?.get(city.countryName);
   const [imgError, setImgError] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleClick = useCallback(() => {
-    openRightPanel(city.cityId, city.imgUrl, {
-      lat: city.latitude,
-      lng: city.longitude,
+    // recommend=true 캐시 존재 여부 확인 (부분 키 매칭)
+    const cached = queryClient.getQueriesData({
+      queryKey: ["city", "detail", city.cityId, true],
     });
-  }, [city, openRightPanel]);
+    const hasCached = cached.some(([, data]) => data != null);
+
+    if (hasCached) {
+      // 캐시 있음 → 기존 globe zoom + 우측 패널
+      openRightPanel(city.cityId, city.imgUrl, {
+        lat: city.latitude,
+        lng: city.longitude,
+      });
+    } else {
+      // 캐시 없음 → 서울로 먼저 이동 후 비행기 추적 애니메이션
+      openRightPanel(city.cityId, city.imgUrl, { lat: 37.5665, lng: 126.978 });
+      setPlaneTrackingDest({ lat: city.latitude, lng: city.longitude });
+    }
+  }, [city, openRightPanel, setPlaneTrackingDest, queryClient]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        openRightPanel(city.cityId, city.imgUrl, {
-          lat: city.latitude,
-          lng: city.longitude,
-        });
+        handleClick();
       }
     },
-    [city, openRightPanel],
+    [handleClick],
   );
 
   return (
