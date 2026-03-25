@@ -263,7 +263,7 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
     {
       id: "background",
       type: "background",
-      paint: { "background-color": "#0d1b2e" },
+      paint: { "background-color": "#10263d" },
     },
   ],
 };
@@ -617,12 +617,12 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             ["boolean", ["feature-state", "selected"], false],
             "#bfdbfe",
             ["boolean", ["feature-state", "hover"], false],
-            "#e2e8ef",
+            "#ece6db",
             [
               "case",
               ["!=", ["get", "choroplethColor"], null],
               ["get", "choroplethColor"],
-              "#F1F5F9",
+              "#f3efe6",
             ],
           ],
           "fill-opacity": [
@@ -639,7 +639,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         type: "line",
         source: "countries",
         paint: {
-          "line-color": "#cfcfcf",
+          "line-color": "#c6c0b5",
+          "line-opacity": 0.82,
           "line-width": [
             "interpolate",
             ["linear"],
