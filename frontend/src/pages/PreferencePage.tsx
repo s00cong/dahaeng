@@ -227,7 +227,7 @@ const PreferencePage = ({ isEdit = false, onBack }: { isEdit?: boolean; onBack?:
   // 신규 등록: YouTube 분석 결과가 있으면 초기값, 없으면 빈 배열
   const savedTagIds = memberTags.map((t) => t.tagId);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>(
-    youtubeAutoSelected ? youtubeTagIds : [],
+    youtubeTagIds.length > 0 ? youtubeTagIds : [],
   );
 
   // YouTube 업데이트 여부 추적 — true이면 서버 태그로 초기화 방지
@@ -413,7 +413,7 @@ const PreferencePage = ({ isEdit = false, onBack }: { isEdit?: boolean; onBack?:
             </header>
 
             {/* YouTube 자동 선택 배너 — 온보딩 직접선택 플로우에서는 숨김 */}
-            {youtubeAutoSelected && !onBack && (
+            {youtubeAutoSelected && !onBack && !isPending && (
               <div className="mb-6 flex items-center gap-3 p-3.5 rounded-xl bg-slate-800/80 border border-slate-700">
                 <div className="size-9 rounded-full bg-red-500 flex items-center justify-center shrink-0">
                   <svg viewBox="0 0 24 24" className="size-4 fill-white" aria-hidden="true">
