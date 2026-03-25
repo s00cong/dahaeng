@@ -78,8 +78,8 @@ const INTRO_FEATURES = [
 ] as const;
 
 const STATS = [
-  { value: "57개국", label: "지원 국가" },
-  { value: "188만개", label: "관광지" },
+  { value: "57개", label: "지원 국가" },
+  { value: "188만", label: "관광지" },
 ] as const;
 
 // ─── Login 데이터 ─────────────────────────────────────────────────
