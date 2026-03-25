@@ -155,7 +155,7 @@ function ZoomControl({
       style={{
         position: "absolute",
         bottom: 24,
-        left,
+        left: left - 16,
         zIndex: 50,
         transition: "left 0.3s ease",
         background: "rgba(255,255,255,0.9)",
@@ -1923,7 +1923,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       )}
 
       {/* 시각화 모드 토글 버튼 */}
-      {!hideButtons && (
+      {!hideButtons && !isSatellite && (
         <div
           style={{
             position: "absolute",
@@ -1931,7 +1931,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             left: "50%",
             transform: "translateX(-50%)",
             display: "flex",
-            gap: 4,
+            gap: 2,
             zIndex: 50,
           }}
         >
@@ -1968,8 +1968,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           title={isSatellite ? "기본 지도로 전환" : "위성 지도로 전환"}
           style={{
             position: "absolute",
-            bottom: 130,
-            left: zoomLeft,
+            bottom: 120,
+            left: zoomLeft - 16,
             zIndex: 50,
             display: "flex",
             alignItems: "center",
