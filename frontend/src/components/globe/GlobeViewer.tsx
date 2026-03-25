@@ -496,6 +496,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     "none",
   );
   const [currentZoom, setCurrentZoom] = useState(1.5);
+  const [isSatellite, setIsSatellite] = useState(false);
   const medalMarkersRef = useRef<maplibregl.Marker[]>([]);
   const selectedMarkerRef = useRef<maplibregl.Marker | null>(null);
   const flightAnimRef = useRef<number | null>(null);
@@ -1758,6 +1759,57 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     };
   }, [planeTrackingDest, mapReady, setPlaneTrackingDest]);
 
+  // ── 9. 위성 지도 토글 ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const SRC = "base-satellite-src";
+    const LAYER = "base-satellite-layer";
+    const FADE = 500;
+
+    if (isSatellite) {
+      try {
+        if (!map.getSource(SRC)) {
+          map.addSource(SRC, {
+            type: "raster",
+            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+            tileSize: 256,
+          });
+        }
+        if (!map.getLayer(LAYER)) {
+          map.addLayer(
+            { id: LAYER, type: "raster", source: SRC, paint: { "raster-opacity": 0 } },
+            "country-border",
+          );
+        }
+        const t0 = performance.now();
+        const fadeIn = (now: number) => {
+          const p = Math.min((now - t0) / FADE, 1);
+          try { map.setPaintProperty(LAYER, "raster-opacity", p); } catch (_) {}
+          if (p < 1) requestAnimationFrame(fadeIn);
+        };
+        requestAnimationFrame(fadeIn);
+      } catch (_) {}
+    } else {
+      if (!map.getLayer(LAYER)) return;
+      const t0 = performance.now();
+      const fadeOut = (now: number) => {
+        const p = Math.min((now - t0) / FADE, 1);
+        try { map.setPaintProperty(LAYER, "raster-opacity", 1 - p); } catch (_) {}
+        if (p < 1) {
+          requestAnimationFrame(fadeOut);
+        } else {
+          try {
+            if (map.getLayer(LAYER)) map.removeLayer(LAYER);
+            if (map.getSource(SRC)) map.removeSource(SRC);
+          } catch (_) {}
+        }
+      };
+      requestAnimationFrame(fadeOut);
+    }
+  }, [isSatellite, mapReady]);
+
   const legendRight = isRightPanelOpen
     ? isRightPanelCollapsed
       ? 48
@@ -1907,6 +1959,38 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             </button>
           ))}
         </div>
+      )}
+
+      {/* 위성/기본 지도 스타일 토글 버튼 (줌 컨트롤 위) */}
+      {!hideZoom && (
+        <button
+          onClick={() => setIsSatellite((v) => !v)}
+          title={isSatellite ? "기본 지도로 전환" : "위성 지도로 전환"}
+          style={{
+            position: "absolute",
+            bottom: 130,
+            left: zoomLeft,
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 12px",
+            borderRadius: 10,
+            border: "none",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+            transition: "all 0.3s ease",
+            background: isSatellite ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.9)",
+            color: isSatellite ? "#e2e8f0" : "#334155",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.14)",
+            backdropFilter: "blur(8px)",
+            minWidth: 180,
+          }}
+        >
+          <span style={{ fontSize: 15 }}>{isSatellite ? "🗺️" : "🛰️"}</span>
+          {isSatellite ? "기본 지도" : "위성 지도"}
+        </button>
       )}
 
       {/* 줌 레벨 컨트롤 */}
