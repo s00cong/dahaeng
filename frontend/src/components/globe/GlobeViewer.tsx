@@ -524,7 +524,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     selectedCityId ?? null,
     currentYearMonth,
   );
-  const avgDurationText = citySummary?.avg_duration_text ?? null;
+  const minDurationText = citySummary?.min_duration_text ?? null;
 
   const matchedCityIds = useMemo<Set<number>>(() => {
     if (!isRecommendActive || recommendResults.length === 0) return new Set();
@@ -1523,8 +1523,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     overlay.appendChild(planeEl);
 
     // 비행 시간 라벨
-    const durationText = avgDurationText
-      ? parseDurationText(avgDurationText)
+    const durationText = minDurationText
+      ? parseDurationText(minDurationText)
       : null;
     const labelEl = document.createElement("div");
     labelEl.style.cssText =
@@ -1599,7 +1599,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         // 컴포넌트 언마운트 시 지도가 이미 파괴된 경우 무시
       }
     };
-  }, [selectedCityCoords, mapReady, avgDurationText]);
+  }, [selectedCityCoords, mapReady, minDurationText]);
 
   // ── 8. 비행 추적 모드: 카메라가 서울 출발 비행기를 따라가는 애니메이션 ─────
   const TRACK_DURATION_MS = 8000;

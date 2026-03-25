@@ -17,7 +17,7 @@ export const CitySummarySchema = z.object({
   avg_flight_price: z.number(),
   avg_hotel_price: z.number(),
   typical_stops_text: z.string(),
-  avg_duration_text: z.string(),
+  min_duration_text: z.string(),
   peak_season_months: z.array(z.number()),
   off_season_months: z.array(z.number()),
 });
