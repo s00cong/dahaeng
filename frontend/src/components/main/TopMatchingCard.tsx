@@ -88,16 +88,17 @@ function getMatchColor(score: number | undefined): string {
 }
 
 export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
-  const { openRightPanel, setPlaneTrackingDest } = useUiStore();
+  const { openRightPanel, setPlaneTrackingDest, recommendRequest } = useUiStore();
   const { data: flagMap } = useCountryFlagMap();
   const flagUrl = flagMap?.get(city.countryName);
   const [imgError, setImgError] = useState(false);
   const queryClient = useQueryClient();
 
   const handleClick = useCallback(() => {
-    // recommend=true 캐시 존재 여부 확인 (부분 키 매칭)
+    // 현재 recommendRequest까지 포함한 정확한 키로 캐시 확인
+    // (추천 업데이트 후 recommendId가 바뀌면 이전 캐시를 캐시 있음으로 오판하지 않도록)
     const cached = queryClient.getQueriesData({
-      queryKey: ["city", "detail", city.cityId, true],
+      queryKey: ["city", "detail", city.cityId, true, recommendRequest ?? null],
     });
     const hasCached = cached.some(([, data]) => data != null);
 
@@ -112,7 +113,7 @@ export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
       openRightPanel(city.cityId, city.imgUrl, { lat: 37.5665, lng: 126.978 });
       setPlaneTrackingDest({ lat: city.latitude, lng: city.longitude });
     }
-  }, [city, openRightPanel, setPlaneTrackingDest, queryClient]);
+  }, [city, openRightPanel, setPlaneTrackingDest, queryClient, recommendRequest]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {

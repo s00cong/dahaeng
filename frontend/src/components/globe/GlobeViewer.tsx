@@ -1609,6 +1609,63 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
 
     const dest: [number, number] = [planeTrackingDest.lng, planeTrackingDest.lat];
 
+    const TRACK_RASTER_SRC = "plane-track-raster";
+    const TRACK_RASTER_LAYER = "plane-track-raster-layer";
+
+    const FADE_DURATION = 600; // ms
+
+    const addTrackingRaster = () => {
+      try {
+        if (!map.getSource(TRACK_RASTER_SRC)) {
+          map.addSource(TRACK_RASTER_SRC, {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+          });
+        }
+        if (!map.getLayer(TRACK_RASTER_LAYER)) {
+          map.addLayer(
+            {
+              id: TRACK_RASTER_LAYER,
+              type: "raster",
+              source: TRACK_RASTER_SRC,
+              paint: { "raster-opacity": 0 }, // 투명하게 시작
+            },
+            "country-border",
+          );
+        }
+        // fade-in
+        const start = performance.now();
+        const fadeIn = (now: number) => {
+          const p = Math.min((now - start) / FADE_DURATION, 1);
+          try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", p); } catch (_) {}
+          if (p < 1) requestAnimationFrame(fadeIn);
+        };
+        requestAnimationFrame(fadeIn);
+      } catch (_) {}
+    };
+
+    const removeTrackingRaster = () => {
+      if (!map.getLayer(TRACK_RASTER_LAYER)) return;
+      // fade-out 후 레이어/소스 제거
+      const start = performance.now();
+      const fadeOut = (now: number) => {
+        const p = Math.min((now - start) / FADE_DURATION, 1);
+        try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", 1 - p); } catch (_) {}
+        if (p < 1) {
+          requestAnimationFrame(fadeOut);
+        } else {
+          try {
+            if (map.getLayer(TRACK_RASTER_LAYER)) map.removeLayer(TRACK_RASTER_LAYER);
+            if (map.getSource(TRACK_RASTER_SRC)) map.removeSource(TRACK_RASTER_SRC);
+          } catch (_) {}
+        }
+      };
+      requestAnimationFrame(fadeOut);
+    };
+
     const startTrackingAnim = () => {
       // 기존 애니메이션 정리
       if (flightAnimRef.current !== null) {
@@ -1619,6 +1676,9 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         flightOverlayRef.current.remove();
         flightOverlayRef.current = null;
       }
+
+      // 위성 실사 타일 활성화
+      addTrackingRaster();
 
       const rawArc = limitArcPeakLatitude(greatCircleArc(SEOUL, dest, 600));
       const arcPoints = resampleByMercatorDistance(normalizeLongitudes(rawArc), 200);
@@ -1672,6 +1732,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           overlay.remove();
           flightOverlayRef.current = null;
           flightAnimRef.current = null;
+          removeTrackingRaster();
           setPlaneTrackingDest(null);
           map.flyTo({ center: dest, zoom: 3.7, duration: 1200 });
         }
@@ -1693,6 +1754,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         flightOverlayRef.current.remove();
         flightOverlayRef.current = null;
       }
+      removeTrackingRaster();
     };
   }, [planeTrackingDest, mapReady, setPlaneTrackingDest]);
 
