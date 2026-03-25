@@ -475,14 +475,14 @@ def compute_typical_stops(stops_texts: list[str]) -> tuple[int, str]:
     return -1, "N/A"
 
 
-def compute_avg_duration(dur_texts: list[str]) -> tuple[int, str]:
+def compute_min_duration(dur_texts: list[str]) -> tuple[int, str, bool]:
     """상위 3개 항공편 비행시간 평균 → (avg_minutes, avg_text)"""
     mins = [parse_duration_minutes(t) for t in dur_texts if t and t != "N/A"]
     mins = [m for m in mins if m is not None]
     if not mins:
-        return 0, "N/A"
-    avg = round(sum(mins) / len(mins))
-    return avg, minutes_to_text(avg)
+        return 0, "0분", True
+    minimum = min(mins)
+    return minimum, minutes_to_text(minimum), False
 
 
 def parse_hotel_price_krw(text: str) -> int | None:
@@ -1638,8 +1638,27 @@ async def scrape_city_month(
         # 요약값 계산
         stops_texts = [f["stops_text"] for f in flights]
         dur_texts = [f["duration_text"] for f in flights]
-        typical_stops_count, typical_stops_text = compute_typical_stops(stops_texts)
-        avg_minutes, avg_duration_text = compute_avg_duration(dur_texts)
+        selected_flight = min(
+            (
+                {
+                    "index": index,
+                    "duration_minutes": parsed_minutes,
+                    "stops_count": stops_text_to_count(flight["stops_text"]),
+                    "stops_text": flight["stops_text"],
+                }
+                for index, flight in enumerate(flights)
+                for parsed_minutes in [parse_duration_minutes(flight["duration_text"])]
+                if parsed_minutes is not None
+            ),
+            key=lambda candidate: (candidate["duration_minutes"], candidate["index"]),
+            default={
+                "stops_count": -1,
+                "stops_text": "N/A",
+            },
+        )
+        typical_stops_count = int(selected_flight["stops_count"])
+        typical_stops_text = str(selected_flight["stops_text"])
+        min_minutes, min_duration_text, duration_missing = compute_min_duration(dur_texts)
 
         payload = {
             "trip_length_days": TRIP_LENGTH_DAYS,
@@ -1653,16 +1672,19 @@ async def scrape_city_month(
             "flight_3_duration_text": flights[2]["duration_text"],
             "typical_stops_count": typical_stops_count,
             "typical_stops_text": typical_stops_text,
-            "avg_duration_minutes": avg_minutes,
-            "avg_duration_text": avg_duration_text,
+            "min_duration_minutes": min_minutes,
+            "min_duration_text": min_duration_text,
             **season_info,
             "collected_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
         record = make_jsonl_record(city, month, payload, ingest_time)
 
+        if duration_missing:
+            print(f"  [{label}] WARN: no valid duration found, using 0분")
+
         print(
-            f"  [{label}] OK | hotel={hotel_price} | stops={typical_stops_text} | dur={avg_duration_text}"
+            f"  [{label}] OK | hotel={hotel_price} | stops={typical_stops_text} | dur={min_duration_text}"
         )
 
         back_ok = await return_to_explore_ready(page, month["month_name"])
