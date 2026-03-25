@@ -27,14 +27,21 @@ function formatKRW(price: number) {
   return `₩${price.toLocaleString('ko-KR')}`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CustomTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function CustomTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; color?: string; value?: number | string }>;
+  label?: string;
+}) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-lg text-xs">
       <p className="font-semibold text-slate-700 mb-1">{label}</p>
-      {payload.map((p) => (
-        <p key={p.name} style={{ color: p.color }} className="font-medium">
+      {payload.map((p, idx) => (
+        <p key={`${p.name ?? 'value'}-${idx}`} style={{ color: p.color }} className="font-medium">
           {p.name === 'avg_flight_price' ? '✈ 항공권' : '🏨 호텔'}{' '}
           ₩{Number(p.value).toLocaleString('ko-KR')}
         </p>

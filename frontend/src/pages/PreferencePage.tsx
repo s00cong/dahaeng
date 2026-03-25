@@ -12,6 +12,7 @@ import {
   Check,
   Circle,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -206,7 +207,7 @@ function SelectionCounter({ count }: SelectionCounterProps) {
 
 const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
   // 서버에서 태그 목록 fetch
-  const { data: tagList = [], isLoading: isTagLoading } = useTagList();
+  const { data: tagList = [], isLoading: isTagLoading, isError: isTagError } = useTagList();
   const { data: memberTags = [], isLoading: isMemberTagLoading } = useMemberTags();
 
   const { youtubeTagIds, setYoutubeTagIds } = usePreferenceStore();
@@ -446,8 +447,17 @@ const PreferencePage = ({ isEdit = false }: { isEdit?: boolean }) => {
               </div>
             )}
 
+            {/* 태그 목록 에러 */}
+            {!isTagLoading && isTagError && (
+              <div className="flex flex-col items-center justify-center flex-1 gap-3 py-16 text-center">
+                <AlertTriangle className="size-8 text-yellow-400" />
+                <p className="text-sm font-medium text-slate-300">태그를 불러올 수 없습니다.</p>
+                <p className="text-xs text-slate-500">나중에 다시 시도해주세요.</p>
+              </div>
+            )}
+
             {/* 태그 카테고리 목록 */}
-            {!isTagLoading && (
+            {!isTagLoading && !isTagError && (
               <motion.div
                 variants={categoriesVariants}
                 initial="hidden"

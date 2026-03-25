@@ -118,12 +118,6 @@ public class RecommendFacade {
                 usdToKrwRate,
                 nz(city.getAvgHotelPrice())
         );
-        double expectedTotalCost = flight + (dailyLivingCost.total() * request.travelDays());
-        double totalBudget = nz(request.userTotalBudget());
-
-        if (expectedTotalCost > totalBudget * 1.3) {
-            return null;
-        }
 
         TagMetrics tagMetrics = calculateTagMetrics(cityTags, climateTags, request.selectedTags());
         RecommendationScoreCalculator.ScoreBreakdown scoreBreakdown = RecommendationScoreCalculator.calculate(

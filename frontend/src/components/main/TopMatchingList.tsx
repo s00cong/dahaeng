@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef } from "react";
-import { MapPin, Loader2, RefreshCw, SearchX, Clock, ChevronRight } from "lucide-react";
+import { MapPin, Loader2, RefreshCw, SearchX, Clock, ChevronRight, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCityList } from "@/hooks/city/useCityList";
@@ -112,10 +112,10 @@ const TAB_META: Record<Tab, { icon: React.ReactNode; label: string; next: Tab; n
 
 export function TopMatchingList() {
   const [tab, setTab] = useState<Tab>("matching");
-  const dirRef = useRef<1 | -1>(1); // 1 = 오른쪽으로 나가기, -1 = 왼쪽으로 나가기
+  const dirRef = useRef<1 | -1>(1);
 
   const { data: citiesFromApi, isLoading: isCityLoading } = useCityList();
-  const { isRecommendActive, isRecommendLoading, recommendResults } = useUiStore();
+  const { isRecommendActive, isRecommendLoading, isRecommendError, recommendResults } = useUiStore();
   const { data: viewHistory, isLoading: isHistoryLoading } = useViewHistory();
 
   const cities = citiesFromApi ?? [];
@@ -233,7 +233,16 @@ export function TopMatchingList() {
                     <p className="text-[10px] text-slate-400">잠시만 기다려 주세요</p>
                   </div>
                 )}
-                {!isCityLoading && !isRecommendLoading && !isRecommendActive && (
+                {!isCityLoading && !isRecommendLoading && isRecommendError && (
+                  <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+                    <AlertCircle className="size-8 text-red-400" aria-hidden="true" />
+                    <p className="text-xs font-medium text-slate-600">추천 호출에 실패했습니다</p>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      다시 추천 업데이트를 눌러주세요
+                    </p>
+                  </div>
+                )}
+                {!isCityLoading && !isRecommendLoading && !isRecommendError && !isRecommendActive && (
                   <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
                     <RefreshCw className="size-8 text-slate-300" />
                     <p className="text-xs font-medium text-slate-600">아직 추천 결과가 없어요</p>
@@ -242,7 +251,7 @@ export function TopMatchingList() {
                     </p>
                   </div>
                 )}
-                {!isCityLoading && !isRecommendLoading && isRecommendActive && topCities.length === 0 && (
+                {!isCityLoading && !isRecommendLoading && !isRecommendError && isRecommendActive && topCities.length === 0 && (
                   <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
                     <SearchX className="size-8 text-slate-300" />
                     <p className="text-xs font-medium text-slate-600">추천된 도시가 없습니다</p>
@@ -251,7 +260,7 @@ export function TopMatchingList() {
                     </p>
                   </div>
                 )}
-                {!isCityLoading && !isRecommendLoading && isRecommendActive && topCities.length > 0 && (
+                {!isCityLoading && !isRecommendLoading && !isRecommendError && isRecommendActive && topCities.length > 0 && (
                   <ul className="flex flex-col overflow-y-auto flex-1" role="list">
                     {topCities.map((city, index) => (
                       <li key={city.cityId} role="listitem">

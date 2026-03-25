@@ -18,6 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import type { BookmarkListItem } from "@/schemas/bookmark.schema";
+import type { FlightAlertSubscription } from "@/schemas/flight-alert.schema";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 8;
@@ -427,7 +428,7 @@ const BookmarkListPage = () => {
 
   // cityId → subscription 맵
   const subscriptionMap = useMemo(() => {
-    const map = new Map<number, (typeof subscriptions)[number]>();
+    const map = new Map<number, FlightAlertSubscription>();
     subscriptions?.filter((s) => s.enabled).forEach((s) => map.set(s.cityId, s));
     return map;
   }, [subscriptions]);
