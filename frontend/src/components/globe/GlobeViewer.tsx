@@ -343,6 +343,28 @@ function normalizeLongitudes(points: [number, number][]): [number, number][] {
 
 
 /**
+ * 대권 호의 최고 위도를 peakLat(°)으로 부드럽게 압축
+ * 단거리(이미 peakLat 미만)는 그대로 반환
+ */
+function limitArcPeakLatitude(
+  points: [number, number][],
+  peakLat = 60,
+): [number, number][] {
+  const actualPeak = Math.max(...points.map((p) => p[1]));
+  if (actualPeak <= peakLat) return points;
+  const ratio = peakLat / actualPeak; // 목표 압축 비율
+  const last = points.length - 1;
+  return points.map(([lng, lat], i) => {
+    // sin(t·π): 양 끝 0 → 중앙 1 → 양 끝 0 으로 가중치 부드럽게 전환
+    const t = i / last;
+    const blend = Math.sin(t * Math.PI);
+    // blend=0(양끝)이면 원래 위도, blend=1(중앙)이면 ratio 적용
+    const newLat = lat > 0 ? lat * (1 - blend * (1 - ratio)) : lat;
+    return [lng, newLat];
+  });
+}
+
+/**
  * 안티메리디안(±180°) 경계에서 LineString을 분리 → MultiLineString 세그먼트 반환
  * GeoJSON LineString이 경계를 넘으면 지도 반대편으로 직선을 그리는 문제를 방지
  */
@@ -1447,7 +1469,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     )
       return;
 
-    const rawArc = greatCircleArc(SEOUL, dest, 600);
+    const rawArc = limitArcPeakLatitude(greatCircleArc(SEOUL, dest, 600));
 
     // 선 렌더링용: 안티메리디안에서 분리 → MultiLineString (직선 아티팩트 방지)
     const lineSegments = splitAtAntimeridian(rawArc);
@@ -1598,7 +1620,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         flightOverlayRef.current = null;
       }
 
-      const rawArc = greatCircleArc(SEOUL, dest, 600);
+      const rawArc = limitArcPeakLatitude(greatCircleArc(SEOUL, dest, 600));
       const arcPoints = resampleByMercatorDistance(normalizeLongitudes(rawArc), 200);
 
       const outerEl = container.parentElement as HTMLDivElement;
