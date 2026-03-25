@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from city_id_mapping import parse_mysql_connection_info
+from flight_summary_fallback import fill_missing_summary_metrics
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -124,7 +125,7 @@ def select_latest_google_records(records: list[dict]) -> list[dict]:
             "origin_airport": entity.get("origin_airport"),
             "avg_hotel_price": payload.get("hotel_price"),
             "stops": payload.get("typical_stops_count"),
-            "flight_duration": payload.get("avg_duration_minutes"),
+            "flight_duration": payload.get("min_duration_minutes", payload.get("avg_duration_minutes")),
             "peak_month_list": payload.get("peak_season_months_list"),
             "off_month_list": payload.get("off_season_months_list"),
             "flight_collected_date": collected_at,
@@ -192,7 +193,7 @@ def build_flight_summary_rows(
     trip_averages: dict[tuple[str, str], int],
     code_to_city_name: dict[str, str],
     city_name_to_id: dict[str, int],
-) -> list[dict]:
+) -> tuple[list[dict], list[dict]]:
     rows: list[dict] = []
     unmatched_codes: set[str] = set()
 
@@ -228,7 +229,7 @@ def build_flight_summary_rows(
         joined = ", ".join(sorted(unmatched_codes))
         raise RuntimeError(f"Unmatched city codes for local flight_summary ETL: {joined}")
 
-    return rows
+    return fill_missing_summary_metrics(rows)
 
 
 def upsert_flight_summary(rows: list[dict], connection) -> None:
@@ -299,7 +300,7 @@ def main():
     )
     try:
         city_name_to_id = load_city_name_to_id(connection)
-        summary_rows = build_flight_summary_rows(
+        summary_rows, missing_value_alerts = build_flight_summary_rows(
             google_rows,
             trip_averages,
             mapping_indexes["code_to_city_name"],
@@ -309,7 +310,16 @@ def main():
     finally:
         connection.close()
 
-    print(json.dumps({"rows_upserted": len(summary_rows)}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "rows_upserted": len(summary_rows),
+                "missing_value_alerts": missing_value_alerts,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

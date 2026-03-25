@@ -7,7 +7,6 @@ export const useRecommend = () => {
   const setRecommendRequest = useUiStore((s) => s.setRecommendRequest);
   const setRecommendLoading = useUiStore((s) => s.setRecommendLoading);
   const setRecommendError = useUiStore((s) => s.setRecommendError);
-
   return useMutation({
     mutationFn: (body: {
       selectedTags: string[];

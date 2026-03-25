@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -276,6 +276,15 @@ const PreferenceFlowPage = () => {
   const [step, setStep] = useState<Step>(isEditMode ? "select" : "onboarding");
   const [loadingStep, setLoadingStep] = useState<YoutubeLoadStep>("idle");
 
+  // 브라우저 뒤로가기 → select 단계에서 onboarding으로 이동
+  useEffect(() => {
+    if (step !== "select" || isEditMode) return;
+    window.history.pushState(null, "");
+    const handlePopState = () => setStep("onboarding");
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [step, isEditMode]);
+
   const handleYoutubeAgree = async () => {
     try {
       setLoadingStep("sync");
@@ -319,7 +328,7 @@ const PreferenceFlowPage = () => {
     );
   }
 
-  return <PreferencePage isEdit={isEditMode} />;
+  return <PreferencePage isEdit={isEditMode} onBack={isEditMode ? undefined : () => setStep("onboarding")} />;
 };
 
 export default PreferenceFlowPage;
