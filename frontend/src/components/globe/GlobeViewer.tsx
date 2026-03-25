@@ -263,7 +263,7 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
     {
       id: "background",
       type: "background",
-      paint: { "background-color": "#dff1fb" },
+      paint: { "background-color": "#bfe3f8" },
     },
   ],
 };
@@ -659,8 +659,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             "match",
             ["get", "tone"],
             "light",
-            "rgba(255,255,255,0.22)",
-            "rgba(153, 194, 220, 0.18)",
+            "rgba(255,255,255,0.2)",
+            "rgba(169, 214, 245, 0.22)",
           ],
           "circle-radius": [
             "interpolate",
@@ -685,7 +685,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             ["boolean", ["feature-state", "selected"], false],
             "#bfdbfe",
             ["boolean", ["feature-state", "hover"], false],
-            "#f5f0e6",
+            "#f8f4eb",
             [
               "case",
               ["!=", ["get", "choroplethColor"], null],
@@ -693,10 +693,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
               [
                 "case",
                 ["==", ["%", ["to-number", ["id"]], 3], 0],
-                "#faf6ef",
+                "#f6f3ea",
                 ["==", ["%", ["to-number", ["id"]], 3], 1],
-                "#f7f2e8",
-                "#f4eee4",
+                "#f3efe4",
+                "#efe9db",
               ],
             ],
           ],
@@ -713,20 +713,20 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         type: "line",
         source: "countries",
         paint: {
-          "line-color": "rgba(255,255,255,0.24)",
-          "line-opacity": 0.48,
+          "line-color": "rgba(255,255,255,0.18)",
+          "line-opacity": 0.34,
           "line-width": [
             "interpolate",
             ["linear"],
             ["zoom"],
             1,
-            0.7,
+            0.65,
             5,
-            1.35,
+            1.15,
             10,
-            1.8,
+            1.5,
           ],
-          "line-blur": 0.85,
+          "line-blur": 0.9,
         },
       });
 
@@ -735,8 +735,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         type: "line",
         source: "countries",
         paint: {
-          "line-color": "#d8d1c6",
-          "line-opacity": 0.5,
+          "line-color": "rgba(0,0,0,0.1)",
+          "line-opacity": 1,
           "line-width": [
             "interpolate",
             ["linear"],
