@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { Loader2, AlertCircle, X } from "lucide-react";
+import { Loader2, AlertCircle, X, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -89,6 +89,7 @@ export function CityDetailModal() {
     data: basicCity,
     isLoading,
     isError,
+    refetch,
   } = useCityDetail(selectedCityId, showRecommendTabs, {
     enabled: isCityModalOpen,
     recommendParams:
@@ -104,6 +105,18 @@ export function CityDetailModal() {
       setActiveCityTab("cost");
     }
   }, [showRecommendTabs, activeCityTab, setActiveCityTab]);
+
+  // ESC 키로 모달 닫기
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") closeCityModal();
+  }, [closeCityModal]);
+
+  useEffect(() => {
+    if (isCityModalOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isCityModalOpen, handleKeyDown]);
 
   return (
     // 모달 열림/닫힘 시 AnimatePresence가 exit 애니메이션을 실행한 후 DOM에서 제거
@@ -183,6 +196,13 @@ export function CityDetailModal() {
                     <p className="text-sm text-muted-foreground">
                       도시 정보를 불러오는데 실패했습니다.
                     </p>
+                    <button
+                      onClick={() => void refetch()}
+                      className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <RefreshCw className="size-3.5" />
+                      다시 시도
+                    </button>
                   </div>
                 )}
 

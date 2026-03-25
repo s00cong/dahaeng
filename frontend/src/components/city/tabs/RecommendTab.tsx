@@ -243,7 +243,7 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
             </div>
           ) : (
             <p className="text-slate-700 leading-relaxed text-base italic">
-              "{recommendText ?? 'AI가 분석한 추천 이유를 불러오는 중입니다.'}"
+              "{recommendText ?? '추천 이유 정보가 없습니다.'}"
             </p>
           )}
           {/* 키워드 뱃지 */}
