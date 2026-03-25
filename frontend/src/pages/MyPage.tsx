@@ -12,6 +12,8 @@ import {
   RotateCcw,
   X,
   AlertTriangle,
+  UserX,
+  LogIn,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
@@ -343,7 +345,7 @@ function WithdrawModal({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MyPage = () => {
-  const { user, hasCompletedPreference } = useAuthStore();
+  const { user, hasCompletedPreference, isGuest } = useAuthStore();
   const { setYoutubeAutoSelected } = usePreferenceStore();
   const { mutate: logout, isPending: isLogoutPending } = useLogout();
   const { mutate: withdraw, isPending: isWithdrawPending } = useWithdraw();
@@ -436,57 +438,79 @@ const MyPage = () => {
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
-              <div className="flex items-center gap-5">
-                {user ? (
-                  <ProfileAvatar
-                    profileImageUrl={user.profileImageUrl}
-                    name={user.nickname}
-                  />
-                ) : (
-                  <div className="size-20 shrink-0 rounded-full bg-white/10 animate-pulse" />
-                )}
-
-                <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-xl font-bold text-white truncate">
-                      {user?.nickname ?? "사용자"}
-                    </h3>
-                    {hasCompletedPreference ? (
-                      <Badge
-                        variant="default"
-                        className="bg-blue-500/20 text-blue-300 border-blue-500/30"
-                      >
-                        선호도 완료
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="secondary"
-                        className="bg-white/10 text-white/60"
-                      >
-                        선호도 미완료
-                      </Badge>
-                    )}
+              {isGuest ? (
+                /* 게스트 프로필 */
+                <div className="flex items-center gap-5">
+                  <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-white/10">
+                    <UserX className="size-8 text-white/40" />
                   </div>
-                  <p className="text-sm text-white/50 truncate">
-                    {user?.email ?? ""}
-                  </p>
+                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                    <h3 className="text-xl font-bold text-white">비로그인 사용자</h3>
+                    <p className="text-sm text-white/40">로그인하면 더 많은 기능을 사용할 수 있어요</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void navigate({ to: "/login" })}
+                    className="flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-semibold transition-colors"
+                  >
+                    <LogIn className="size-4" />
+                    <span>로그인</span>
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => logout()}
-                  disabled={isLogoutPending}
-                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
-                  aria-label="로그아웃"
-                >
-                  {isLogoutPending ? (
-                    <Loader2 className="size-4 animate-spin" />
+              ) : (
+                /* 로그인 사용자 프로필 */
+                <div className="flex items-center gap-5">
+                  {user ? (
+                    <ProfileAvatar
+                      profileImageUrl={user.profileImageUrl}
+                      name={user.nickname}
+                    />
                   ) : (
-                    <LogOut className="size-4" />
+                    <div className="size-20 shrink-0 rounded-full bg-white/10 animate-pulse" />
                   )}
-                  <span>로그아웃</span>
-                </button>
-              </div>
+
+                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-xl font-bold text-white truncate">
+                        {user?.nickname ?? "사용자"}
+                      </h3>
+                      {hasCompletedPreference ? (
+                        <Badge
+                          variant="default"
+                          className="bg-blue-500/20 text-blue-300 border-blue-500/30"
+                        >
+                          선호도 완료
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className="bg-white/10 text-white/60"
+                        >
+                          선호도 미완료
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-white/50 truncate">
+                      {user?.email ?? ""}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => logout()}
+                    disabled={isLogoutPending}
+                    className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+                    aria-label="로그아웃"
+                  >
+                    {isLogoutPending ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <LogOut className="size-4" />
+                    )}
+                    <span>로그아웃</span>
+                  </button>
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -545,8 +569,8 @@ const MyPage = () => {
             </div>
           </motion.div>
 
-          {/* ── Section 3: 연결된 계정 ───────────────────────────────────── */}
-          <motion.div variants={fadeInUp}>
+          {/* ── Section 3: 연결된 계정 — 게스트 숨김 ───────────────────── */}
+          {!isGuest && <motion.div variants={fadeInUp}>
             <div
               className="rounded-2xl p-6"
               style={{
@@ -604,30 +628,48 @@ const MyPage = () => {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </motion.div>}
 
           {/* ── Section 4: 하단 푸터 ─────────────────────────────────────── */}
           <motion.div variants={fadeInUp}>
             <div className="text-center py-4 flex flex-col gap-2">
-              <p className="text-xs text-white/30">
-                데이터를 삭제하거나 계정을 탈퇴하고 싶으신가요?
-              </p>
-              <div className="flex items-center justify-center gap-3 text-xs">
-                <button
-                  type="button"
-                  className="text-white/40 hover:text-white/70 transition-colors"
-                >
-                  이용 약관
-                </button>
-                <span className="text-white/20">|</span>
-                <button
-                  type="button"
-                  onClick={() => setWithdrawModalOpen(true)}
-                  className="text-red-400 hover:text-red-300 transition-colors font-medium"
-                >
-                  회원 탈퇴
-                </button>
-              </div>
+              {isGuest ? (
+                <>
+                  <p className="text-xs text-white/30">
+                    로그인하면 북마크, 항공권 알림 등 모든 기능을 이용할 수 있어요
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void navigate({ to: "/login" })}
+                    className="mx-auto mt-1 flex items-center gap-2 px-6 py-2.5 rounded-full bg-blue-500 hover:bg-blue-400 text-white text-sm font-semibold transition-colors"
+                  >
+                    <LogIn className="size-4" />
+                    로그인하기
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-white/30">
+                    데이터를 삭제하거나 계정을 탈퇴하고 싶으신가요?
+                  </p>
+                  <div className="flex items-center justify-center gap-3 text-xs">
+                    <button
+                      type="button"
+                      className="text-white/40 hover:text-white/70 transition-colors"
+                    >
+                      이용 약관
+                    </button>
+                    <span className="text-white/20">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setWithdrawModalOpen(true)}
+                      className="text-red-400 hover:text-red-300 transition-colors font-medium"
+                    >
+                      회원 탈퇴
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </motion.div>
         </motion.div>

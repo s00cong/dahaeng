@@ -194,8 +194,13 @@ const IntroFeatureCard = ({
 // One Tap이 자동으로 뜨지만, 버튼 클릭 시 다시 트리거하는 용도
 const LoginCardContent = () => {
   const { mutate: loginWithGoogle, isPending } = useGoogleLogin();
-  const { setAccessToken, setUser, setHasCompletedPreference } = useAuthStore();
+  const { setAccessToken, setUser, setHasCompletedPreference, setGuest } = useAuthStore();
   const navigate = useNavigate();
+
+  const handleGuestLogin = () => {
+    setGuest();
+    void navigate({ to: "/main" });
+  };
 
   const handleDevLogin = async () => {
     const { accessToken, member } = await authApi.devLogin();
@@ -297,6 +302,30 @@ const LoginCardContent = () => {
             </svg>
           )}
           {isPending ? "이동 중..." : "Google로 계속하기"}
+        </button>
+
+        {/* 로그인 없이 탐험하기 버튼 */}
+        <button
+          onClick={handleGuestLogin}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            height: 40,
+            borderRadius: 14,
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 500,
+            color: "rgba(255,255,255,0.7)",
+            marginBottom: 8,
+          }}
+        >
+          <Globe style={{ width: 15, height: 15 }} />
+          로그인 없이 탐험하기
         </button>
 
         {/* 개발 모드 버튼 */}
