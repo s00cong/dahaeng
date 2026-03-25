@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, type JSX } from "react";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
 
 // ── 상수 ─────────────────────────────────────────────────────────
