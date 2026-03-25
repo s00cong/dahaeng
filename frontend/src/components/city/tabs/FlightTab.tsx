@@ -249,7 +249,7 @@ function SummarySection({ isLoading, summary }: { isLoading: boolean; summary: C
           <Clock className="size-5 text-slate-400 shrink-0" />
           <div className="flex flex-col">
             <span className="text-xs font-medium text-muted-foreground">평균 비행</span>
-            <span className="text-base font-black text-slate-700 dark:text-slate-300">{summary.avg_duration_text}</span>
+            <span className="text-base font-black text-slate-700 dark:text-slate-300">{summary.min_duration_text}</span>
           </div>
         </div>
       </div>
