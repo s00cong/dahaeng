@@ -1,5 +1,13 @@
 import { useMemo, useState, useRef } from "react";
-import { MapPin, Loader2, RefreshCw, SearchX, Clock, ChevronRight, AlertCircle } from "lucide-react";
+import {
+  MapPin,
+  Loader2,
+  RefreshCw,
+  SearchX,
+  Clock,
+  ChevronRight,
+  AlertCircle,
+} from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCityList } from "@/hooks/city/useCityList";
@@ -28,7 +36,13 @@ function formatRelativeTime(isoString: string): string {
   return `${Math.floor(days / 30)}개월 전`;
 }
 
-function RecentCityCard({ item, cities }: { item: ViewHistoryItem; cities: CityListItem[] }) {
+function RecentCityCard({
+  item,
+  cities,
+}: {
+  item: ViewHistoryItem;
+  cities: CityListItem[];
+}) {
   const { openRightPanel } = useUiStore();
   const { data: flagMap } = useCountryFlagMap();
   const [imgError, setImgError] = useState(false);
@@ -48,7 +62,12 @@ function RecentCityCard({ item, cities }: { item: ViewHistoryItem; cities: CityL
       role="button"
       tabIndex={0}
       onClick={handleClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(); } }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       className={cn(
         "flex items-center gap-2 p-2.5 rounded-xl cursor-pointer",
         "hover:bg-white/60 transition-all duration-150",
@@ -70,7 +89,12 @@ function RecentCityCard({ item, cities }: { item: ViewHistoryItem; cities: CityL
         </span>
         <div className="flex items-center gap-1 min-w-0">
           {flagUrl && (
-            <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] shrink-0 object-cover" aria-hidden="true" />
+            <img
+              src={flagUrl}
+              alt=""
+              className="h-3 w-auto rounded-[2px] shrink-0 object-cover"
+              aria-hidden="true"
+            />
           )}
           <span className="text-xs text-slate-500 truncate">
             {COUNTRY_NAME_KO[item.countryName] ?? item.countryName}
@@ -95,7 +119,10 @@ type Tab = "matching" | "recent";
 
 const TABS: Tab[] = ["matching", "recent"];
 
-const TAB_META: Record<Tab, { icon: React.ReactNode; label: string; next: Tab; nextLabel: string }> = {
+const TAB_META: Record<
+  Tab,
+  { icon: React.ReactNode; label: string; next: Tab; nextLabel: string }
+> = {
   matching: {
     icon: <MapPin className="size-3.5" />,
     label: "최고의 매칭 여행지",
@@ -115,7 +142,12 @@ export function TopMatchingList() {
   const dirRef = useRef<1 | -1>(1);
 
   const { data: citiesFromApi, isLoading: isCityLoading } = useCityList();
-  const { isRecommendActive, isRecommendLoading, isRecommendError, recommendResults } = useUiStore();
+  const {
+    isRecommendActive,
+    isRecommendLoading,
+    isRecommendError,
+    recommendResults,
+  } = useUiStore();
   const { data: viewHistory, isLoading: isHistoryLoading } = useViewHistory();
 
   const cities = citiesFromApi ?? [];
@@ -131,7 +163,10 @@ export function TopMatchingList() {
       return recommendResults.slice(0, TOP_N).map((r) => {
         const matched = cities.find((c) => c.cityName === r.city);
         return matched
-          ? { ...matched, matchingScore: r.totalScore > 0 ? r.totalScore : undefined }
+          ? {
+              ...matched,
+              matchingScore: r.totalScore > 0 ? r.totalScore : undefined,
+            }
           : {
               cityId: r.cityId,
               cityName: r.city,
@@ -161,7 +196,12 @@ export function TopMatchingList() {
       {/* ── 헤더 ── */}
       <div className="flex items-center justify-between mb-1 shrink-0">
         <div className="flex items-center gap-1.5">
-          <span className={cn("transition-colors", tab === "matching" ? "text-blue-500" : "text-indigo-500")}>
+          <span
+            className={cn(
+              "transition-colors",
+              tab === "matching" ? "text-blue-500" : "text-indigo-500",
+            )}
+          >
             {meta.icon}
           </span>
           <AnimatePresence mode="wait">
@@ -191,7 +231,6 @@ export function TopMatchingList() {
           <ChevronRight className="size-3" />
         </button>
       </div>
-
       {/* ── 슬라이드 콘텐츠 ── */}
       <div className="flex-1 min-h-0 relative overflow-hidden">
         <AnimatePresence mode="wait" custom={dirRef.current}>
@@ -229,46 +268,77 @@ export function TopMatchingList() {
                 {!isCityLoading && isRecommendLoading && (
                   <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6">
                     <Loader2 className="size-8 text-blue-400 animate-spin" />
-                    <p className="text-xs font-medium text-slate-600">추천 여행지 계산 중...</p>
-                    <p className="text-[10px] text-slate-400">잠시만 기다려 주세요</p>
+                    <p className="text-xs font-medium text-slate-600">
+                      추천 여행지 계산 중...
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      잠시만 기다려 주세요
+                    </p>
                   </div>
                 )}
                 {!isCityLoading && !isRecommendLoading && isRecommendError && (
                   <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
-                    <AlertCircle className="size-8 text-red-400" aria-hidden="true" />
-                    <p className="text-xs font-medium text-slate-600">추천 호출에 실패했습니다</p>
+                    <AlertCircle
+                      className="size-8 text-red-400"
+                      aria-hidden="true"
+                    />
+                    <p className="text-xs font-medium text-slate-600">
+                      추천 호출에 실패했습니다
+                    </p>
                     <p className="text-[10px] text-slate-400 leading-relaxed">
                       다시 추천 업데이트를 눌러주세요
                     </p>
                   </div>
                 )}
-                {!isCityLoading && !isRecommendLoading && !isRecommendError && !isRecommendActive && (
-                  <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
-                    <RefreshCw className="size-8 text-slate-300" />
-                    <p className="text-xs font-medium text-slate-600">아직 추천 결과가 없어요</p>
-                    <p className="text-[10px] text-slate-400 leading-relaxed">
-                      여행 설정을 입력하고<br />추천 업데이트를 눌러주세요
-                    </p>
-                  </div>
-                )}
-                {!isCityLoading && !isRecommendLoading && !isRecommendError && isRecommendActive && topCities.length === 0 && (
-                  <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
-                    <SearchX className="size-8 text-slate-300" />
-                    <p className="text-xs font-medium text-slate-600">추천된 도시가 없습니다</p>
-                    <p className="text-[10px] text-slate-400 leading-relaxed">
-                      설정을 변경하고<br />다시 추천해주세요
-                    </p>
-                  </div>
-                )}
-                {!isCityLoading && !isRecommendLoading && !isRecommendError && isRecommendActive && topCities.length > 0 && (
-                  <ul className="flex flex-col overflow-y-auto flex-1" role="list">
-                    {topCities.map((city, index) => (
-                      <li key={city.cityId} role="listitem">
-                        <TopMatchingCard city={city} rank={index + 1} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                {!isCityLoading &&
+                  !isRecommendLoading &&
+                  !isRecommendError &&
+                  !isRecommendActive && (
+                    <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+                      <RefreshCw className="size-8 text-slate-300" />
+                      <p className="text-xs font-medium text-slate-600">
+                        아직 추천 결과가 없어요
+                      </p>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        여행 설정을 입력하고
+                        <br />
+                        추천 업데이트를 눌러주세요
+                      </p>
+                    </div>
+                  )}
+                {!isCityLoading &&
+                  !isRecommendLoading &&
+                  !isRecommendError &&
+                  isRecommendActive &&
+                  topCities.length === 0 && (
+                    <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
+                      <SearchX className="size-8 text-slate-300" />
+                      <p className="text-xs font-medium text-slate-600">
+                        추천된 도시가 없습니다
+                      </p>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        설정을 변경하고
+                        <br />
+                        다시 추천해주세요
+                      </p>
+                    </div>
+                  )}
+                {!isCityLoading &&
+                  !isRecommendLoading &&
+                  !isRecommendError &&
+                  isRecommendActive &&
+                  topCities.length > 0 && (
+                    <ul
+                      className="flex flex-col overflow-y-auto flex-1"
+                      role="list"
+                    >
+                      {topCities.map((city, index) => (
+                        <li key={city.cityId} role="listitem">
+                          <TopMatchingCard city={city} rank={index + 1} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
               </>
             ) : (
               <>
@@ -292,14 +362,21 @@ export function TopMatchingList() {
                 {!isHistoryLoading && recentCities.length === 0 && (
                   <div className="flex flex-col items-center justify-center flex-1 gap-3 py-6 text-center">
                     <Clock className="size-8 text-slate-300" />
-                    <p className="text-xs font-medium text-slate-600">최근 탐험한 여행지가 없어요</p>
+                    <p className="text-xs font-medium text-slate-600">
+                      최근 탐험한 여행지가 없어요
+                    </p>
                     <p className="text-[10px] text-slate-400 leading-relaxed">
-                      지구본에서 도시를 클릭하면<br />여기에 기록됩니다
+                      지구본에서 도시를 클릭하면
+                      <br />
+                      여기에 기록됩니다
                     </p>
                   </div>
                 )}
                 {!isHistoryLoading && recentCities.length > 0 && (
-                  <ul className="flex flex-col overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full" role="list">
+                  <ul
+                    className="flex flex-col overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full"
+                    role="list"
+                  >
                     {recentCities.map((item) => (
                       <li key={item.cityId} role="listitem">
                         <RecentCityCard item={item} cities={cities} />
