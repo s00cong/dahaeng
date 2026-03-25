@@ -268,6 +268,45 @@ const MAP_STYLE: maplibregl.StyleSpecification = {
   ],
 };
 
+const OCEAN_DEPTH_SOURCE: GeoJSON.FeatureCollection = {
+  type: "FeatureCollection",
+  features: [
+    {
+      type: "Feature",
+      properties: {
+        tone: "light",
+        radius: 1,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [12, 8],
+      },
+    },
+    {
+      type: "Feature",
+      properties: {
+        tone: "dark",
+        radius: 1.15,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [-150, -12],
+      },
+    },
+    {
+      type: "Feature",
+      properties: {
+        tone: "dark",
+        radius: 0.95,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [155, 54],
+      },
+    },
+  ],
+};
+
 // ── 비행 경로 헬퍼 ────────────────────────────────────────────────────────────
 const SEOUL: [number, number] = [126.978, 37.5665]; // [lng, lat]
 const FLIGHT_DURATION_MS = 5000;
@@ -607,6 +646,35 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         data: countries,
         generateId: true,
       });
+      map.addSource("ocean-depth", {
+        type: "geojson",
+        data: OCEAN_DEPTH_SOURCE,
+      });
+      map.addLayer({
+        id: "ocean-depth",
+        type: "circle",
+        source: "ocean-depth",
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "tone"],
+            "light",
+            "rgba(162, 194, 220, 0.10)",
+            "rgba(7, 18, 33, 0.16)",
+          ],
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            1,
+            ["*", ["get", "radius"], 360],
+            5,
+            ["*", ["get", "radius"], 620],
+          ],
+          "circle-blur": 0.96,
+          "circle-opacity": 1,
+        },
+      });
       map.addLayer({
         id: "country-fill",
         type: "fill",
@@ -622,7 +690,14 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
               "case",
               ["!=", ["get", "choroplethColor"], null],
               ["get", "choroplethColor"],
-              "#f3efe6",
+              [
+                "case",
+                ["==", ["%", ["to-number", ["id"]], 3], 0],
+                "#f5f1e9",
+                ["==", ["%", ["to-number", ["id"]], 3], 1],
+                "#f2ede3",
+                "#efe9df",
+              ],
             ],
           ],
           "fill-opacity": [
@@ -633,14 +708,35 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           ],
         },
       });
+      map.addLayer({
+        id: "country-shoreline",
+        type: "line",
+        source: "countries",
+        paint: {
+          "line-color": "rgba(255,255,255,0.18)",
+          "line-opacity": 0.55,
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            1,
+            0.8,
+            5,
+            1.6,
+            10,
+            2.1,
+          ],
+          "line-blur": 0.7,
+        },
+      });
 
       map.addLayer({
         id: "country-border",
         type: "line",
         source: "countries",
         paint: {
-          "line-color": "#c6c0b5",
-          "line-opacity": 0.82,
+          "line-color": "#c5beb2",
+          "line-opacity": 0.68,
           "line-width": [
             "interpolate",
             ["linear"],
