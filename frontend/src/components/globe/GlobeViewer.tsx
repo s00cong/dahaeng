@@ -471,6 +471,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     isLeftSidebarCollapsed,
     planeTrackingDest,
     setPlaneTrackingDest,
+    setSelectedCityCoords,
   } = useUiStore();
 
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -1640,7 +1641,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         // fade-in
         const start = performance.now();
         const fadeIn = (now: number) => {
-          const p = Math.min((now - start) / FADE_DURATION, 1);
+          const p = Math.max(0, Math.min((now - start) / FADE_DURATION, 1));
           try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", p); } catch (_) {}
           if (p < 1) requestAnimationFrame(fadeIn);
         };
@@ -1653,7 +1654,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       // fade-out 후 레이어/소스 제거
       const start = performance.now();
       const fadeOut = (now: number) => {
-        const p = Math.min((now - start) / FADE_DURATION, 1);
+        const p = Math.max(0, Math.min((now - start) / FADE_DURATION, 1));
         try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", 1 - p); } catch (_) {}
         if (p < 1) {
           requestAnimationFrame(fadeOut);
@@ -1736,6 +1737,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           removeTrackingRaster();
           setPlaneTrackingDest(null);
           map.flyTo({ center: dest, zoom: 3.7, duration: 1200 });
+          setSelectedCityCoords({ lat: dest[1], lng: dest[0] });
         }
       };
 
@@ -1785,7 +1787,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         }
         const t0 = performance.now();
         const fadeIn = (now: number) => {
-          const p = Math.min((now - t0) / FADE, 1);
+          const p = Math.max(0, Math.min((now - t0) / FADE, 1));
           try { map.setPaintProperty(LAYER, "raster-opacity", p); } catch (_) {}
           if (p < 1) requestAnimationFrame(fadeIn);
         };
@@ -1795,7 +1797,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       if (!map.getLayer(LAYER)) return;
       const t0 = performance.now();
       const fadeOut = (now: number) => {
-        const p = Math.min((now - t0) / FADE, 1);
+        const p = Math.max(0, Math.min((now - t0) / FADE, 1));
         try { map.setPaintProperty(LAYER, "raster-opacity", 1 - p); } catch (_) {}
         if (p < 1) {
           requestAnimationFrame(fadeOut);
