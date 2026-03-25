@@ -15,7 +15,6 @@ import {
   Sparkles,
   Star,
   Zap,
-  FlaskConical,
 } from "lucide-react";
 import TopNavBar from "@/components/layout/TopNavBar";
 import Footer from "@/components/layout/Footer";
@@ -79,9 +78,8 @@ const INTRO_FEATURES = [
 ] as const;
 
 const STATS = [
-  { value: "180+", label: "지원 국가" },
-  { value: "50K+", label: "활성 사용자" },
-  { value: "99%", label: "고객 만족도" },
+  { value: "57개국", label: "지원 국가" },
+  { value: "188만개", label: "관광지" },
 ] as const;
 
 // ─── Login 데이터 ─────────────────────────────────────────────────
@@ -194,20 +192,12 @@ const IntroFeatureCard = ({
 // One Tap이 자동으로 뜨지만, 버튼 클릭 시 다시 트리거하는 용도
 const LoginCardContent = () => {
   const { mutate: loginWithGoogle, isPending } = useGoogleLogin();
-  const { setAccessToken, setUser, setHasCompletedPreference, setGuest } = useAuthStore();
+  const { setGuest } = useAuthStore();
   const navigate = useNavigate();
 
   const handleGuestLogin = () => {
     setGuest();
     void navigate({ to: "/main" });
-  };
-
-  const handleDevLogin = async () => {
-    const { accessToken, member } = await authApi.devLogin();
-    setAccessToken(accessToken);
-    setUser(member);
-    setHasCompletedPreference(true);
-    navigate({ to: "/main" });
   };
 
   return (
@@ -328,34 +318,8 @@ const LoginCardContent = () => {
           로그인 없이 탐험하기
         </button>
 
-        {/* 개발 모드 버튼 */}
-        {import.meta.env.DEV && (
-          <button
-            onClick={handleDevLogin}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              height: 40,
-              borderRadius: 14,
-              background: "rgba(251,191,36,0.15)",
-              border: "1px dashed rgba(251,191,36,0.6)",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: 500,
-              color: "rgba(253,224,132,0.95)",
-              marginBottom: 20,
-            }}
-          >
-            <FlaskConical style={{ width: 14, height: 14 }} />
-            개발 모드로 입장
-          </button>
-        )}
-
         {/* 약관 */}
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: import.meta.env.DEV ? 0 : "10px 0 0", lineHeight: 1.6 }}>
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: "10px 0 0", lineHeight: 1.6 }}>
           로그인 시{" "}
           <a href="#" style={{ color: "rgba(255,255,255,0.55)", textDecoration: "underline" }}>이용약관</a>
           {" "}및{" "}
@@ -564,7 +528,7 @@ const AuthLayout = () => {
                         maxWidth: "540px",
                       }}
                     >
-                      AI가 추천하는 맞춤 여행지를 3D 글로브로 탐색하고, 실시간
+                      AI가 추천하는 맞춤 여행지를 지도로 탐색하고, 실시간
                       물가 비교와 항공권 최저가로{" "}
                       <span className="text-white font-black underline decoration-f97316/50 underline-offset-4">
                         완벽한 여행
