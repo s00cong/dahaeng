@@ -3,6 +3,7 @@ import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { Loader2, AlertCircle, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
 import { useCityList } from "@/hooks/city/useCityList";
 import { DestinationHeroCard } from "@/components/city/DestinationHeroCard";
@@ -72,6 +73,7 @@ export function CityDetailModal() {
     setActiveCityTab,
   } = useUiStore();
 
+  const { isGuest } = useAuthStore();
   const { data: cities } = useCityList();
   const selectedCityName = cities?.find(
     (c) => c.cityId === selectedCityId,
@@ -80,25 +82,28 @@ export function CityDetailModal() {
     isRecommendActive &&
     recommendResults.some((r) => r.city === selectedCityName);
 
+  // 게스트 모드에서는 recommend=false, 추천 이유/유튜브 탭 숨김
+  const showRecommendTabs = isRecommendedCity && !isGuest;
+
   const {
     data: basicCity,
     isLoading,
     isError,
-  } = useCityDetail(selectedCityId, isRecommendedCity, {
+  } = useCityDetail(selectedCityId, showRecommendTabs, {
     enabled: isCityModalOpen,
     recommendParams:
-      isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+      showRecommendTabs && recommendRequest ? recommendRequest : undefined,
   });
 
   const city = basicCity ?? null;
   const showError = isError && !city;
 
-  // 비추천 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
+  // 비추천/게스트 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
   useEffect(() => {
-    if (!isRecommendedCity && (activeCityTab === "recommend" || activeCityTab === "youtube")) {
+    if (!showRecommendTabs && (activeCityTab === "recommend" || activeCityTab === "youtube")) {
       setActiveCityTab("cost");
     }
-  }, [isRecommendedCity, activeCityTab, setActiveCityTab]);
+  }, [showRecommendTabs, activeCityTab, setActiveCityTab]);
 
   return (
     // 모달 열림/닫힘 시 AnimatePresence가 exit 애니메이션을 실행한 후 DOM에서 제거
@@ -154,7 +159,7 @@ export function CityDetailModal() {
               <CityDetailTabNav
                 activeTab={activeCityTab}
                 onTabChange={setActiveCityTab}
-                showRecommendTab={isRecommendedCity}
+                showRecommendTab={showRecommendTabs}
               />
 
               {/* 스크롤 가능한 탭 콘텐츠 패널 */}

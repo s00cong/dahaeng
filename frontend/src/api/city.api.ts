@@ -2,6 +2,17 @@ import { axiosInstance } from "./axiosInstance";
 import type { CityDetail } from "@/schemas/city.schema";
 import { z } from "zod";
 
+// ── 최근 본 도시 ────────────────────────────────────────────────────────────
+export const ViewHistoryItemSchema = z.object({
+  cityId: z.number(),
+  cityName: z.string(),
+  countryName: z.string(),
+  dailyBudget: z.number(),
+  imgUrl: z.string().nullable(),
+  lastViewTime: z.string(),
+});
+export type ViewHistoryItem = z.infer<typeof ViewHistoryItemSchema>;
+
 // 백엔드 CountryDanger { level, description }
 const BackendCountryDangerItemSchema = z.object({
   level: z.string(),
@@ -324,5 +335,11 @@ export const cityApi = {
         reason: null,
       })),
     };
+  },
+
+  // GET /api/city/view-history
+  getViewHistory: async (): Promise<ViewHistoryItem[]> => {
+    const { data } = await axiosInstance.get("/api/city/view-history");
+    return z.array(ViewHistoryItemSchema).parse(data);
   },
 };

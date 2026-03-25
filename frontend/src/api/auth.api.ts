@@ -8,7 +8,6 @@ import {
 } from "@/schemas/auth.schema";
 import type {
   PreferenceTagRequest,
-  AuthCallbackResponse,
 } from "@/schemas/auth.schema";
 
 export const authApi = {
@@ -47,20 +46,6 @@ export const authApi = {
   // DELETE /api/auth/withdraw
   withdraw: async () => {
     await axiosInstance.delete("/api/auth/withdraw");
-  },
-
-  // 개발 전용 — 백엔드 없이 로컬 목 로그인
-  devLogin: async (): Promise<AuthCallbackResponse> => {
-    return {
-      tokenType: "Bearer",
-      accessToken: "dev-token",
-      member: {
-        id: 1,
-        role: "USER",
-        nickname: "개발자",
-        profileImageUrl: null,
-      },
-    };
   },
 
   // POST /api/member/tag (선호도 태그 등록 — 신규/수정 모두 POST, 백엔드가 upsert 처리)

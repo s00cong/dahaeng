@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
 import { useCityList } from "@/hooks/city/useCityList";
 import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
@@ -85,6 +86,7 @@ export function RightPanel() {
     toggleRightPanelCollapse,
   } = useUiStore();
 
+  const { isGuest } = useAuthStore();
   const { data: cities, isSuccess: citiesLoaded } = useCityList();
   const selectedCityName = cities?.find(
     (c) => c.cityId === selectedCityId,
@@ -93,13 +95,15 @@ export function RightPanel() {
     isRecommendActive &&
     recommendResults.some((r) => r.city === selectedCityName);
 
+  const useRecommend = isRecommendedCity && !isGuest;
+
   const { data: cityFromApi, isLoading } = useCityDetail(
     selectedCityId,
-    isRecommendedCity,
+    useRecommend,
     {
       enabled: citiesLoaded,
       recommendParams:
-        isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+        useRecommend && recommendRequest ? recommendRequest : undefined,
     },
   );
 
@@ -121,7 +125,7 @@ export function RightPanel() {
   }, []);
 
   const handleOpenDetail = () => {
-    openCityModal("recommend");
+    openCityModal(isGuest ? "cost" : "recommend");
   };
 
   const expandedX = -12;
@@ -337,7 +341,7 @@ export function RightPanel() {
 
               {/* 추천 이유 or 위험도 */}
               <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-                {isRecommendedCity ? (
+                {useRecommend ? (
                   <>
                     <p className="text-xs font-semibold text-slate-700 mb-1.5">
                       AI 추천 이유

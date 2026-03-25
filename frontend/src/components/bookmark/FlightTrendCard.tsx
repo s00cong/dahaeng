@@ -6,9 +6,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
+  type TooltipProps,
 } from 'recharts';
-import { PlaneTakeoff, TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { PlaneTakeoff, TrendingDown, TrendingUp, Minus, Bell } from 'lucide-react';
 import { useFlightTrend } from '@/hooks/flight/useFlightTrend';
+import { useFlightAlertSubscriptions } from '@/hooks/flight-alert/useFlightAlertSubscriptions';
 
 interface FlightTrendCardProps {
   cityId: number;
@@ -49,6 +52,9 @@ function CustomTooltip({
 
 export function FlightTrendCard({ cityId }: FlightTrendCardProps) {
   const { data, isLoading } = useFlightTrend(cityId);
+  const { data: subscriptions } = useFlightAlertSubscriptions();
+  const subscription = subscriptions?.find((s) => s.cityId === cityId && s.enabled);
+  const thresholdPrice = subscription?.thresholdPrice;
 
   const chartData = data?.trend_data.map((d) => ({
     ...d,
@@ -94,7 +100,15 @@ export function FlightTrendCard({ cityId }: FlightTrendCardProps) {
           </span>
         )}
       </div>
-      <p className="text-xs text-slate-400 mb-4 ml-10">최근 6개월 평균 항공권 가격</p>
+      <div className="flex items-center gap-2 mb-4 ml-10">
+        <p className="text-xs text-slate-400">최근 6개월 평균 항공권 가격</p>
+        {thresholdPrice != null && (
+          <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+            <Bell className="size-2.5" />
+            목표 {formatKRW(thresholdPrice)}
+          </span>
+        )}
+      </div>
 
       {isLoading && (
         <div className="h-40 flex items-center justify-center text-sm text-slate-400">
@@ -151,11 +165,26 @@ export function FlightTrendCard({ cityId }: FlightTrendCardProps) {
                 width={48}
                 tickFormatter={(v: number) => formatKRW(v)}
                 domain={[
-                  (min: number) => Math.floor(min * 0.93 / 10000) * 10000,
-                  (max: number) => Math.ceil(max * 1.05 / 10000) * 10000,
+                  (min: number) => Math.floor(Math.min(min, thresholdPrice ?? min) * 0.93 / 10000) * 10000,
+                  (max: number) => Math.ceil(Math.max(max, thresholdPrice ?? max) * 1.05 / 10000) * 10000,
                 ]}
               />
               <Tooltip content={<CustomTooltip />} />
+              {thresholdPrice != null && (
+                <ReferenceLine
+                  y={thresholdPrice}
+                  stroke="#f59e0b"
+                  strokeWidth={1.5}
+                  strokeDasharray="5 3"
+                  label={{
+                    value: `목표 ${formatKRW(thresholdPrice)}`,
+                    position: 'insideTopRight',
+                    fontSize: 10,
+                    fill: '#f59e0b',
+                    fontWeight: 600,
+                  }}
+                />
+              )}
               <Area
                 type="monotone"
                 dataKey="avg_flight_price"
