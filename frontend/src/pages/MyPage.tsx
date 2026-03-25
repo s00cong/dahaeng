@@ -23,7 +23,6 @@ import { useLogout } from "@/hooks/auth/useLogout";
 import { useWithdraw } from "@/hooks/auth/useWithdraw";
 import { useMemberTags } from "@/hooks/auth/useMemberTags";
 import { useTagList } from "@/hooks/tag/useTagList";
-import { authApi } from "@/api/auth.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -137,35 +136,8 @@ function YoutubeModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleConfirm = async () => {
-    if (action === "connect") {
-      setIsLoading(true);
-      try {
-        const { loginUrl } = await authApi.getYoutubeConsentUrl();
-        const resolvedUrl = loginUrl.startsWith("http")
-          ? loginUrl
-          : new URL(loginUrl, import.meta.env.VITE_API_BASE_URL).toString();
-        // 허용된 origin만 리다이렉트 (오픈 리다이렉트 방어)
-        const resolvedOrigin = new URL(resolvedUrl).origin;
-        const allowedOrigins = [
-          new URL(import.meta.env.VITE_API_BASE_URL).origin,
-          'https://accounts.google.com',
-        ];
-        if (!allowedOrigins.includes(resolvedOrigin)) {
-          console.error('Blocked unsafe redirect:', resolvedUrl);
-          throw new Error('Invalid redirect URL');
-        }
-        window.location.href = resolvedUrl;
-      } catch {
-        toast.error("YouTube 연동에 실패했습니다. 다시 시도해주세요.");
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      onConfirm();
-    }
+  const handleConfirm = () => {
+    onConfirm();
   };
 
   return (
@@ -233,26 +205,21 @@ function YoutubeModal({
         <div className="w-full flex flex-col gap-2.5">
           <Button
             onClick={handleConfirm}
-            disabled={isLoading}
             className={`w-full h-12 font-semibold text-base rounded-xl ${
               action === "disconnect"
                 ? "bg-red-500 hover:bg-red-600 text-white"
                 : "bg-blue-500 hover:bg-blue-600 text-white"
             }`}
           >
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin mr-2" />
-            ) : (
-              <div className="size-5 rounded-md bg-red-500 flex items-center justify-center mr-2">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="size-3 fill-white"
-                  aria-hidden="true"
-                >
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-            )}
+            <div className="size-5 rounded-md bg-red-500 flex items-center justify-center mr-2">
+              <svg
+                viewBox="0 0 24 24"
+                className="size-3 fill-white"
+                aria-hidden="true"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
             {action === "connect"
               ? "유튜브 연동 동의하기"
               : "유튜브 연동 해지하기"}
@@ -260,7 +227,6 @@ function YoutubeModal({
           <button
             type="button"
             onClick={onCancel}
-            disabled={isLoading}
             className="w-full h-11 bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-sm rounded-xl transition-colors"
           >
             취소
