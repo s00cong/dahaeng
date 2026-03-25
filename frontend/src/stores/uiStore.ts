@@ -84,6 +84,10 @@ interface UiState {
   // 나라 검색 → 글로브 카메라 이동 트리거 (영어 나라명)
   globeCountryTarget: string | null;
   setGlobeCountryTarget: (name: string | null) => void;
+
+  // 비행 추적 모드: 카메라가 서울 출발 비행기를 따라가야 할 실제 목적지
+  planeTrackingDest: { lat: number; lng: number } | null;
+  setPlaneTrackingDest: (dest: { lat: number; lng: number } | null) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -107,6 +111,7 @@ export const useUiStore = create<UiState>((set) => ({
       isRightPanelOpen: true,
       isRightPanelCollapsed: false, // 도시 선택 시 자동 확장
       isCityModalOpen: false,
+      planeTrackingDest: null, // 새 도시 선택 시 이전 추적 초기화
     }),
   closeRightPanel: () => set({ isRightPanelOpen: false, selectedCityScore: null }),
   setSelectedCityScore: (score) => set({ selectedCityScore: score }),
@@ -140,4 +145,6 @@ export const useUiStore = create<UiState>((set) => ({
   addBookmarkedCity: (cityId) => set((s) => ({ bookmarkedCityIds: [...s.bookmarkedCityIds, cityId] })),
   globeCountryTarget: null,
   setGlobeCountryTarget: (name) => set({ globeCountryTarget: name }),
+  planeTrackingDest: null,
+  setPlaneTrackingDest: (dest) => set({ planeTrackingDest: dest }),
 }));

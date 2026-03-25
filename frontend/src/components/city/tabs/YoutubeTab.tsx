@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Tv2, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
@@ -102,7 +103,7 @@ function KeywordCloud({ keywords }: { keywords: TopKeyword[] }) {
       <div className="flex gap-3 px-3 pt-2.5 pb-1">
         {(["PLAYLIST_TITLE", "LIKED_VIDEO_TAG", "SUBSCRIPTION_TITLE"] as const).map((type) => {
           const labels: Record<string, string> = {
-            PLAYLIST_TITLE: "📋 재생목록", LIKED_VIDEO_TAG: "👍 좋아요", SUBSCRIPTION_TITLE: "🔔 구독",
+            PLAYLIST_TITLE: "재생목록", LIKED_VIDEO_TAG: "좋아요", SUBSCRIPTION_TITLE: "구독",
           };
           return (
             <span key={type} className={cn("text-[9px] font-semibold", SOURCE_TEXT_COLOR[type])}>
@@ -485,12 +486,20 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
   if (isError || allTags.length === 0) {
     return (
       <div className="p-6 flex flex-col items-center justify-center h-full text-center gap-3">
-        <span className="text-4xl">📺</span>
+        {isError
+          ? <AlertCircle className="size-10 text-slate-300" />
+          : <Tv2 className="size-10 text-slate-300" />
+        }
         <p className="text-sm text-slate-400">
           {isError
             ? "YouTube 계정이 연동되지 않았습니다."
             : "아직 분석된 유튜브 취향 데이터가 없습니다."}
         </p>
+        {isError && (
+          <p className="text-xs text-slate-300">
+            마이페이지에서 YouTube 계정을 연동해 주세요.
+          </p>
+        )}
       </div>
     );
   }
@@ -500,7 +509,8 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
       <section className="p-6 pb-0">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <span>📺</span>유튜브 취향 분석
+            <Tv2 className="size-5 text-red-500" aria-hidden="true" />
+            유튜브 취향 분석
           </h2>
           {matchedCount > 0 && (
             <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
