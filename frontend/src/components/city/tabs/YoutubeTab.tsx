@@ -5,9 +5,11 @@ import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
 import { useInterestAnalysis } from "@/hooks/youtube/useInterestAnalysis";
 import type { InterestTag, TopKeyword } from "@/api/youtube.api";
+import { youtubeApi } from "@/api/youtube.api";
 import { useTagList } from "@/hooks/tag/useTagList";
 import { useMemberTags } from "@/hooks/auth/useMemberTags";
 import type { TagItem } from "@/api/tag.api";
+import { useQuery } from "@tanstack/react-query";
 
 
 // ── 키워드 워드 클라우드 ──────────────────────────────────────
@@ -91,7 +93,7 @@ function buildCloud(keywords: TopKeyword[], containerW: number): PlacedWord[] {
   return placed;
 }
 
-function KeywordCloud({ keywords }: { keywords: TopKeyword[] }) {
+function KeywordCloud({ keywords, syncEnabled = true }: { keywords: TopKeyword[]; syncEnabled?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [placed, setPlaced] = useState<PlacedWord[]>([]);
 
@@ -104,7 +106,7 @@ function KeywordCloud({ keywords }: { keywords: TopKeyword[] }) {
   if (keywords.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50/60 overflow-hidden">
+    <div className={cn("rounded-2xl border border-slate-100 bg-slate-50/60 overflow-hidden", !syncEnabled && "opacity-40 grayscale")}>
       <div className="flex flex-wrap gap-x-3 gap-y-1 px-3 pt-2.5 pb-1">
         {(["PLAYLIST_TITLE", "PLAYLIST_VIDEO_TAG", "PLAYLIST_VIDEO_TITLE", "LIKED_VIDEO_TAG", "LIKED_VIDEO_TITLE", "SUBSCRIPTION_TITLE"] as const).map((type) => {
           const labels: Record<string, string> = {
@@ -174,6 +176,7 @@ const TAG_PALETTE = [
 ];
 
 const USER_TAG_STYLE = { bg: "#eff6ff", border: "#93c5fd", text: "#1d4ed8", line: "#3b82f6" };
+const DISABLED_PALETTE = { bg: "#f8fafc", border: "#e2e8f0", text: "#94a3b8", line: "#cbd5e1" };
 
 function TagFlowDiagram({
   tags,
@@ -182,6 +185,7 @@ function TagFlowDiagram({
   cityName,
   softBridge,
   userTags = [],
+  syncEnabled = true,
 }: {
   tags: InterestTag[];
   cityTagNames: Set<string>;
@@ -189,6 +193,7 @@ function TagFlowDiagram({
   cityName: string;
   softBridge?: { interestTagIdx: number; cityTagName: string };
   userTags?: TagItem[];
+  syncEnabled?: boolean;
 }) {
   const x0 = 0;
   const x1 = KW_COL_W + COL_GAP;
@@ -303,12 +308,13 @@ function TagFlowDiagram({
 
   tags.forEach((tag, i) => {
     const layout = rowLayouts[i];
-    const palette = TAG_PALETTE[i % TAG_PALETTE.length];
+    const disabled = !syncEnabled;
+    const palette = disabled ? DISABLED_PALETTE : TAG_PALETTE[i % TAG_PALETTE.length];
 
     // Keywords → Reason (다대1)
     layout.kwYs.forEach((kwY, j) => {
       const score = tag.evidenceKeywords[j]?.score ?? 0.5;
-      const opacity = Math.min(0.85, 0.2 + Math.min(score, 1.5) * 0.35);
+      const opacity = disabled ? 0.2 : Math.min(0.85, 0.2 + Math.min(score, 1.5) * 0.35);
       const mx = (x0 + KW_COL_W + x1) / 2;
       svgLines.push({
         d: `M ${x0 + KW_COL_W} ${kwY} C ${mx} ${kwY} ${mx} ${layout.yCenter} ${x1} ${layout.yCenter}`,
@@ -320,11 +326,11 @@ function TagFlowDiagram({
     const mx2 = (x1 + REASON_COL_W + x2) / 2;
     svgLines.push({
       d: `M ${x1 + REASON_COL_W} ${layout.yCenter} C ${mx2} ${layout.yCenter} ${mx2} ${layout.yCenter} ${x2} ${layout.yCenter}`,
-      stroke: palette.line, opacity: 0.8, sw: 2,
+      stroke: palette.line, opacity: disabled ? 0.2 : 0.8, sw: 2,
     });
 
-    // 관심 태그 → 도시 태그 칩 (매칭된 것만, tagId 없으면 연결 불가)
-    if (tag.tagId != null && cityTagNames.has(tag.tagName)) {
+    // 관심 태그 → 도시 태그 칩 (비활성 태그는 연결 안 함)
+    if (!disabled && tag.tagId != null && cityTagNames.has(tag.tagName)) {
       const cty = cityChipY[tag.tagName] ?? layout.yCenter;
       const mx3 = (x2 + TAG_COL_W + x3) / 2;
       svgLines.push({
@@ -425,29 +431,30 @@ function TagFlowDiagram({
         {/* 키워드 칩 */}
         {tags.flatMap((tag, i) => {
           const layout = rowLayouts[i];
-          const palette = TAG_PALETTE[i % TAG_PALETTE.length];
-          return tag.evidenceKeywords.slice(0, 6).map((ev, j) => {
-            return (
-              <div
-                key={`kw-${i}-${j}`}
-                className="absolute flex items-center gap-1 px-1.5 rounded-lg border text-[11px] font-medium leading-none overflow-hidden"
-                style={{
-                  left: x0, top: layout.kwYs[j] - KW_H / 2,
-                  width: KW_COL_W, height: KW_H,
-                  background: palette.bg, borderColor: palette.border, color: palette.text,
-                }}
-              >
-                <span className="truncate flex-1">{ev.keyword}</span>
-                <span className="shrink-0 text-[9px] opacity-60 ml-0.5">{ev.score.toFixed(2)}</span>
-              </div>
-            );
-          });
+          const disabled = !syncEnabled;
+          const palette = disabled ? DISABLED_PALETTE : TAG_PALETTE[i % TAG_PALETTE.length];
+          return tag.evidenceKeywords.slice(0, 6).map((ev, j) => (
+            <div
+              key={`kw-${i}-${j}`}
+              className="absolute flex items-center gap-1 px-1.5 rounded-lg border text-[11px] font-medium leading-none overflow-hidden"
+              style={{
+                left: x0, top: layout.kwYs[j] - KW_H / 2,
+                width: KW_COL_W, height: KW_H,
+                background: palette.bg, borderColor: palette.border, color: palette.text,
+                opacity: disabled ? 0.5 : 1,
+              }}
+            >
+              <span className="truncate flex-1">{ev.keyword}</span>
+              <span className="shrink-0 text-[9px] opacity-60 ml-0.5">{ev.score.toFixed(2)}</span>
+            </div>
+          ));
         })}
 
         {/* AI 분석 이유 박스 */}
         {tags.map((tag, i) => {
           const layout = rowLayouts[i];
-          const palette = TAG_PALETTE[i % TAG_PALETTE.length];
+          const disabled = !syncEnabled;
+          const palette = disabled ? DISABLED_PALETTE : TAG_PALETTE[i % TAG_PALETTE.length];
           return (
             <div
               key={`reason-${i}`}
@@ -456,10 +463,11 @@ function TagFlowDiagram({
                 left: x1, top: layout.yTop,
                 width: REASON_COL_W, height: layout.contentH,
                 background: palette.bg, borderColor: palette.border,
+                opacity: disabled ? 0.5 : 1,
               }}
             >
               <p className="text-[11px] italic leading-relaxed line-clamp-4" style={{ color: palette.text }}>
-                "{tag.reason ?? "분석 결과 없음"}"
+                {disabled ? "유튜브 분석이 비활성화되었습니다." : `"${tag.reason ?? "분석 결과 없음"}"`}
               </p>
             </div>
           );
@@ -468,8 +476,9 @@ function TagFlowDiagram({
         {/* 관심 태그 뱃지 */}
         {tags.map((tag, i) => {
           const layout = rowLayouts[i];
-          const palette = TAG_PALETTE[i % TAG_PALETTE.length];
-          const isMatched = cityTagNames.has(tag.tagName);
+          const disabled = !syncEnabled;
+          const palette = disabled ? DISABLED_PALETTE : TAG_PALETTE[i % TAG_PALETTE.length];
+          const isMatched = !disabled && cityTagNames.has(tag.tagName);
           return (
             <div
               key={`tag-${i}`}
@@ -479,13 +488,14 @@ function TagFlowDiagram({
                 width: TAG_COL_W, height: TAG_H,
                 background: isMatched ? "#ecfdf5" : palette.bg,
                 borderColor: isMatched ? "#6ee7b7" : palette.border,
+                opacity: disabled ? 0.5 : 1,
               }}
             >
               <span className="text-[12px] font-black leading-tight" style={{ color: isMatched ? "#059669" : palette.text }}>
                 #{tag.tagName}
               </span>
               <span className="text-[9px] font-semibold text-slate-400">
-                관심 {Math.round((tag.score ?? 0) * 100)}%
+                {disabled ? "비활성" : `관심 ${Math.round((tag.score ?? 0) * 100)}%`}
               </span>
             </div>
           );
@@ -592,6 +602,14 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
   const { data: analysis, isLoading, isError } = useInterestAnalysis();
   const { data: tagList } = useTagList();
   const { data: memberTags } = useMemberTags();
+  const { data: syncStatus } = useQuery({
+    queryKey: ["youtube", "sync-status"],
+    queryFn: youtubeApi.getSyncStatus,
+    staleTime: 60 * 1000,
+  });
+
+  const syncEnabled = (syncStatus?.connected === true) && (syncStatus?.syncEnabled !== false);
+
 
   const relevantCityTags = city.tags ?? [];
   const cityTagNames = new Set(relevantCityTags.map((ct) => ct.name));
@@ -696,7 +714,7 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
               내 유튜브 주요 키워드
             </p>
-            <KeywordCloud keywords={topKeywords} />
+            <KeywordCloud keywords={topKeywords} syncEnabled={syncEnabled} />
           </div>
         )}
       </section>
@@ -712,6 +730,7 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
           cityName={city.cityName}
           softBridge={softBridge}
           userTags={userOnlyTags}
+          syncEnabled={syncEnabled}
         />
       </section>
     </div>
