@@ -38,11 +38,6 @@ export const authApi = {
     return TokenReissueResponseSchema.parse(data);
   },
 
-  // POST /api/auth/logout
-  logout: async () => {
-    await axiosInstance.post("/api/auth/logout");
-  },
-
   // DELETE /api/auth/withdraw
   withdraw: async () => {
     await axiosInstance.delete("/api/auth/withdraw");
