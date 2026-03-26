@@ -10,6 +10,7 @@ import { PromotionBanner } from '@/components/cost/PromotionBanner';
 import { CostCompareSection } from '@/components/cost/CostCompareSection';
 import { costApi } from '@/api/cost.api';
 import { useQuery } from '@tanstack/react-query';
+import { useCityList } from '@/hooks/city/useCityList';
 import { cn } from '@/lib/utils';
 
 // ─── 애니메이션 ───────────────────────────────────────────────────
@@ -61,6 +62,11 @@ const CostPage = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchType, setSearchType] = useState<'CONTINENT' | 'COUNTRY'>('COUNTRY');
   const [sortDir, setSortDir] = useState<'ASC' | 'DESC'>('ASC');
+
+  const { data: cityList } = useCityList();
+  const cityCountryMap = new Map(
+    (cityList ?? []).map((c) => [c.cityId, c.countryName])
+  );
 
   // ranking 기반 TOP 5 (한국인 인기 여행지)
   const { data: topCards, isLoading: isTopLoading } = useQuery({
@@ -302,6 +308,7 @@ const CostPage = () => {
                       <SmallDestinationCard
                         countryId={dest.id}
                         name={dest.name}
+                        countryName={cityCountryMap.get(dest.id)}
                         imgUrl={dest.imgUrl ?? ''}
                         avgCost={`하루 ₩${dest.dailyBudget.toLocaleString()}`}
                         costColor="green"
@@ -334,6 +341,7 @@ const CostPage = () => {
                       <SmallDestinationCard
                         countryId={dest.id}
                         name={dest.name}
+                        countryName={cityCountryMap.get(dest.id)}
                         imgUrl={dest.imgUrl ?? ''}
                         avgCost={`하루 ₩${dest.dailyBudget.toLocaleString()}`}
                         costColor="red"

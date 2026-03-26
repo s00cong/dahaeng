@@ -168,11 +168,13 @@ function TagFlowDiagram({
   cityTagNames,
   allCityTags,
   cityName,
+  softBridge,
 }: {
   tags: InterestTag[];
   cityTagNames: Set<string>;
   allCityTags: { name: string; tagScore?: number | null }[];
   cityName: string;
+  softBridge?: { interestTagIdx: number; cityTagName: string };
 }) {
   const x0 = 0;
   const x1 = KW_COL_W + COL_GAP;
@@ -230,7 +232,7 @@ function TagFlowDiagram({
       ? matchedCityChipYs.reduce((a, b) => a + b, 0) / matchedCityChipYs.length
       : totalH / 2;
 
-  type SvgLine = { d: string; stroke: string; opacity: number; sw: number };
+  type SvgLine = { d: string; stroke: string; opacity: number; sw: number; dashed?: boolean };
   const svgLines: SvgLine[] = [];
 
   tags.forEach((tag, i) => {
@@ -266,18 +268,36 @@ function TagFlowDiagram({
     }
   });
 
-  // 모든 도시 태그 → 도시 이름 (매칭=초록, 비매칭=회색)
+  // 모든 도시 태그 → 도시 이름 (매칭=초록, softBridge=황색, 비매칭=회색)
   allCityTags.forEach((ct) => {
     const cty = cityChipY[ct.name];
     const isMatched = matchedCityTagNames.has(ct.name);
+    const isSoft = !isMatched && softBridge?.cityTagName === ct.name;
     const mx4 = (x3 + CITY_TAG_COL_W + x4) / 2;
     svgLines.push({
       d: `M ${x3 + CITY_TAG_COL_W} ${cty} C ${mx4} ${cty} ${mx4} ${cityNameY} ${x4} ${cityNameY}`,
-      stroke: isMatched ? "#10b981" : "#cbd5e1",
-      opacity: isMatched ? 0.65 : 0.45,
-      sw: isMatched ? 1.5 : 1,
+      stroke: isMatched ? "#10b981" : isSoft ? "#f59e0b" : "#cbd5e1",
+      opacity: isMatched ? 0.65 : isSoft ? 0.7 : 0.45,
+      sw: isMatched ? 1.5 : isSoft ? 1.5 : 1,
+      dashed: isSoft,
     });
   });
+
+  // Soft bridge: 관심 태그 → 도시 태그 점선 연결
+  if (softBridge) {
+    const layout = rowLayouts[softBridge.interestTagIdx];
+    const cty = cityChipY[softBridge.cityTagName];
+    if (layout && cty !== undefined) {
+      const mx3 = (x2 + TAG_COL_W + x3) / 2;
+      svgLines.push({
+        d: `M ${x2 + TAG_COL_W} ${layout.yCenter} C ${mx3} ${layout.yCenter} ${mx3} ${cty} ${x3} ${cty}`,
+        stroke: "#f59e0b",
+        opacity: 0.75,
+        sw: 2,
+        dashed: true,
+      });
+    }
+  }
 
   const colHeaders = [
     { label: "유튜브 키워드", x: x0, w: KW_COL_W },
@@ -315,6 +335,7 @@ function TagFlowDiagram({
               stroke={line.stroke}
               strokeWidth={line.sw}
               strokeOpacity={line.opacity}
+              strokeDasharray={line.dashed ? "5 3" : undefined}
               fill="none"
               strokeLinecap="round"
             />
@@ -390,9 +411,10 @@ function TagFlowDiagram({
           );
         })}
 
-        {/* 도시 태그 칩 전체 (매칭된 것만 색칠) */}
+        {/* 도시 태그 칩 전체 (매칭=초록, softBridge=황색, 비매칭=회색) */}
         {allCityTags.map((ct) => {
           const isMatched = matchedCityTagNames.has(ct.name);
+          const isSoft = !isMatched && softBridge?.cityTagName === ct.name;
           const cty = cityChipY[ct.name];
           return (
             <div
@@ -401,28 +423,34 @@ function TagFlowDiagram({
               style={{
                 left: x3, top: cty - CITY_CHIP_H / 2,
                 width: CITY_TAG_COL_W, height: CITY_CHIP_H,
-                background: isMatched ? "#ecfdf5" : "#f8fafc",
-                borderColor: isMatched ? "#6ee7b7" : "#e2e8f0",
-                color: isMatched ? "#059669" : "#94a3b8",
+                background: isMatched ? "#ecfdf5" : isSoft ? "#fffbeb" : "#f8fafc",
+                borderColor: isMatched ? "#6ee7b7" : isSoft ? "#fcd34d" : "#e2e8f0",
+                color: isMatched ? "#059669" : isSoft ? "#b45309" : "#94a3b8",
               }}
             >
-              <span className="truncate px-2 text-[12px]">{isMatched ? "✓ " : ""}#{ct.name}</span>
+              <span className="truncate px-2 text-[12px]">
+                {isMatched ? "✓ " : isSoft ? "~ " : ""}#{ct.name}
+              </span>
             </div>
           );
         })}
 
         {/* 도시 이름 노드 */}
-        {matchedCityChipYs.length > 0 && (
-          <div
-            className="absolute flex flex-col items-center justify-center gap-0.5 rounded-xl border bg-emerald-500 border-emerald-600 text-center px-2"
-            style={{
-              left: x4, top: cityNameY - 23,
-              width: CITY_NAME_COL_W, height: 46,
-            }}
-          >
-            <span className="text-[14px] font-black text-white leading-tight">{cityName}</span>
-          </div>
-        )}
+        <div
+          className={`absolute flex flex-col items-center justify-center gap-0.5 rounded-xl border text-center px-2 ${
+            matchedCityChipYs.length > 0
+              ? "bg-emerald-500 border-emerald-600"
+              : "bg-slate-100 border-slate-300"
+          }`}
+          style={{
+            left: x4, top: cityNameY - 23,
+            width: CITY_NAME_COL_W, height: 46,
+          }}
+        >
+          <span className={`text-[14px] font-black leading-tight ${matchedCityChipYs.length > 0 ? "text-white" : "text-slate-400"}`}>
+            {cityName}
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -432,43 +460,46 @@ function TagFlowDiagram({
 export function YoutubeTab({ city }: { city: CityDetail }) {
   const { data: analysis, isLoading, isError } = useInterestAnalysis();
 
-  const relevantCityTags = city.tags?.filter((ct) => (ct.tagScore ?? 0) >= 0.6) ?? [];
+  const relevantCityTags = city.tags ?? [];
   const cityTagNames = new Set(relevantCityTags.map((ct) => ct.name));
 
   const allTags = analysis?.tags ?? [];
   const topKeywords = analysis?.topKeywords ?? [];
   const matchedCount = allTags.filter((t) => cityTagNames.has(t.tagName)).length;
 
-  // 플로우 다이어그램용 도시 태그 필터링
-  // 1) 매칭된 도시 태그 이름 집합
-  const matchedCityTagNamesForFlow = new Set(
-    allTags.filter((t) => cityTagNames.has(t.tagName)).map((t) => t.tagName)
-  );
-  // 2) 내림차순 정렬
-  const sortedCityTags = [...relevantCityTags].sort(
-    (a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)
-  );
-  // 3) 매칭된 태그의 최소 점수 = 기준 임계값
-  const matchedInSorted = sortedCityTags.filter((ct) => matchedCityTagNamesForFlow.has(ct.name));
-  const minMatchedScore =
-    matchedInSorted.length > 0
-      ? Math.min(...matchedInSorted.map((ct) => ct.tagScore ?? 0))
-      : 0.7;
-  // 4) 기준 이상인 태그만 추출
-  const candidates = sortedCityTags.filter((ct) => (ct.tagScore ?? 0) >= minMatchedScore);
-  // 5) top10 안에 매칭 태그가 모두 포함되면 top10, 아니면 매칭 태그는 보장 + 나머지 채우기
-  const top10 = candidates.slice(0, 10);
-  const top10Names = new Set(top10.map((ct) => ct.name));
-  const missingMatched = matchedInSorted.filter((ct) => !top10Names.has(ct.name));
-  const flowCityTags =
-    missingMatched.length === 0
-      ? top10
-      : [
-          ...matchedInSorted,
-          ...candidates
-            .filter((ct) => !matchedCityTagNamesForFlow.has(ct.name))
-            .slice(0, Math.max(0, 10 - matchedInSorted.length)),
-        ].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0));
+  // 플로우 다이어그램용 도시 태그: tagScore 내림차순 top10
+  const flowCityTags = [...relevantCityTags]
+    .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
+    .slice(0, 10);
+
+  // Soft bridge: 직접 매칭 없을 때 스팟 태그 점수로 관심태그↔도시태그 연결
+  const softBridge = (() => {
+    if (matchedCount > 0) return undefined;
+    if (!city.touristSpot?.length) return undefined;
+    // 스팟 전체에서 태그별 점수 합산
+    const spotTagScores: Record<string, number> = {};
+    city.touristSpot.forEach((spot) => {
+      spot.tags?.forEach((tag) => {
+        if ((tag.tagScore ?? 0) > 0) {
+          spotTagScores[tag.name] = (spotTagScores[tag.name] ?? 0) + (tag.tagScore ?? 0);
+        }
+      });
+    });
+    // 유저 관심 태그 중 spot tagScore가 있고 도시 태그에도 존재하는 최고 점수 쌍
+    let best: { interestTagIdx: number; cityTagName: string } | null = null;
+    let bestScore = 0;
+    allTags.forEach((tag, idx) => {
+      const spotScore = spotTagScores[tag.tagName] ?? 0;
+      if (spotScore > 0 && cityTagNames.has(tag.tagName)) {
+        const combined = (tag.score ?? 0) + spotScore;
+        if (combined > bestScore) {
+          bestScore = combined;
+          best = { interestTagIdx: idx, cityTagName: tag.tagName };
+        }
+      }
+    });
+    return best ?? undefined;
+  })();
 
   if (isLoading) {
     return (
@@ -538,6 +569,7 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
           cityTagNames={cityTagNames}
           allCityTags={flowCityTags.map((ct) => ({ name: ct.name, tagScore: ct.tagScore }))}
           cityName={city.cityName}
+          softBridge={softBridge}
         />
       </section>
     </div>
