@@ -5,6 +5,9 @@ import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
 import { useInterestAnalysis } from "@/hooks/youtube/useInterestAnalysis";
 import type { InterestTag, TopKeyword } from "@/api/youtube.api";
+import { useTagList } from "@/hooks/tag/useTagList";
+import { useMemberTags } from "@/hooks/auth/useMemberTags";
+import type { TagItem } from "@/api/tag.api";
 
 
 // ── 키워드 워드 클라우드 ──────────────────────────────────────
@@ -17,7 +20,7 @@ const SOURCE_TEXT_COLOR: Record<string, string> = {
   SUBSCRIPTION_TITLE:  "text-amber-500",
 };
 
-const CLOUD_H = 260;
+const CLOUD_H = 420;
 const PAD = 3;
 
 type PlacedWord = {
@@ -31,11 +34,11 @@ type PlacedWord = {
 const ROTATE_OPTS = [0, 0, 0, 90, 0, 0, -90, 0, 0, 90];
 
 function getFontSizeByRank(rank: number) {
-  if (rank === 1)       return { fontSize: 34, fontWeight: "900", opacity: 1.00 };
-  if (rank <= 3)        return { fontSize: 27, fontWeight: "800", opacity: 0.95 };
-  if (rank <= 7)        return { fontSize: 21, fontWeight: "700", opacity: 0.88 };
-  if (rank <= 15)       return { fontSize: 17, fontWeight: "600", opacity: 0.78 };
-  return                       { fontSize: 14, fontWeight: "500", opacity: 0.62 };
+  if (rank === 1)       return { fontSize: 56, fontWeight: "900", opacity: 1.00 };
+  if (rank <= 3)        return { fontSize: 44, fontWeight: "800", opacity: 0.95 };
+  if (rank <= 7)        return { fontSize: 32, fontWeight: "700", opacity: 0.88 };
+  if (rank <= 15)       return { fontSize: 24, fontWeight: "600", opacity: 0.78 };
+  return                       { fontSize: 18, fontWeight: "500", opacity: 0.62 };
 }
 
 function rectsOverlap(a: PlacedWord, b: PlacedWord) {
@@ -146,16 +149,16 @@ function KeywordCloud({ keywords }: { keywords: TopKeyword[] }) {
 }
 
 // ── 태그 플로우 다이어그램 ─────────────────────────────────────
-const KW_COL_W = 115;
-const REASON_COL_W = 148;
-const TAG_COL_W = 96;
-const CITY_TAG_COL_W = 120;
-const CITY_NAME_COL_W = 108;
-const COL_GAP = 36;
-const KW_H = 22;
+const KW_COL_W = 128;
+const REASON_COL_W = 170;
+const TAG_COL_W = 110;
+const CITY_TAG_COL_W = 132;
+const CITY_NAME_COL_W = 110;
+const COL_GAP = 41;
+const KW_H = 24;
 const KW_GAP = 3;
-const REASON_MIN_H = 56;
-const TAG_H = 38;
+const REASON_MIN_H = 60;
+const TAG_H = 40;
 const ROW_GAP = 14;
 const HEADER_H = 24;
 const CITY_CHIP_H = 28;
@@ -170,18 +173,22 @@ const TAG_PALETTE = [
   { bg: "#fef3c7", border: "#fcd34d", text: "#b45309", line: "#f59e0b" },
 ];
 
+const USER_TAG_STYLE = { bg: "#eff6ff", border: "#93c5fd", text: "#1d4ed8", line: "#3b82f6" };
+
 function TagFlowDiagram({
   tags,
   cityTagNames,
   allCityTags,
   cityName,
   softBridge,
+  userTags = [],
 }: {
   tags: InterestTag[];
   cityTagNames: Set<string>;
   allCityTags: { name: string; tagScore?: number | null }[];
   cityName: string;
   softBridge?: { interestTagIdx: number; cityTagName: string };
+  userTags?: TagItem[];
 }) {
   const x0 = 0;
   const x1 = KW_COL_W + COL_GAP;
@@ -212,7 +219,58 @@ function TagFlowDiagram({
     return { yTop, yCenter, contentH, kwYs };
   });
 
-  const userTagsH = curY - ROW_GAP;
+  // 사용자 입력 태그 클러스터 레이아웃
+  const userTagDividerY = tags.length > 0 ? curY - ROW_GAP + 8 : HEADER_H;
+  const CLUSTER_PAD = 10;
+  const CLUSTER_CHIP_H = 22;
+  const CLUSTER_CHIP_GAP_X = 6;
+  const CLUSTER_CHIP_GAP_Y = 6;
+  const clusterW = x2 + TAG_COL_W;
+
+  const matchedUserTags = userTags.filter((t) => cityTagNames.has(t.tagName));
+  const unmatchedUserTags = userTags.filter((t) => !cityTagNames.has(t.tagName));
+
+  // 오른쪽 열: 매칭 태그 (고정 너비 열)
+  const RIGHT_COL_W = 90;
+  const rightColX = clusterW - CLUSTER_PAD - RIGHT_COL_W;
+  const leftAreaW = rightColX - CLUSTER_PAD * 2; // 비매칭 태그가 쓸 수 있는 너비
+
+  const clusterChipPositions: { x: number; y: number; w: number; tagName: string; isRight: boolean }[] = [];
+
+  // 오른쪽 열: 매칭 태그를 1열로 나란히
+  matchedUserTags.forEach((ut, i) => {
+    clusterChipPositions.push({
+      x: rightColX,
+      y: CLUSTER_PAD + i * (CLUSTER_CHIP_H + CLUSTER_CHIP_GAP_Y),
+      w: RIGHT_COL_W,
+      tagName: ut.tagName,
+      isRight: true,
+    });
+  });
+
+  // 왼쪽 영역: 비매칭 태그 줄바꿈 배치
+  if (unmatchedUserTags.length > 0) {
+    let chipX = CLUSTER_PAD;
+    let chipY = CLUSTER_PAD;
+    for (const ut of unmatchedUserTags) {
+      const chipW = Math.min(leftAreaW, Math.max(52, (ut.tagName.length + 1) * 8 + 20));
+      if (chipX + chipW > CLUSTER_PAD + leftAreaW) {
+        chipX = CLUSTER_PAD;
+        chipY += CLUSTER_CHIP_H + CLUSTER_CHIP_GAP_Y;
+      }
+      clusterChipPositions.push({ x: chipX, y: chipY, w: chipW, tagName: ut.tagName, isRight: false });
+      chipX += chipW + CLUSTER_CHIP_GAP_X;
+    }
+  }
+
+  const clusterContentH = clusterChipPositions.length > 0
+    ? Math.max(...clusterChipPositions.map((p) => p.y + CLUSTER_CHIP_H)) + CLUSTER_PAD
+    : 0;
+  const clusterStartY = userTags.length > 0
+    ? (tags.length > 0 ? userTagDividerY + 16 : HEADER_H)
+    : 0;
+
+  const userTagsH = userTags.length > 0 ? clusterStartY + clusterContentH : curY - ROW_GAP;
 
   // 도시 태그 칩 y 위치 계산 (column 3)
   const cityChipTotalH =
@@ -225,10 +283,11 @@ function TagFlowDiagram({
     cityChipY[ct.name] = cityChipStartY + j * (CITY_CHIP_H + CITY_CHIP_GAP) + CITY_CHIP_H / 2;
   });
 
-  // 유저 관심 태그 중 도시 태그와 이름이 일치하는 것들의 집합 (tagId 없는 태그는 매칭 불가)
-  const matchedCityTagNames = new Set(
-    tags.filter((t) => t.tagId != null && cityTagNames.has(t.tagName)).map((t) => t.tagName)
-  );
+  // 유저 관심 태그 중 도시 태그와 이름이 일치하는 것들의 집합
+  const matchedCityTagNames = new Set([
+    ...tags.filter((t) => t.tagId != null && cityTagNames.has(t.tagName)).map((t) => t.tagName),
+    ...userTags.filter((t) => cityTagNames.has(t.tagName)).map((t) => t.tagName),
+  ]);
 
   // 도시 이름 노드 y: 매칭된 칩들의 평균
   const matchedCityChipYs = allCityTags
@@ -273,6 +332,20 @@ function TagFlowDiagram({
         stroke: "#10b981", opacity: 0.85, sw: 2,
       });
     }
+  });
+
+
+  // 사용자 입력 태그 → 도시 태그 연결 (오른쪽 열 매칭 칩에서)
+  clusterChipPositions.forEach((pos) => {
+    if (!pos.isRight || !cityTagNames.has(pos.tagName)) return;
+    const chipCenterY = clusterStartY + pos.y + CLUSTER_CHIP_H / 2;
+    const chipRightX = pos.x + pos.w;
+    const cty = cityChipY[pos.tagName] ?? chipCenterY;
+    const mx3 = (chipRightX + x3) / 2;
+    svgLines.push({
+      d: `M ${chipRightX} ${chipCenterY} C ${mx3} ${chipCenterY} ${mx3} ${cty} ${x3} ${cty}`,
+      stroke: USER_TAG_STYLE.line, opacity: 0.85, sw: 1.5,
+    });
   });
 
   // 모든 도시 태그 → 도시 이름 (매칭=초록, softBridge=황색, 비매칭=회색)
@@ -357,7 +430,7 @@ function TagFlowDiagram({
             return (
               <div
                 key={`kw-${i}-${j}`}
-                className="absolute flex items-center gap-1 px-1.5 rounded-lg border text-[10px] font-medium leading-none overflow-hidden"
+                className="absolute flex items-center gap-1 px-1.5 rounded-lg border text-[11px] font-medium leading-none overflow-hidden"
                 style={{
                   left: x0, top: layout.kwYs[j] - KW_H / 2,
                   width: KW_COL_W, height: KW_H,
@@ -385,7 +458,7 @@ function TagFlowDiagram({
                 background: palette.bg, borderColor: palette.border,
               }}
             >
-              <p className="text-[10px] italic leading-relaxed line-clamp-4" style={{ color: palette.text }}>
+              <p className="text-[11px] italic leading-relaxed line-clamp-4" style={{ color: palette.text }}>
                 "{tag.reason ?? "분석 결과 없음"}"
               </p>
             </div>
@@ -408,7 +481,7 @@ function TagFlowDiagram({
                 borderColor: isMatched ? "#6ee7b7" : palette.border,
               }}
             >
-              <span className="text-[11px] font-black leading-tight" style={{ color: isMatched ? "#059669" : palette.text }}>
+              <span className="text-[12px] font-black leading-tight" style={{ color: isMatched ? "#059669" : palette.text }}>
                 #{tag.tagName}
               </span>
               <span className="text-[9px] font-semibold text-slate-400">
@@ -417,6 +490,57 @@ function TagFlowDiagram({
             </div>
           );
         })}
+
+        {/* 사용자 입력 태그 구분선 */}
+        {userTags.length > 0 && tags.length > 0 && (
+          <div
+            className="absolute flex items-center gap-2"
+            style={{ left: x0, top: userTagDividerY, width: x2 + TAG_COL_W }}
+          >
+            <div className="flex-1 border-t border-dashed border-blue-200" />
+            <span className="text-[9px] font-bold text-blue-400 shrink-0">사용자 입력 태그</span>
+            <div className="flex-1 border-t border-dashed border-blue-200" />
+          </div>
+        )}
+
+        {/* 사용자 입력 태그 클러스터 */}
+        {userTags.length > 0 && (
+          <>
+            {/* 클러스터 배경 */}
+            <div
+              className="absolute rounded-xl border border-blue-100 bg-blue-50/30"
+              style={{ left: x0, top: clusterStartY, width: clusterW, height: clusterContentH }}
+            />
+            {/* 오른쪽 열 구분선 (매칭 태그가 있을 때만) */}
+            {matchedUserTags.length > 0 && (
+              <div
+                className="absolute border-l border-dashed border-blue-200"
+                style={{ left: x0 + rightColX - CLUSTER_PAD, top: clusterStartY + CLUSTER_PAD, height: clusterContentH - CLUSTER_PAD * 2 }}
+              />
+            )}
+            {/* 태그 칩들 */}
+            {clusterChipPositions.map((pos, i) => {
+              const isMatched = pos.isRight;
+              return (
+                <div
+                  key={`utag-${i}`}
+                  className="absolute flex items-center justify-center rounded-full border text-[10px] font-semibold overflow-hidden whitespace-nowrap"
+                  style={{
+                    left: x0 + pos.x,
+                    top: clusterStartY + pos.y,
+                    width: pos.w,
+                    height: CLUSTER_CHIP_H,
+                    background: isMatched ? "#ecfdf5" : USER_TAG_STYLE.bg,
+                    borderColor: isMatched ? "#6ee7b7" : USER_TAG_STYLE.border,
+                    color: isMatched ? "#059669" : USER_TAG_STYLE.text,
+                  }}
+                >
+                  #{pos.tagName}
+                </div>
+              );
+            })}
+          </>
+        )}
 
         {/* 도시 태그 칩 전체 (매칭=초록, softBridge=황색, 비매칭=회색) */}
         {allCityTags.map((ct) => {
@@ -466,12 +590,22 @@ function TagFlowDiagram({
 // ── YoutubeTab ────────────────────────────────────────────────
 export function YoutubeTab({ city }: { city: CityDetail }) {
   const { data: analysis, isLoading, isError } = useInterestAnalysis();
+  const { data: tagList } = useTagList();
+  const { data: memberTags } = useMemberTags();
 
   const relevantCityTags = city.tags ?? [];
   const cityTagNames = new Set(relevantCityTags.map((ct) => ct.name));
 
   const allTags = analysis?.tags ?? [];
   const topKeywords = analysis?.topKeywords ?? [];
+
+  // isFromYoutube: false인 사용자 직접 입력 태그 → tagId로 TagItem 조회
+  const youtubeTagNames = new Set(allTags.map((t) => t.tagName));
+  const tagMap = new Map((tagList ?? []).map((t) => [t.tagId, t]));
+  const userOnlyTags: TagItem[] = (memberTags ?? [])
+    .filter((mt) => !mt.isFromYoutube)
+    .map((mt) => tagMap.get(mt.tagId))
+    .filter((t): t is TagItem => t != null && !youtubeTagNames.has(t.tagName));
   const matchedCount = allTags.filter((t) => cityTagNames.has(t.tagName)).length;
 
   // 플로우 다이어그램용 도시 태그: tagScore 내림차순 top10
@@ -577,6 +711,7 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
           allCityTags={flowCityTags.map((ct) => ({ name: ct.name, tagScore: ct.tagScore }))}
           cityName={city.cityName}
           softBridge={softBridge}
+          userTags={userOnlyTags}
         />
       </section>
     </div>
