@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 public class FlightAlertScheduler {
 	private final FlightAlertBatchService flightAlertBatchService;
 
-	@Scheduled(cron = "0 0 9,21 * * *", zone = "Asia/Seoul")
+	@Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
 	public void evaluateFlightAlerts() {
 		flightAlertBatchService.evaluateActiveSubscriptions();
 	}
