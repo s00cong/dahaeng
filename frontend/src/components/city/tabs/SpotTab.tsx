@@ -550,7 +550,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
     const nameMap = new globalThis.Map<string, typeof raw[number]>();
     for (const s of raw) {
       const existing = nameMap.get(s.name);
-      if (!existing || (!existing.imgUrl && s.imgUrl)) {
+      if (!existing || (!existing.imageUrl && s.imageUrl)) {
         nameMap.set(s.name, s);
       }
     }
