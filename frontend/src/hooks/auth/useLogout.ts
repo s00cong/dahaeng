@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { authApi } from '@/api/auth.api';
 import { useAuthStore } from '@/stores/authStore';
+import { useUiStore } from '@/stores/uiStore';
 
 /**
  * 로그아웃
@@ -10,19 +11,20 @@ import { useAuthStore } from '@/stores/authStore';
 export const useLogout = () => {
   const queryClient = useQueryClient();
   const { logout } = useAuthStore();
+  const { setRecommendResults, setRecommendRequest, setRecommendActive, closeRightPanel } = useUiStore();
   const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: authApi.logout,
-    onSuccess: () => {
-      logout(); // Zustand 상태 초기화 (localStorage persist 포함)
-      queryClient.clear(); // 모든 캐시 클리어
-      navigate({ to: '/login' });
+    mutationFn: async () => {
+      try { await authApi.logout(); } catch (_) {}
     },
-    onError: () => {
-      // 실패해도 로컬 상태는 초기화
+    onSuccess: () => {
       logout();
       queryClient.clear();
+      setRecommendResults([]);
+      setRecommendRequest({ selectedTags: [], userTotalBudget: 0, travelDays: 0, month: 0 });
+      setRecommendActive(false);
+      closeRightPanel();
       navigate({ to: '/login' });
     },
   });
