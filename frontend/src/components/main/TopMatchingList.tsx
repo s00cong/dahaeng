@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import {
   MapPin,
   Loader2,
@@ -101,10 +101,6 @@ function RecentCityCard({
         </div>
       </div>
       <div className="flex flex-col items-end gap-0.5 shrink-0">
-        <span className="text-xs font-bold text-slate-700">
-          ₩{(item.dailyBudget / 10000).toFixed(0)}만
-          <span className="text-[10px] font-normal text-slate-400">/일</span>
-        </span>
         <div className="flex items-center gap-0.5 text-[10px] text-slate-400">
           <Clock className="size-2.5" />
           {formatRelativeTime(item.lastViewTime)}
@@ -156,6 +152,14 @@ export function TopMatchingList() {
     dirRef.current = nextIdx === 1 ? 1 : -1;
     setTab(TABS[nextIdx]);
   };
+
+  // 추천 업데이트 시작되면 자동으로 matching 탭으로 전환
+  useEffect(() => {
+    if (isRecommendLoading && tab !== "matching") {
+      dirRef.current = -1;
+      setTab("matching");
+    }
+  }, [isRecommendLoading]);
 
   const topCities = useMemo((): CityListItem[] => {
     if (isRecommendActive && recommendResults.length > 0) {
