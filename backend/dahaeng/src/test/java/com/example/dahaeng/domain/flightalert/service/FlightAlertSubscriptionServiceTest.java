@@ -38,7 +38,7 @@ class FlightAlertSubscriptionServiceTest {
 
 	@Test
 	void upsertCreatesSubscriptionFromCityDetailWithoutBookmarkDependency() {
-		Member member = member(1L, true);
+		Member member = member(1L);
 		City city = city(10L, "Tokyo");
 
 		when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
@@ -61,7 +61,7 @@ class FlightAlertSubscriptionServiceTest {
 
 	@Test
 	void upsertUpdatesExistingSubscriptionInsteadOfCreatingNewOne() {
-		Member member = member(1L, true);
+		Member member = member(1L);
 		City city = city(10L, "Tokyo");
 		FlightAlertSubscription existing = FlightAlertSubscription.builder()
 			.member(member)
@@ -88,14 +88,13 @@ class FlightAlertSubscriptionServiceTest {
 		assertThat(saved.getLastNotifiedPrice()).isNull();
 	}
 
-	private static Member member(Long id, boolean emailAlertEnabled) {
+	private static Member member(Long id) {
 		return Member.builder()
 			.id(id)
 			.email("test@example.com")
 			.nickname("tester")
 			.role("ROLE_USER")
 			.socialId("social-id")
-			.emailAlertEnabled(emailAlertEnabled)
 			.build();
 	}
 
