@@ -250,7 +250,7 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
           {city.tags && city.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
               {(() => {
-                return [...city.tags!].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).slice(0, 5).map((t) => t.name);
+                return [...city.tags!].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).map((t) => t.name);
               })().map((kw) => (
                 <Badge
                   key={kw}

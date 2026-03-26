@@ -274,7 +274,7 @@ export function RightPanel() {
                 </div>
               ) : city?.tags && city.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {[...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).slice(0, 5).map((tag) => (
+                  {[...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).map((tag) => (
                       <span
                         key={tag.name}
                         className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"
