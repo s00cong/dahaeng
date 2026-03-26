@@ -4,6 +4,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.dahaeng.domain.auth.dto.UserResponse;
+import com.example.dahaeng.domain.member.dto.request.UpdateAlertSettingsRequest;
+import com.example.dahaeng.domain.member.dto.response.AlertSettingsResponse;
 import com.example.dahaeng.domain.member.entity.Member;
 import com.example.dahaeng.domain.member.repository.MemberRepository;
 import com.example.dahaeng.global.exception.CustomException;
@@ -27,6 +29,17 @@ public class MemberService {
 			.nickname(member.getNickname())
 			.profileImageUrl(member.getProfileImageUrl())
 			.build();
+	}
+
+	public AlertSettingsResponse getAlertSettings(Long memberId) {
+		return AlertSettingsResponse.from(findMember(memberId));
+	}
+
+	@Transactional
+	public AlertSettingsResponse updateAlertSettings(Long memberId, UpdateAlertSettingsRequest request) {
+		Member member = findMember(memberId);
+		member.updateEmailAlertEnabled(request.emailAlertEnabled());
+		return AlertSettingsResponse.from(member);
 	}
 
 	@Transactional
