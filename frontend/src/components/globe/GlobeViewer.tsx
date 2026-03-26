@@ -1741,7 +1741,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
         trailGeoPoints.forEach(([tLng, tLat], i) => {
           const ratio = i / (trailGeoPoints.length - 1 || 1); // 0(오래됨) ~ 1(최근)
-          const alpha = ratio * 0.6;
+          const alpha = ratio * 0.12;
           const radius = 1.5 + ratio * 3;
           const tPx = map.project([tLng, tLat]);
           trailCtx.beginPath();
