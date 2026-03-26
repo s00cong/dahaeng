@@ -240,7 +240,7 @@ interface KeywordTagsProps {
 
 function KeywordTags({ keywords }: KeywordTagsProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto scrollbar-hide">
       {keywords.map((keyword) => {
         const Icon = getKeywordIcon(keyword);
         return (
@@ -281,7 +281,7 @@ export function DestinationHeroCard({
 
   const displayKeywords = (() => {
     if (!city.tags) return [];
-    return [...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).slice(0, 5).map((t) => t.name);
+    return [...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).map((t) => t.name);
   })();
 
   return (

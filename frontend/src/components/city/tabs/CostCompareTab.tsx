@@ -101,7 +101,7 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
         <SeoulCompareSection
           data={costCompare.data}
           isLoading={costCompare.isLoading}
-          hotelPerDay={avgHotelPerDay ?? city.livingCostFor1Day?.accommodation ?? undefined}
+          hotelPerDay={city.livingCostFor1Day?.hotel ?? city.livingCostFor1Day?.accommodation ?? avgHotelPerDay}
         />
 
         {/* C. 항목별 전체 물가표 (월급, 인구 정보 포함) */}
