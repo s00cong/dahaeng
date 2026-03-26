@@ -38,11 +38,12 @@ export const CityScoreSchema = z.object({
   newPenaltyScore: z.number().nullable().optional(),
 });
 
-// ── LivingCostFor1Day: 백엔드 { food, transportation, accommodation } ──────────────────
+// ── LivingCostFor1Day: 백엔드 { food, transportation, hotel(비추천)/accommodation(추천) } ──
 export const LivingCostFor1DaySchema = z.object({
   food: z.number(),
   transportation: z.number(),
   accommodation: z.number().nullable().optional(),
+  hotel: z.number().nullable().optional(),
   total: z.number().nullable().optional(),
 });
 
