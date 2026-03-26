@@ -144,7 +144,7 @@ export function FlightTab({ city }: FlightTabProps) {
       <SummarySection isLoading={summaryLoading} summary={summary} />
 
       {/* 메인 레이아웃 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0 items-start">
         <div className="flex flex-col gap-4">
           <FlightCalendarGrid
             isLoading={calendarLoading}
@@ -162,6 +162,7 @@ export function FlightTab({ city }: FlightTabProps) {
             travelDuration={travelDuration}
             onDayClick={handleDayClick}
           />
+          <FlightAlertCard cityId={cityId} cityName={city.cityName} />
         </div>
 
         <div
@@ -205,7 +206,7 @@ export function FlightTab({ city }: FlightTabProps) {
               )}
             </AnimatePresence>
           </div>
-          <FlightAlertCard cityId={cityId} cityName={city.cityName} />
+          <div className="pb-4" />
         </div>
       </div>
     </div>
