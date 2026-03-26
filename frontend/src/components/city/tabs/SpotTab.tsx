@@ -29,6 +29,13 @@ interface SpotTabProps {
   isRecommended?: boolean;
 }
 
+// ── Google Maps URL 생성 ───────────────────────────────────────────────────────
+
+function buildGoogleMapsUrl(name: string, address?: string | null): string {
+  const query = address ? `${name} ${address}` : name;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 // ── 섹션 헤더 ─────────────────────────────────────────────────────────────────
 
 function SectionHeader({ icon, title, sub }: { icon: React.ReactNode; title: string; sub?: string }) {
@@ -67,7 +74,7 @@ function TouristSpotCard({
       : null
   );
 
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${spot.name} ${cityName}`)}`;
+  const mapUrl = buildGoogleMapsUrl(spot.name, spot.address ?? cityName);
 
   return (
     <a
@@ -134,8 +141,7 @@ function TouristSpotCard({
 // ── 2. Places 카드 (/api/{cityId}/places) ────────────────────────────────────
 
 function PlaceCard({ place }: { place: Place }) {
-  const mapQuery = place.address ?? place.name;
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+  const mapUrl = buildGoogleMapsUrl(place.name, place.address);
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all">
@@ -210,8 +216,7 @@ function NearbyAttractionCard({
     ? (p.name !== p.nameKo ? p.name : undefined)
     : (p.nameEn && p.name !== p.nameEn ? p.name : undefined);
   const category = p.categories?.[0] ?? null;
-  const mapQuery = p.formatted ? `${mainName} ${p.formatted}` : mainName;
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+  const mapUrl = buildGoogleMapsUrl(mainName, p.formatted);
 
   return (
     <div className={`flex flex-col rounded-xl border bg-white overflow-hidden hover:shadow-sm transition-all ${courseOrder != null ? 'border-indigo-200 hover:border-indigo-300' : 'border-border hover:border-orange-200'}`}>
@@ -612,7 +617,17 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
   // 근처 관광지 정렬: 코스 포함(순서대로) → 이미지 있음 → 나머지
   const sortedNearby = useMemo(() => {
     if (!nearbyAttractions) return [];
-    return [...nearbyAttractions].sort((a, b) => {
+    const nameMap: Record<string, NearbyAttractionFeature> = {};
+    for (const f of nearbyAttractions) {
+      const name = f.properties.name;
+      if (!name) continue;
+      const existing = nameMap[name];
+      if (!existing || (!existing.properties.imageUrl && f.properties.imageUrl)) {
+        nameMap[name] = f;
+      }
+    }
+    const unique = Object.values(nameMap);
+    return [...unique].sort((a, b) => {
       const nameA = a.properties.nameKo ?? a.properties.nameEn ?? a.properties.name;
       const nameB = b.properties.nameKo ?? b.properties.nameEn ?? b.properties.name;
       const orderA = courseMap.get(nameA)?.order ?? Infinity;

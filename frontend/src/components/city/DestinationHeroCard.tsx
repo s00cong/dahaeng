@@ -279,14 +279,9 @@ export function DestinationHeroCard({
     longitude: city.longitude || cityMeta?.longitude || 0,
   };
 
-  // 0.6 이상 우선, 5개 미만이면 0.2 이상으로 최대 5개 보충
   const displayKeywords = (() => {
     if (!city.tags) return [];
-    const sorted = [...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0));
-    const high = sorted.filter((t) => (t.tagScore ?? 0) >= 0.6);
-    if (high.length >= 5) return high.slice(0, 5).map((t) => t.name);
-    const filled = [...high, ...sorted.filter((t) => (t.tagScore ?? 0) >= 0.2 && (t.tagScore ?? 0) < 0.6)].slice(0, 5);
-    return filled.map((t) => t.name);
+    return [...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).slice(0, 5).map((t) => t.name);
   })();
 
   return (
