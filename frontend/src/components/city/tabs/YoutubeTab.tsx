@@ -9,10 +9,12 @@ import type { InterestTag, TopKeyword } from "@/api/youtube.api";
 
 // ── 키워드 워드 클라우드 ──────────────────────────────────────
 const SOURCE_TEXT_COLOR: Record<string, string> = {
-  PLAYLIST_TITLE:     "text-purple-600",
-  PLAYLIST_VIDEO_TAG: "text-purple-600",
-  LIKED_VIDEO_TAG:    "text-red-500",
-  SUBSCRIPTION_TITLE: "text-amber-600",
+  PLAYLIST_TITLE:      "text-violet-600",
+  PLAYLIST_VIDEO_TAG:  "text-purple-500",
+  PLAYLIST_VIDEO_TITLE:"text-blue-500",
+  LIKED_VIDEO_TAG:     "text-red-500",
+  LIKED_VIDEO_TITLE:   "text-rose-400",
+  SUBSCRIPTION_TITLE:  "text-amber-500",
 };
 
 const CLOUD_H = 260;
@@ -28,12 +30,12 @@ type PlacedWord = {
 
 const ROTATE_OPTS = [0, 0, 0, 90, 0, 0, -90, 0, 0, 90];
 
-function getFontSize(score: number) {
-  if (score >= 0.88) return { fontSize: 34, fontWeight: "900", opacity: 1.00 };
-  if (score >= 0.80) return { fontSize: 27, fontWeight: "800", opacity: 0.95 };
-  if (score >= 0.70) return { fontSize: 21, fontWeight: "700", opacity: 0.88 };
-  if (score >= 0.55) return { fontSize: 17, fontWeight: "600", opacity: 0.78 };
-  return               { fontSize: 14, fontWeight: "500", opacity: 0.62 };
+function getFontSizeByRank(rank: number) {
+  if (rank === 1)       return { fontSize: 34, fontWeight: "900", opacity: 1.00 };
+  if (rank <= 3)        return { fontSize: 27, fontWeight: "800", opacity: 0.95 };
+  if (rank <= 7)        return { fontSize: 21, fontWeight: "700", opacity: 0.88 };
+  if (rank <= 15)       return { fontSize: 17, fontWeight: "600", opacity: 0.78 };
+  return                       { fontSize: 14, fontWeight: "500", opacity: 0.62 };
 }
 
 function rectsOverlap(a: PlacedWord, b: PlacedWord) {
@@ -50,7 +52,7 @@ function buildCloud(keywords: TopKeyword[], containerW: number): PlacedWord[] {
   const placed: PlacedWord[] = [];
 
   sorted.forEach((kw, idx) => {
-    const { fontSize, fontWeight, opacity } = getFontSize(kw.score);
+    const { fontSize, fontWeight, opacity } = getFontSizeByRank(idx + 1);
     const rotate = ROTATE_OPTS[idx % ROTATE_OPTS.length];
 
     ctx.font = `${fontWeight} ${fontSize}px sans-serif`;
@@ -100,14 +102,19 @@ function KeywordCloud({ keywords }: { keywords: TopKeyword[] }) {
 
   return (
     <div className="rounded-2xl border border-slate-100 bg-slate-50/60 overflow-hidden">
-      <div className="flex gap-3 px-3 pt-2.5 pb-1">
-        {(["PLAYLIST_TITLE", "LIKED_VIDEO_TAG", "SUBSCRIPTION_TITLE"] as const).map((type) => {
+      <div className="flex flex-wrap gap-x-3 gap-y-1 px-3 pt-2.5 pb-1">
+        {(["PLAYLIST_TITLE", "PLAYLIST_VIDEO_TAG", "PLAYLIST_VIDEO_TITLE", "LIKED_VIDEO_TAG", "LIKED_VIDEO_TITLE", "SUBSCRIPTION_TITLE"] as const).map((type) => {
           const labels: Record<string, string> = {
-            PLAYLIST_TITLE: "재생목록", LIKED_VIDEO_TAG: "좋아요", SUBSCRIPTION_TITLE: "구독",
+            PLAYLIST_TITLE:       "재생목록 제목",
+            PLAYLIST_VIDEO_TAG:   "재생목록 영상 태그",
+            PLAYLIST_VIDEO_TITLE: "재생목록 영상 제목",
+            LIKED_VIDEO_TAG:      "좋아요 영상 태그",
+            LIKED_VIDEO_TITLE:    "좋아요 영상 제목",
+            SUBSCRIPTION_TITLE:   "구독 채널",
           };
           return (
             <span key={type} className={cn("text-[9px] font-semibold", SOURCE_TEXT_COLOR[type])}>
-              {labels[type]}
+              ● {labels[type]}
             </span>
           );
         })}
