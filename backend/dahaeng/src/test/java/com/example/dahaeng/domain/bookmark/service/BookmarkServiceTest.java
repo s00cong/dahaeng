@@ -46,7 +46,6 @@ class BookmarkServiceTest {
 			.nickname("tester")
 			.role("ROLE_USER")
 			.socialId("social-id")
-			.emailAlertEnabled(true)
 			.build();
 		City city = City.builder().id(10L).cityName("Tokyo").build();
 		Bookmark bookmark = Bookmark.builder()
