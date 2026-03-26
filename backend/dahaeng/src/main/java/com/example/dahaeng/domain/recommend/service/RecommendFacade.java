@@ -75,7 +75,7 @@ public class RecommendFacade {
                 ))
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(CityRankResult::totalScore).reversed())
-                .limit(3)
+                .limit(5)
                 .map(city -> new RecommendCitySummaryResponse.RecommendationItem(
                         city.cityId(),
                         city.cityName(),

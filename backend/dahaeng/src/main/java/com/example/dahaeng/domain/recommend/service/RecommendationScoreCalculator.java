@@ -39,7 +39,7 @@ public final class RecommendationScoreCalculator {
                 dangerEvacuateRegionTy,
                 dangerForbiddenRegionTy
         );
-        double newsPenaltyScore = -Math.min(15.0, Math.max(0.0, nz(cityNewsPenaltyScore)));
+        double newsPenaltyScore = -Math.min(5.0, Math.max(0.0, nz(cityNewsPenaltyScore)));
         double finalScore = clamp(tagScore + budgetScore + safetyScore + newsPenaltyScore, 0.0, 100.0);
 
         return new ScoreBreakdown(finalScore, budgetScore, safetyScore, tagScore, newsPenaltyScore);

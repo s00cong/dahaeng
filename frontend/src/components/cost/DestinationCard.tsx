@@ -4,6 +4,8 @@ import { MapPin, Landmark } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { CITY_NAME_KO } from '@/data/cityNameKo';
+import { COUNTRY_NAME_KO } from '@/data/countryNameKo';
 
 interface DestinationCardProps {
   countryId: number;
@@ -26,7 +28,7 @@ export function DestinationCard({
 }: DestinationCardProps) {
   const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
-
+  const nameKo = CITY_NAME_KO[name] ?? COUNTRY_NAME_KO[name];
   const handleClick = () => {
     void navigate({ to: '/cost/$countryId', params: { countryId }, search: { targetType } });
   };
@@ -77,7 +79,8 @@ export function DestinationCard({
           <MapPin className="size-3 text-white/80" aria-hidden="true" />
           <span className="text-white/80 text-xs">{city}</span>
         </div>
-        <h3 className="text-white text-lg font-bold leading-tight">{name}</h3>
+        <h3 className="text-white text-lg font-bold leading-tight">{nameKo ?? name}</h3>
+        {nameKo && <p className="text-white/60 text-[11px]">{name}</p>}
         <p className="text-white/70 text-xs mt-0.5">{avgCost}</p>
       </div>
     </motion.article>

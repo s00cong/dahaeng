@@ -22,7 +22,6 @@ import type { CityListItem } from "@/schemas/city.schema";
 import type { ViewHistoryItem } from "@/api/city.api";
 import defaultCityImg from "@/assets/no-picture.png";
 
-const TOP_N = 3;
 
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
@@ -160,7 +159,7 @@ export function TopMatchingList() {
 
   const topCities = useMemo((): CityListItem[] => {
     if (isRecommendActive && recommendResults.length > 0) {
-      return recommendResults.slice(0, TOP_N).map((r) => {
+      return recommendResults.map((r) => {
         const matched = cities.find((c) => c.cityName === r.city);
         return matched
           ? {
@@ -252,7 +251,7 @@ export function TopMatchingList() {
               <>
                 {isCityLoading && (
                   <div className="flex flex-col gap-2">
-                    {Array.from({ length: TOP_N }).map((_, i) => (
+                    {Array.from({ length: 3 }).map((_, i) => (
                       <div key={i} className="flex items-center gap-3 p-2.5">
                         <Skeleton className="size-4 rounded" />
                         <Skeleton className="size-10 rounded-xl" />
@@ -329,7 +328,7 @@ export function TopMatchingList() {
                   isRecommendActive &&
                   topCities.length > 0 && (
                     <ul
-                      className="flex flex-col overflow-y-auto flex-1"
+                      className="flex flex-col overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full"
                       role="list"
                     >
                       {topCities.map((city, index) => (

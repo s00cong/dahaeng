@@ -1700,6 +1700,18 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       </svg>`;
       overlay.appendChild(planeEl);
 
+      // 비행기 연기(contrail) 캔버스
+      const trailCanvas = document.createElement("canvas");
+      trailCanvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
+      trailCanvas.width = overlay.offsetWidth || window.innerWidth;
+      trailCanvas.height = overlay.offsetHeight || window.innerHeight;
+      overlay.insertBefore(trailCanvas, planeEl); // 비행기 아래에 렌더
+      const trailCtx = trailCanvas.getContext("2d")!;
+
+      // 과거 위경도 좌표 저장 (카메라가 움직여도 재투영 가능)
+      const trailGeoPoints: Array<[number, number]> = [];
+      const TRAIL_MAX = 50;
+
       const PLANE_HALF = 20;
       let startTime: number | null = null;
 
@@ -1720,6 +1732,23 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
 
         // 카메라를 비행기 위치로 이동 (추적 효과)
         map.jumpTo({ center: [lng, lat] });
+
+        // 트레일 포인트 추가 (매 프레임 과거 위치 누적)
+        trailGeoPoints.push([lng, lat]);
+        if (trailGeoPoints.length > TRAIL_MAX) trailGeoPoints.shift();
+
+        // 캔버스 초기화 후 연기 재투영 렌더
+        trailCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+        trailGeoPoints.forEach(([tLng, tLat], i) => {
+          const ratio = i / (trailGeoPoints.length - 1 || 1); // 0(오래됨) ~ 1(최근)
+          const alpha = ratio * 0.12;
+          const radius = 1.5 + ratio * 3;
+          const tPx = map.project([tLng, tLat]);
+          trailCtx.beginPath();
+          trailCtx.arc(tPx.x, tPx.y, radius, 0, Math.PI * 2);
+          trailCtx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+          trailCtx.fill();
+        });
 
         const px = map.project([lng, lat]);
         const bearingNext = arcPoints[Math.min(i0 + 1, arcPoints.length - 1)];

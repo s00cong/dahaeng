@@ -7,9 +7,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { costApi, SEOUL_CITY_ID } from '@/api/cost.api';
 import type { CostCompare } from '@/schemas/cost.schema';
 import { cn } from '@/lib/utils';
+import { CITY_NAME_KO } from '@/data/cityNameKo';
+import { COUNTRY_NAME_KO } from '@/data/countryNameKo';
+
+function toKo(name: string) { return CITY_NAME_KO[name] ?? COUNTRY_NAME_KO[name]; }
 
 // ─── 도시 선택 드롭다운 ───────────────────────────────────────────
-interface CityOption { id: number; name: string; dailyBudget: number }
+interface CityOption { id: number; name: string; nameKo: string; dailyBudget: number }
 
 function CitySelector({
   label,
@@ -26,7 +30,9 @@ function CitySelector({
   const [q, setQ] = useState('');
 
   const filtered = useMemo(
-    () => options.filter((o) => o.name.toLowerCase().includes(q.toLowerCase())).slice(0, 50),
+    () => options.filter((o) =>
+      o.name.toLowerCase().includes(q.toLowerCase()) || o.nameKo.includes(q)
+    ).slice(0, 50),
     [options, q],
   );
 
@@ -41,7 +47,7 @@ function CitySelector({
         className="w-full flex items-center justify-between gap-2 h-11 px-4 rounded-xl border border-border bg-background hover:bg-muted/50 transition-colors text-sm font-medium"
       >
         <span className={selected ? 'text-foreground' : 'text-muted-foreground'}>
-          {selected ? selected.name : '도시 선택'}
+          {selected ? (selected.nameKo || selected.name) : '도시 선택'}
         </span>
         <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
       </button>
@@ -79,7 +85,10 @@ function CitySelector({
                       o.id === selectedId && 'bg-blue-50 text-blue-600 dark:bg-blue-950/30',
                     )}
                   >
-                    <span>{o.name}</span>
+                    <span>
+                      {o.nameKo || o.name}
+                      {o.nameKo && <span className="text-xs text-muted-foreground ml-1">{o.name}</span>}
+                    </span>
                     <span className="text-xs text-muted-foreground">₩{o.dailyBudget.toLocaleString()}/일</span>
                   </button>
                 </li>
@@ -153,7 +162,7 @@ function CompareResult({ data }: { data: CostCompare }) {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">하루 예산 비교</p>
         <div className="grid grid-cols-3 gap-4 text-center mb-4">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">{data.base.name}</p>
+            <p className="text-xs text-muted-foreground mb-1">{toKo(data.base.name) ?? data.base.name}</p>
             <p className="text-xl font-black text-foreground">₩{costCompare.baseDailyBudget.toLocaleString()}</p>
           </div>
           <div className="flex items-center justify-center">
@@ -163,7 +172,7 @@ function CompareResult({ data }: { data: CostCompare }) {
             </div>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">{data.target.name}</p>
+            <p className="text-xs text-muted-foreground mb-1">{toKo(data.target.name) ?? data.target.name}</p>
             <p className={cn('text-xl font-black', cheaper ? 'text-emerald-600' : 'text-red-500')}>
               ₩{costCompare.targetDailyBudget.toLocaleString()}
             </p>
@@ -172,27 +181,27 @@ function CompareResult({ data }: { data: CostCompare }) {
         {/* 예산 바 비교 */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground w-24 text-right shrink-0">{data.base.name}</span>
+            <span className="text-xs text-muted-foreground w-24 text-right shrink-0">{toKo(data.base.name) ?? data.base.name}</span>
             <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
               <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, (costCompare.baseDailyBudget / Math.max(costCompare.baseDailyBudget, costCompare.targetDailyBudget)) * 100)}%` }} />
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground w-24 text-right shrink-0">{data.target.name}</span>
+            <span className="text-xs text-muted-foreground w-24 text-right shrink-0">{toKo(data.target.name) ?? data.target.name}</span>
             <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
               <div className={cn('h-full rounded-full', cheaper ? 'bg-emerald-500' : 'bg-red-400')} style={{ width: `${Math.min(100, (costCompare.targetDailyBudget / Math.max(costCompare.baseDailyBudget, costCompare.targetDailyBudget)) * 100)}%` }} />
             </div>
           </div>
         </div>
         <p className={cn('mt-3 text-sm font-medium text-center', cheaper ? 'text-emerald-600' : 'text-red-500')}>
-          {data.target.name}이(가) {data.base.name}보다{' '}
+          {toKo(data.target.name) ?? data.target.name}이(가) {toKo(data.base.name) ?? data.base.name}보다{' '}
           <strong>₩{Math.abs(gap).toLocaleString()}</strong> {cheaper ? '저렴' : '비쌈'}
         </p>
       </div>
 
       {/* 지출 구성 */}
       <div className="bg-card rounded-xl border border-border/60 p-5">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{data.target.name} 예상 지출 구성</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{toKo(data.target.name) ?? data.target.name} 예상 지출 구성</p>
         <div className="flex h-3 rounded-full overflow-hidden mb-3">
           <div className="bg-orange-400 transition-all" style={{ width: `${foodPct}%` }} title="식비" />
           <div className="bg-blue-400 transition-all" style={{ width: `${transportPct}%` }} title="교통" />
@@ -239,8 +248,8 @@ function CompareResult({ data }: { data: CostCompare }) {
           ))}
         </div>
         <div className="flex justify-between text-xs text-muted-foreground mt-3 px-1">
-          <span>{data.base.name}</span>
-          <span>{data.target.name}</span>
+          <span>{toKo(data.base.name) ?? data.base.name}</span>
+          <span>{toKo(data.target.name) ?? data.target.name}</span>
         </div>
       </div>
     </motion.div>
@@ -263,6 +272,7 @@ export function CostCityCompareSection() {
   const options: CityOption[] = (cityList ?? []).map((c) => ({
     id: c.id,
     name: c.name,
+    nameKo: toKo(c.name) ?? '',
     dailyBudget: c.dailyBudget,
   }));
 
