@@ -1653,6 +1653,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       // fade-out 후 레이어/소스 제거
       const start = performance.now();
       const fadeOut = (now: number) => {
+        if (!map.getLayer(TRACK_RASTER_LAYER)) return;
         const p = Math.min((now - start) / FADE_DURATION, 1);
         try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", 1 - p); } catch (_) {}
         if (p < 1) {

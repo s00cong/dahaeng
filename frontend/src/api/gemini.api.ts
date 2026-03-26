@@ -79,7 +79,6 @@ export async function generateTravelCourses(
     lat: f.properties.lat,
     lon: f.properties.lon,
     category: f.properties.categories?.[0] ?? '',
-    hours: f.properties.opening_hours ?? '',
   }));
 
   // AI 추천 관광지: tags 정보 포함
@@ -89,7 +88,6 @@ export async function generateTravelCourses(
       name: s.name,
       lat: s.lat!,
       lon: s.lon!,
-      description: s.description ?? '',
       tags: s.tags?.map((t) => t.name) ?? [],
       score: s.spotScore != null ? Math.round(s.spotScore * 100) : undefined,
     })) ?? [];
@@ -113,13 +111,13 @@ export async function generateTravelCourses(
   const prompt = `
 다음은 ${cityNameKo}의 관광지 목록입니다.
 서로 다른 테마의 하루 여행 코스 3개를 추천해 주세요.
-각 코스는 5~7곳으로 구성하고, 동선이 효율적이도록 순서를 정해주세요.
+각 코스는 5~7곳으로 구성하고, lat/lon 좌표를 참고하여 동선이 효율적이도록 순서를 정해주세요.
 각 관광지에 한 문장의 간단한 한국어 설명(description)을 달아주세요.
 각 관광지에서 방문객이 즐길 수 있는 활동이나 추천 행동을 한 문장으로 tip 필드에 적어주세요 (예: 전망대에서 야경 감상하기, 현지 길거리 음식 맛보기).
 각 관광지의 권장 방문 시간대를 visitTime으로 알려주세요 (예: 09:00 ~ 10:30). 코스 전체가 하루 일정이 되도록 연속된 시간으로 구성하세요.
 ${tagSection}
 관광지 목록 (tags: 장소 특성 태그, score: 추천 점수):
-${JSON.stringify(allSpots, null, 2)}
+${JSON.stringify(allSpots)}
 
 반드시 입력된 관광지 중에서만 선택하고, lat/lon은 입력값 그대로 사용하세요.
 `.trim();
@@ -130,6 +128,7 @@ ${JSON.stringify(allSpots, null, 2)}
     config: {
       responseMimeType: 'application/json',
       responseJsonSchema: TRAVEL_COURSES_JSON_SCHEMA,
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 
