@@ -47,6 +47,7 @@ public enum ErrorCode {
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "이미 존재하는 데이터입니다."),
     RESOURCE_CONFLICT(HttpStatus.CONFLICT, "리소스 충돌이 발생했습니다."),
     OPERATION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "허용되지 않는 작업입니다."),
+    YOUTUBE_CHANNEL_NOT_READY(HttpStatus.BAD_REQUEST, "YouTube 채널이 없어 분석을 진행할 수 없습니다."),
     INVALID_STATUS(HttpStatus.BAD_REQUEST, "올바르지 않은 상태값입니다."),
 
     /* =========================
