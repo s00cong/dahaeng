@@ -461,28 +461,24 @@ def stops_text_to_count(text: str) -> int:
     return -1
 
 
-def compute_typical_stops(stops_texts: list[str]) -> tuple[int, str]:
-    """상위 3개 항공편 stops 최빈값 계산 → (count, text)"""
-    valid = [t for t in stops_texts if t and t != "N/A"]
-    if not valid:
-        return -1, "N/A"
-    counts = [stops_text_to_count(t) for t in valid]
-    most_common = Counter(counts).most_common(1)[0][0]
-    if most_common == 0:
-        return 0, "직항"
-    elif most_common > 0:
-        return most_common, f"경유 {most_common}회"
-    return -1, "N/A"
+def compute_min_duration_and_stops(flights: list[dict]) -> tuple[int, str, int, str]:
+    """상위 3개 항공편 중 최소 비행시간을 구하고, 해당 항공편의 경유 횟수를 반환."""
+    valid_flights = []
+    for f in flights:
+        dur_text = f.get("duration_text", "N/A")
+        stops_text = f.get("stops_text", "N/A")
+        if dur_text == "N/A":
+            continue
+        m = parse_duration_minutes(dur_text)
+        if m is not None:
+            valid_flights.append((m, dur_text, stops_text))
 
+    if not valid_flights:
+        return 0, "N/A", -1, "N/A"
 
-def compute_min_duration(dur_texts: list[str]) -> tuple[int, str, bool]:
-    """상위 3개 항공편 비행시간 평균 → (avg_minutes, avg_text)"""
-    mins = [parse_duration_minutes(t) for t in dur_texts if t and t != "N/A"]
-    mins = [m for m in mins if m is not None]
-    if not mins:
-        return 0, "0분", True
-    minimum = min(mins)
-    return minimum, minutes_to_text(minimum), False
+    best = min(valid_flights, key=lambda x: x[0])
+    min_minutes, min_dur_text, stops_text = best
+    return min_minutes, min_dur_text, stops_text_to_count(stops_text), stops_text
 
 
 def parse_hotel_price_krw(text: str) -> int | None:
@@ -582,20 +578,11 @@ async def focus_and_clear(page: Page, selector: str) -> bool:
     try:
         locator = page.locator(selector).first
         await locator.wait_for(state="visible", timeout=6000)
-        box = await locator.bounding_box()
-        if box:
-            await page.mouse.click(
-                box["x"] + box["width"] / 2,
-                box["y"] + box["height"] / 2,
-            )
-        else:
-            await locator.click(force=True)
-        await asyncio.sleep(0.3)
-        try:
-            await locator.fill("")
-        except Exception:
-            await locator.press("Control+A")
-            await locator.press("Backspace")
+        await locator.click(force=True)
+        await asyncio.sleep(0.1)
+        await locator.press("Control+A")
+        await locator.press("Backspace")
+        await asyncio.sleep(0.2)
         return True
     except Exception:
         return False
@@ -608,39 +595,16 @@ async def type_slowly(page: Page, text: str, delay: int = 80) -> None:
 
 async def set_input_text(locator, text: str) -> bool:
     try:
-        await locator.fill(text)
-    except Exception:
-        pass
-
-    try:
-        if (await locator.input_value()).strip():
+        if hasattr(locator, 'press_sequentially'):
+            await locator.press_sequentially(text, delay=150)
+        else:
+            await locator.type(text, delay=150)
+            
+        val = await locator.input_value()
+        if val.strip():
             return True
-    except Exception:
-        pass
-
-    try:
-        await locator.type(text, delay=90)
-    except Exception:
-        pass
-
-    try:
-        if (await locator.input_value()).strip():
-            return True
-    except Exception:
-        pass
-
-    try:
-        await locator.evaluate(
-            """(el, value) => {
-                el.focus();
-                el.value = value;
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-                el.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
-                el.dispatchEvent(new KeyboardEvent('keyup', { key: 'End', bubbles: true }));
-            }""",
-            text,
-        )
+            
+        return False
     except Exception:
         return False
 
@@ -1095,24 +1059,28 @@ async def select_month_flexible(page: Page, month_name: str) -> bool:
 
     # 유연한 일정 탭 클릭 (없어도 진행)
     try:
-        flexible_tab = page.get_by_role("tab", name="유연한 일정")
-        if await flexible_tab.count() > 0:
-            await flexible_tab.first.click()
-            await wait_for_any(
-                page,
-                [
-                    f'button:has-text("{month_name}")',
-                    f'[aria-label*="{month_name}"]',
-                ],
-                timeout=1000,
-            )
+        tab_clicked = False
+        for tab_name in ["날짜 변경 가능", "유연한 일정"]:
+            flexible_tab = page.get_by_role("tab", name=tab_name)
+            if await flexible_tab.count() > 0:
+                await flexible_tab.first.click()
+                await wait_for_any(
+                    page,
+                    [
+                        f'button:has-text("{month_name}")',
+                        f'[aria-label*="{month_name}"]',
+                    ],
+                    timeout=1000,
+                )
+                tab_clicked = True
+                break
     except Exception:
         pass
 
     # 월 버튼 클릭 — .first로 단일 요소만 처리
     month_clicked = False
     try:
-        btn = page.locator(f'button:has-text("{month_name}")').first
+        btn = page.locator(f'button:has-text("{month_name}"):visible').first
         await btn.wait_for(state="visible", timeout=4000)
         await btn.click()
         month_clicked = True
@@ -1121,7 +1089,7 @@ async def select_month_flexible(page: Page, month_name: str) -> bool:
 
     if not month_clicked:
         try:
-            btn = page.locator(f'[aria-label*="{month_name}"]').first
+            btn = page.locator(f'[aria-label*="{month_name}"]:visible').first
             await btn.wait_for(state="visible", timeout=3000)
             await btn.click()
             month_clicked = True
@@ -1197,6 +1165,7 @@ async def set_origin_icn(page: Page) -> bool:
         dialog_sel = await wait_for_any(page, dialog_input_selectors, timeout=6000)
         if not dialog_sel:
             continue
+        debug_log(f"    [set_origin] opener={opener_sel} dialog={dialog_sel}")
 
         for search_term in search_terms:
             if not await focus_and_clear(page, dialog_sel):
@@ -1208,17 +1177,26 @@ async def set_origin_icn(page: Page) -> bool:
                 if not typed:
                     await type_slowly(page, search_term)
                 await asyncio.sleep(0.3)
+                current_value = await get_input_value(page, opener_selectors)
+                debug_log(
+                    f"    [set_origin] term={search_term} typed_value={current_value}"
+                )
 
                 option_texts = await collect_visible_option_texts(page)
                 best_option = pick_best_origin_option(option_texts)
+                debug_log(
+                    f"    [set_origin] options={option_texts[:5]} best_option={best_option}"
+                )
                 if best_option:
                     clicked = await click_option_by_text(page, best_option)
+                    debug_log(f"    [set_origin] clicked={clicked}")
                     if not clicked:
                         continue
                 else:
                     await page.keyboard.press("ArrowDown")
                     await asyncio.sleep(0.3)
                     await page.keyboard.press("Enter")
+                    debug_log("    [set_origin] fallback=ArrowDown+Enter")
 
                 await dismiss_origin_dialog(page)
                 if await wait_for_async_condition(
@@ -1228,8 +1206,9 @@ async def set_origin_icn(page: Page) -> bool:
                 ):
                     return True
 
+                final_value = await get_input_value(page, opener_selectors)
                 debug_log(
-                    f"    [set_origin] context still not ICN after term={search_term}"
+                    f"    [set_origin] context still not ICN after term={search_term} final_value={final_value}"
                 )
             except Exception:
                 continue
@@ -1473,11 +1452,17 @@ async def extract_hotel_price(page: Page) -> int | None:
     try:
         # 스크롤해서 숙박 섹션 노출
         await page.mouse.wheel(0, 400)
-        await asyncio.sleep(0.3)
-        page_text = await page.inner_text("body")
-        hotel_match = re.search(r"숙박\s*정보.*?(₩\s*[\d,]+)", page_text, re.DOTALL)
-        if hotel_match:
-            parsed_price = parse_hotel_price_krw(hotel_match.group(1))
+        
+        matches = []
+        for _ in range(15):
+            await asyncio.sleep(0.3)
+            page_text = await page.inner_text("body")
+            matches = re.findall(r"숙박\s*정보.{0,100}?(₩\s*[\d,]+)", page_text, re.DOTALL)
+            if matches:
+                break
+                
+        if matches:
+            parsed_price = parse_hotel_price_krw(matches[-1])
             return parsed_price // 2 if parsed_price is not None else None
     except Exception:
         pass
@@ -1636,29 +1621,7 @@ async def scrape_city_month(
         season_info = await extract_season_info(page)
 
         # 요약값 계산
-        stops_texts = [f["stops_text"] for f in flights]
-        dur_texts = [f["duration_text"] for f in flights]
-        selected_flight = min(
-            (
-                {
-                    "index": index,
-                    "duration_minutes": parsed_minutes,
-                    "stops_count": stops_text_to_count(flight["stops_text"]),
-                    "stops_text": flight["stops_text"],
-                }
-                for index, flight in enumerate(flights)
-                for parsed_minutes in [parse_duration_minutes(flight["duration_text"])]
-                if parsed_minutes is not None
-            ),
-            key=lambda candidate: (candidate["duration_minutes"], candidate["index"]),
-            default={
-                "stops_count": -1,
-                "stops_text": "N/A",
-            },
-        )
-        typical_stops_count = int(selected_flight["stops_count"])
-        typical_stops_text = str(selected_flight["stops_text"])
-        min_minutes, min_duration_text, duration_missing = compute_min_duration(dur_texts)
+        min_minutes, min_dur_text, min_stops_count, min_stops_text = compute_min_duration_and_stops(flights)
 
         payload = {
             "trip_length_days": TRIP_LENGTH_DAYS,
@@ -1670,21 +1633,18 @@ async def scrape_city_month(
             "flight_2_duration_text": flights[1]["duration_text"],
             "flight_3_stops_text": flights[2]["stops_text"],
             "flight_3_duration_text": flights[2]["duration_text"],
-            "typical_stops_count": typical_stops_count,
-            "typical_stops_text": typical_stops_text,
+            "typical_stops_count": min_stops_count,
+            "typical_stops_text": min_stops_text,
             "min_duration_minutes": min_minutes,
-            "min_duration_text": min_duration_text,
+            "min_duration_text": min_dur_text,
             **season_info,
             "collected_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
         record = make_jsonl_record(city, month, payload, ingest_time)
 
-        if duration_missing:
-            print(f"  [{label}] WARN: no valid duration found, using 0분")
-
         print(
-            f"  [{label}] OK | hotel={hotel_price} | stops={typical_stops_text} | dur={min_duration_text}"
+            f"  [{label}] OK | hotel={hotel_price} | stops={min_stops_text} | dur={min_dur_text}"
         )
 
         back_ok = await return_to_explore_ready(page, month["month_name"])

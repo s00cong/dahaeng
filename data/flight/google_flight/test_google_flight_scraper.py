@@ -142,6 +142,9 @@ class GoogleFlightScraperHelpersTest(unittest.TestCase):
     def test_origin_value_validation_rejects_daegu(self):
         self.assertFalse(MODULE.is_valid_origin_value("대한민국 대구 TAE"))
 
+    def test_origin_value_validation_rejects_seoul_without_icn(self):
+        self.assertFalse(MODULE.is_valid_origin_value("대한민국 서울특별시"))
+
     def test_origin_value_validation_accepts_icn(self):
         self.assertTrue(MODULE.is_valid_origin_value("대한민국 서울 인천국제공항 ICN"))
 
@@ -231,6 +234,19 @@ class GoogleFlightScraperHelpersTest(unittest.TestCase):
             MODULE.build_destination_search_terms(city)[:5],
             ["New York", "New York City", "뉴욕", "NEW_YORK", "JFK"],
         )
+
+    def test_extract_hotel_price_from_section_text_returns_half_of_single_price(self):
+        section_text = "숙박 정보\n1박당 요금\n₩ 260,000"
+
+        self.assertEqual(
+            MODULE.extract_hotel_price_from_section_text(section_text),
+            130000,
+        )
+
+    def test_extract_hotel_price_from_section_text_rejects_ambiguous_multiple_prices(self):
+        section_text = "숙박 정보\n옵션 A ₩ 260,000\n옵션 B ₩ 520,000"
+
+        self.assertIsNone(MODULE.extract_hotel_price_from_section_text(section_text))
 
 
     def test_filter_cities_by_env_keeps_requested_city_ids_only(self):
@@ -660,6 +676,48 @@ class GoogleFlightScraperAsyncBehaviorTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertFalse(result)
 
+    async def test_set_origin_icn_uses_icn_only_search_term(self):
+        async def no_sleep(_seconds):
+            return None
+
+        page = FakeDestinationPage()
+        typed_terms = []
+
+        async def fake_type_slowly(_page, text, delay=80):
+            typed_terms.append((text, delay))
+
+        async def fake_dismiss_origin_dialog(_page):
+            return None
+
+        with (
+            patch.object(MODULE.asyncio, "sleep", new=no_sleep),
+            patch.object(MODULE, "actual_origin_input_is_icn", side_effect=[False, True]),
+            patch.object(
+                MODULE,
+                "wait_for_any",
+                return_value='input[aria-label="추가할 출발지가 있나요?"]',
+            ),
+            patch.object(MODULE, "focus_and_clear", return_value=True),
+            patch.object(
+                MODULE,
+                "set_input_text",
+                side_effect=AssertionError("origin should not use set_input_text"),
+            ),
+            patch.object(MODULE, "type_slowly", new=fake_type_slowly),
+            patch.object(
+                MODULE,
+                "collect_visible_option_texts",
+                return_value=["대한민국 서울 인천국제공항 ICN"],
+            ),
+            patch.object(MODULE, "click_option_by_text", return_value=True),
+            patch.object(MODULE, "dismiss_origin_dialog", new=fake_dismiss_origin_dialog),
+            patch.object(MODULE, "wait_for_async_condition", return_value=True),
+        ):
+            result = await MODULE.set_origin_icn(page)
+
+        self.assertTrue(result)
+        self.assertEqual(typed_terms, [("ICN", 80)])
+
     async def test_set_destination_uses_visible_options_when_owned_list_is_empty(self):
         async def no_sleep(_seconds):
             return None
@@ -935,17 +993,90 @@ class GoogleFlightScraperAsyncBehaviorTest(unittest.IsolatedAsyncioTestCase):
             async def wheel(self, _x, _y):
                 return None
 
+        class FakeSectionText:
+            def __init__(self, text):
+                self._text = text
+
+            async def inner_text(self):
+                return self._text
+
+        class FakeHotelLabel:
+            def __init__(self, texts):
+                self._texts = texts
+                self._index = 0
+
+            @property
+            def first(self):
+                return self
+
+            async def count(self):
+                return 1
+
+            def locator(self, _selector):
+                text = self._texts[min(self._index, len(self._texts) - 1)]
+                self._index += 1
+                return FakeSectionText(text)
+
         class FakeHotelPage:
             def __init__(self):
                 self.mouse = FakeMouse()
 
-            async def inner_text(self, _selector):
-                return "숙박 정보\n₩ 260,000"
+            def locator(self, selector):
+                if selector == 'text="숙박 정보"':
+                    return FakeHotelLabel(["숙박 정보\n₩ 260,000", "숙박 정보\n₩ 260,000"])
+                raise AssertionError(f"unexpected selector: {selector}")
 
         with patch.object(MODULE.asyncio, "sleep", new=no_sleep):
             hotel_price = await MODULE.extract_hotel_price(FakeHotelPage())
 
         self.assertEqual(hotel_price, 130000)
+
+    async def test_extract_hotel_price_returns_none_for_ambiguous_section_prices(self):
+        async def no_sleep(_seconds):
+            return None
+
+        class FakeMouse:
+            async def wheel(self, _x, _y):
+                return None
+
+        class FakeSectionText:
+            def __init__(self, text):
+                self._text = text
+
+            async def inner_text(self):
+                return self._text
+
+        class FakeHotelLabel:
+            def __init__(self, texts):
+                self._texts = texts
+                self._index = 0
+
+            @property
+            def first(self):
+                return self
+
+            async def count(self):
+                return 1
+
+            def locator(self, _selector):
+                text = self._texts[min(self._index, len(self._texts) - 1)]
+                self._index += 1
+                return FakeSectionText(text)
+
+        class FakeHotelPage:
+            def __init__(self):
+                self.mouse = FakeMouse()
+
+            def locator(self, selector):
+                if selector == 'text="숙박 정보"':
+                    text = "숙박 정보\n옵션 A ₩ 260,000\n옵션 B ₩ 520,000"
+                    return FakeHotelLabel([text, text])
+                raise AssertionError(f"unexpected selector: {selector}")
+
+        with patch.object(MODULE.asyncio, "sleep", new=no_sleep):
+            hotel_price = await MODULE.extract_hotel_price(FakeHotelPage())
+
+        self.assertIsNone(hotel_price)
 
 
 if __name__ == "__main__":
