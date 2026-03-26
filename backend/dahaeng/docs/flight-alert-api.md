@@ -3,7 +3,8 @@
 ## 공통
 
 - Base URL
-  - `/api/flight-alerts`
+  - 항공권 알림: `/api/flight-alerts`
+  - 이메일 설정: `/api/members/me/alert-settings`
 - 인증
   - `Bearer Access Token`
 - 로그인 필요
@@ -267,3 +268,55 @@ Path Variable
 - 설명:
   - 본인 알림만 읽음 처리 가능
   - 이미 읽은 알림은 그대로 유지
+
+---
+
+## 7. 사용자 알림 설정 조회
+
+- 기능: 로그인한 사용자의 메일 알림 수신 여부 조회
+- HTTP 메서드: `GET`
+- API Path: `/api/members/me/alert-settings`
+- request:
+
+```json
+{}
+```
+
+- response:
+
+```json
+{
+  "emailAlertEnabled": true
+}
+```
+
+- 설명:
+  - 사용자 전체 공통 메일 알림 설정 조회
+  - 앱 내 알림은 항상 생성되고 메일 발송만 이 설정의 영향을 받음
+
+---
+
+## 8. 사용자 알림 설정 수정
+
+- 기능: 로그인한 사용자의 메일 알림 수신 여부 수정
+- HTTP 메서드: `PATCH`
+- API Path: `/api/members/me/alert-settings`
+- request:
+
+```json
+{
+  "emailAlertEnabled": false
+}
+```
+
+- response:
+
+```json
+{
+  "emailAlertEnabled": false
+}
+```
+
+- 설명:
+  - 메일 알림 ON/OFF 설정
+  - 앱 내 알림은 항상 생성되고 메일 발송만 이 설정의 영향을 받음

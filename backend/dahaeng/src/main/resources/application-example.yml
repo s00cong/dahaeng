@@ -57,6 +57,18 @@
     access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+
 
 app:
   front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:3000/}
