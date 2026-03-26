@@ -56,6 +56,7 @@ interface UiState {
     coords?: { lat: number; lng: number },
   ) => void;
   closeRightPanel: () => void;
+  resetUiState: () => void;
   toggleLeftSidebar: () => void;
   toggleRightPanelCollapse: () => void;
   openCityModal: (tab?: CityDetailTab) => void;
@@ -117,6 +118,21 @@ export const useUiStore = create<UiState>((set) => ({
   closeRightPanel: () => set({ isRightPanelOpen: false, selectedCityScore: null }),
   setSelectedCityScore: (score) => set({ selectedCityScore: score }),
   setSelectedCityCoords: (coords) => set({ selectedCityCoords: coords }),
+  resetUiState: () => set({
+    selectedCityId: null,
+    selectedCityImgUrl: null,
+    selectedCityCoords: null,
+    selectedCityScore: null,
+    isRightPanelOpen: false,
+    isRightPanelCollapsed: false,
+    isCityModalOpen: false,
+    activeCityTab: "recommend",
+    isRecommendActive: false,
+    recommendResults: [],
+    recommendRequest: null,
+    bookmarkedCityIds: [],
+    planeTrackingDest: null,
+  }),
   toggleLeftSidebar: () =>
     set((s) => ({ isLeftSidebarCollapsed: !s.isLeftSidebarCollapsed })),
   toggleRightPanelCollapse: () =>
