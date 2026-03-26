@@ -26,7 +26,6 @@ import com.example.dahaeng.domain.city.repository.CityRepository;
 import com.example.dahaeng.domain.exchange.dto.response.current.ExchangeRateResponse;
 import com.example.dahaeng.domain.exchange.entity.Exchange;
 import com.example.dahaeng.domain.exchange.repository.ExchangeRepository;
-import com.example.dahaeng.domain.flightalert.service.FlightAlertSubscriptionService;
 import com.example.dahaeng.domain.member.entity.Member;
 import com.example.dahaeng.domain.member.repository.MemberRepository;
 import com.example.dahaeng.global.dto.response.NoContentResponse;
@@ -47,7 +46,6 @@ public class BookmarkService {
 	private final MemberRepository memberRepository;
 	private final ExchangeRepository exchangeRepository;
 	private final CityRepository cityRepository;
-	private final FlightAlertSubscriptionService flightAlertSubscriptionService;
 	private final ObjectMapper mapper;
 
 	@Transactional(readOnly = true)
@@ -115,7 +113,6 @@ public class BookmarkService {
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "북마크를 찾을 수 없습니다."));
 
 		bookmark.delete();
-		flightAlertSubscriptionService.disableWhenNoBookmarksRemain(memberId, bookmark.getCity().getId());
 
 		return new NoContentResponse("북마크 삭제가 완료되었습니다.", bookmark.getId());
 	}
