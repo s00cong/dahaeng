@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { useCitySummary } from '@/hooks/flight/useCitySummary';
 import { useFlightCalendar } from '@/hooks/flight/useFlightCalendar';
 import { useFlightTrend } from '@/hooks/flight/useFlightTrend';
+import { FlightAlertCard } from '@/components/bookmark/FlightAlertCard';
 import dayjs from '@/utils/dayjs';
 import type { CityDetail } from '@/schemas/city.schema';
 import type {
@@ -204,6 +205,7 @@ export function FlightTab({ city }: FlightTabProps) {
               )}
             </AnimatePresence>
           </div>
+          <FlightAlertCard cityId={cityId} cityName={city.cityName} />
         </div>
       </div>
     </div>

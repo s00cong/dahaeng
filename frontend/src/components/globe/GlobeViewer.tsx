@@ -341,7 +341,6 @@ function normalizeLongitudes(points: [number, number][]): [number, number][] {
   return result;
 }
 
-
 /**
  * 대권 호의 최고 위도를 peakLat(°)으로 부드럽게 압축
  * 단거리(이미 peakLat 미만)는 그대로 반환
@@ -471,6 +470,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     isLeftSidebarCollapsed,
     planeTrackingDest,
     setPlaneTrackingDest,
+    setSelectedCityCoords,
   } = useUiStore();
 
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -1608,7 +1608,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     const container = mapContainer.current;
     if (!map || !mapReady || !planeTrackingDest || !container) return;
 
-    const dest: [number, number] = [planeTrackingDest.lng, planeTrackingDest.lat];
+    const dest: [number, number] = [
+      planeTrackingDest.lng,
+      planeTrackingDest.lat,
+    ];
 
     const TRACK_RASTER_SRC = "plane-track-raster";
     const TRACK_RASTER_LAYER = "plane-track-raster-layer";
@@ -1640,8 +1643,11 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         // fade-in
         const start = performance.now();
         const fadeIn = (now: number) => {
-          const p = Math.min((now - start) / FADE_DURATION, 1);
-          try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", p); } catch (_) {}
+          if (!mapRef.current) return;
+          const p = Math.max(0, Math.min((now - start) / FADE_DURATION, 1));
+          try {
+            map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", p);
+          } catch (_) {}
           if (p < 1) requestAnimationFrame(fadeIn);
         };
         requestAnimationFrame(fadeIn);
@@ -1649,19 +1655,23 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     };
 
     const removeTrackingRaster = () => {
-      if (!map.getLayer(TRACK_RASTER_LAYER)) return;
+      if (!mapRef.current || !map.getLayer(TRACK_RASTER_LAYER)) return;
       // fade-out 후 레이어/소스 제거
       const start = performance.now();
       const fadeOut = (now: number) => {
-        if (!map.getLayer(TRACK_RASTER_LAYER)) return;
+        if (!mapRef.current || !map.getLayer(TRACK_RASTER_LAYER)) return;
         const p = Math.min((now - start) / FADE_DURATION, 1);
-        try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", 1 - p); } catch (_) {}
+        try {
+          map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", 1 - p);
+        } catch (_) {}
         if (p < 1) {
           requestAnimationFrame(fadeOut);
         } else {
           try {
-            if (map.getLayer(TRACK_RASTER_LAYER)) map.removeLayer(TRACK_RASTER_LAYER);
-            if (map.getSource(TRACK_RASTER_SRC)) map.removeSource(TRACK_RASTER_SRC);
+            if (map.getLayer(TRACK_RASTER_LAYER))
+              map.removeLayer(TRACK_RASTER_LAYER);
+            if (map.getSource(TRACK_RASTER_SRC))
+              map.removeSource(TRACK_RASTER_SRC);
           } catch (_) {}
         }
       };
@@ -1683,7 +1693,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       addTrackingRaster();
 
       const rawArc = limitArcPeakLatitude(greatCircleArc(SEOUL, dest, 600));
-      const arcPoints = resampleByMercatorDistance(normalizeLongitudes(rawArc), 200);
+      const arcPoints = resampleByMercatorDistance(
+        normalizeLongitudes(rawArc),
+        200,
+      );
 
       const outerEl = container.parentElement as HTMLDivElement;
       const overlay = document.createElement("div");
@@ -1703,7 +1716,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
 
       // 비행기 연기(contrail) 캔버스
       const trailCanvas = document.createElement("canvas");
-      trailCanvas.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
+      trailCanvas.style.cssText =
+        "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;";
       trailCanvas.width = overlay.offsetWidth || window.innerWidth;
       trailCanvas.height = overlay.offsetHeight || window.innerHeight;
       overlay.insertBefore(trailCanvas, planeEl); // 비행기 아래에 렌더
@@ -1766,6 +1780,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
           removeTrackingRaster();
           setPlaneTrackingDest(null);
           map.flyTo({ center: dest, zoom: 3.7, duration: 1200 });
+          setSelectedCityCoords({ lat: dest[1], lng: dest[0] });
         }
       };
 
@@ -1803,20 +1818,29 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         if (!map.getSource(SRC)) {
           map.addSource(SRC, {
             type: "raster",
-            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            ],
             tileSize: 256,
           });
         }
         if (!map.getLayer(LAYER)) {
           map.addLayer(
-            { id: LAYER, type: "raster", source: SRC, paint: { "raster-opacity": 0 } },
+            {
+              id: LAYER,
+              type: "raster",
+              source: SRC,
+              paint: { "raster-opacity": 0 },
+            },
             "country-border",
           );
         }
         const t0 = performance.now();
         const fadeIn = (now: number) => {
-          const p = Math.min((now - t0) / FADE, 1);
-          try { map.setPaintProperty(LAYER, "raster-opacity", p); } catch (_) {}
+          const p = Math.max(0, Math.min((now - t0) / FADE, 1));
+          try {
+            map.setPaintProperty(LAYER, "raster-opacity", p);
+          } catch (_) {}
           if (p < 1) requestAnimationFrame(fadeIn);
         };
         requestAnimationFrame(fadeIn);
@@ -1825,8 +1849,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       if (!map.getLayer(LAYER)) return;
       const t0 = performance.now();
       const fadeOut = (now: number) => {
-        const p = Math.min((now - t0) / FADE, 1);
-        try { map.setPaintProperty(LAYER, "raster-opacity", 1 - p); } catch (_) {}
+        const p = Math.max(0, Math.min((now - t0) / FADE, 1));
+        try {
+          map.setPaintProperty(LAYER, "raster-opacity", 1 - p);
+        } catch (_) {}
         if (p < 1) {
           requestAnimationFrame(fadeOut);
         } else {
@@ -2011,7 +2037,9 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             fontSize: 12,
             fontWeight: 600,
             transition: "all 0.3s ease",
-            background: isSatellite ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.9)",
+            background: isSatellite
+              ? "rgba(15,23,42,0.85)"
+              : "rgba(255,255,255,0.9)",
             color: isSatellite ? "#e2e8f0" : "#334155",
             boxShadow: "0 2px 8px rgba(0,0,0,0.14)",
             backdropFilter: "blur(8px)",

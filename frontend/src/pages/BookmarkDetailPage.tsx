@@ -7,7 +7,6 @@ import QueryErrorFallback from '@/components/common/QueryErrorFallback';
 import { CITY_NAME_KO } from '@/data/cityNameKo';
 import { Button } from '@/components/ui/button';
 import { BookmarkHeroSection } from '@/components/bookmark/BookmarkHeroSection';
-import { FlightAlertCard } from '@/components/bookmark/FlightAlertCard';
 import { FlightTrendCard } from '@/components/bookmark/FlightTrendCard';
 import { SavedFlightPriceCard } from '@/components/bookmark/SavedFlightPriceCard';
 import { ExchangeRateCard } from '@/components/bookmark/ExchangeRateCard';
@@ -97,7 +96,6 @@ const BookmarkDetailPage = () => {
                   <SavedNewsCard news={data.newsAtSaved} summation={data.newsSummation} />
                   <ExchangeRateCard exchange={data.exchangeAtSaved} />
                   <CostSummaryCard cityId={data.cityId} />
-                  <FlightAlertCard cityId={data.cityId} cityName={data.cityName} />
                 </div>
               </div>
             </div>
