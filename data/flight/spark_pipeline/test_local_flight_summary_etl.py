@@ -50,7 +50,7 @@ def test_select_latest_google_records_carries_forward_hotel_price_from_same_city
                 "collected_at": "2026-03-10 10:00:00",
                 "hotel_price": 426601,
                 "typical_stops_count": 0,
-                "avg_duration_minutes": 120,
+                "min_duration_minutes": 120,
                 "peak_season_months_list": "3,4",
                 "off_season_months_list": "5,6",
             },
@@ -61,7 +61,7 @@ def test_select_latest_google_records_carries_forward_hotel_price_from_same_city
                 "collected_at": "2026-03-13 10:00:00",
                 "hotel_price": None,
                 "typical_stops_count": 1,
-                "avg_duration_minutes": 130,
+                "min_duration_minutes": 130,
                 "peak_season_months_list": "3,4",
                 "off_season_months_list": "5,6",
             },
@@ -83,4 +83,123 @@ def test_select_latest_google_records_carries_forward_hotel_price_from_same_city
             "flight_collected_date": "2026-03-13 10:00:00",
             "hotel_collected_date": "2026-03-13 10:00:00",
         }
+    ]
+
+
+def test_build_flight_summary_rows_fills_missing_prices_from_other_month_before_zero():
+    google_rows = [
+        {
+            "city_code": "PAR",
+            "year_month": "2026-04",
+            "origin_airport": "ICN",
+            "avg_hotel_price": None,
+            "stops": 0,
+            "flight_duration": 720,
+            "peak_month_list": "6,7,8",
+            "off_month_list": "1,2",
+            "flight_collected_date": "2026-03-10 10:00:00",
+            "hotel_collected_date": "2026-03-10 10:00:00",
+        },
+        {
+            "city_code": "PAR",
+            "year_month": "2026-05",
+            "origin_airport": "ICN",
+            "avg_hotel_price": 300000,
+            "stops": 0,
+            "flight_duration": 720,
+            "peak_month_list": "6,7,8",
+            "off_month_list": "1,2",
+            "flight_collected_date": "2026-03-20 10:00:00",
+            "hotel_collected_date": "2026-03-20 10:00:00",
+        },
+    ]
+    trip_averages = {("PAR", "2026-05"): 800000}
+
+    rows, missing_value_alerts = local_flight_summary_etl.build_flight_summary_rows(
+        google_rows,
+        trip_averages,
+        {"PAR": "Paris"},
+        {"PARIS": 10},
+    )
+
+    assert rows == [
+        {
+            "city_id": 10,
+            "target_year_month": "2026-04",
+            "origin_airport": "ICN",
+            "avg_flight_price": 800000,
+            "avg_hotel_price": 300000,
+            "stops": 0,
+            "flight_duration": 720,
+            "peak_month_list": "6,7,8",
+            "off_month_list": "1,2",
+            "flight_collected_date": "2026-03-10 10:00:00",
+            "hotel_collected_date": "2026-03-10 10:00:00",
+        },
+        {
+            "city_id": 10,
+            "target_year_month": "2026-05",
+            "origin_airport": "ICN",
+            "avg_flight_price": 800000,
+            "avg_hotel_price": 300000,
+            "stops": 0,
+            "flight_duration": 720,
+            "peak_month_list": "6,7,8",
+            "off_month_list": "1,2",
+            "flight_collected_date": "2026-03-20 10:00:00",
+            "hotel_collected_date": "2026-03-20 10:00:00",
+        },
+    ]
+    assert missing_value_alerts == []
+
+
+def test_build_flight_summary_rows_uses_zero_and_alert_when_city_has_no_price_any_month():
+    google_rows = [
+        {
+            "city_code": "ROM",
+            "year_month": "2026-04",
+            "origin_airport": "ICN",
+            "avg_hotel_price": None,
+            "stops": 0,
+            "flight_duration": 720,
+            "peak_month_list": "6,7,8",
+            "off_month_list": "1,2",
+            "flight_collected_date": "2026-03-10 10:00:00",
+            "hotel_collected_date": "2026-03-10 10:00:00",
+        }
+    ]
+
+    rows, missing_value_alerts = local_flight_summary_etl.build_flight_summary_rows(
+        google_rows,
+        {},
+        {"ROM": "Rome"},
+        {"ROME": 20},
+    )
+
+    assert rows == [
+        {
+            "city_id": 20,
+            "target_year_month": "2026-04",
+            "origin_airport": "ICN",
+            "avg_flight_price": 0,
+            "avg_hotel_price": 0,
+            "stops": 0,
+            "flight_duration": 720,
+            "peak_month_list": "6,7,8",
+            "off_month_list": "1,2",
+            "flight_collected_date": "2026-03-10 10:00:00",
+            "hotel_collected_date": "2026-03-10 10:00:00",
+        }
+    ]
+    assert missing_value_alerts == [
+        {
+            "city_id": 20,
+            "year_month": "2026-04",
+            "metric": "avg_flight_price",
+        },
+        {
+            "city_id": 20,
+            "year_month": "2026-04",
+            "metric": "avg_hotel_price",
+        },
     ]

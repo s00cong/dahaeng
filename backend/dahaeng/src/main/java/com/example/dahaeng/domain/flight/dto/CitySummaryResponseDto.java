@@ -16,7 +16,7 @@ public class CitySummaryResponseDto {
     private Integer avgFlightPrice;
     private Integer avgHotelPrice;
     private String typicalStopsText;
-    private String avgDurationText;
+    private String minDurationText;
     private List<Integer> peakSeasonMonths;
     private List<Integer> offSeasonMonths;
 }

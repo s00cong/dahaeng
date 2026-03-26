@@ -57,7 +57,7 @@ export const flightApi = {
       avg_flight_price: data.avgFlightPrice,
       avg_hotel_price: data.avgHotelPrice,
       typical_stops_text: data.typicalStopsText,
-      avg_duration_text: data.avgDurationText,
+      min_duration_text: data.minDurationText || data.avgDurationText,
       peak_season_months: data.peakSeasonMonths,
       off_season_months: data.offSeasonMonths,
     });

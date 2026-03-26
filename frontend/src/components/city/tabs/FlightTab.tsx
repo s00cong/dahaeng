@@ -29,17 +29,16 @@ interface FlightTabProps {
   city: CityDetail;
 }
 
-function buildMonthTabs() {
-  const now = dayjs();
-  return Array.from({ length: 6 }, (_, i) => {
-    const d = now.add(i, 'month');
-    return { yearMonth: d.format('YYYY-MM'), label: d.format('YYYY.MM') };
-  });
-}
-const MONTH_TABS = buildMonthTabs();
-
 export function FlightTab({ city }: FlightTabProps) {
-  const [selectedYearMonth, setSelectedYearMonth] = useState(MONTH_TABS[0].yearMonth);
+  const MONTH_TABS = useMemo(() => {
+    const now = dayjs();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = now.add(i, 'month');
+      return { yearMonth: d.format('YYYY-MM'), label: d.format('YYYY.MM') };
+    });
+  }, []);
+
+  const [selectedYearMonth, setSelectedYearMonth] = useState(() => dayjs().format('YYYY-MM'));
   const [activeDay, setActiveDay] = useState<SelectedDay | null>(null);
   
   // ─── 왕복 범위 선택 상태 ───
@@ -125,7 +124,7 @@ export function FlightTab({ city }: FlightTabProps) {
               key={tab.yearMonth}
               role="tab"
               aria-selected={active}
-              onClick={() => { setSelectedYearMonth(tab.yearMonth); setActiveDay(null); }}
+              onClick={() => { setSelectedYearMonth(tab.yearMonth); setActiveDay(null); setDeparture(null); setReturnDate(null); }}
               className={cn(
                 'px-4 py-2 rounded-xl text-lg font-bold transition-colors relative',
                 active
@@ -250,7 +249,7 @@ function SummarySection({ isLoading, summary }: { isLoading: boolean; summary: C
           <Clock className="size-5 text-slate-400 shrink-0" />
           <div className="flex flex-col">
             <span className="text-xs font-medium text-muted-foreground">평균 비행</span>
-            <span className="text-base font-black text-slate-700 dark:text-slate-300">{summary.avg_duration_text}</span>
+            <span className="text-base font-black text-slate-700 dark:text-slate-300">{summary.min_duration_text}</span>
           </div>
         </div>
       </div>
@@ -476,38 +475,41 @@ function FlightCalendarGrid({
             const isSelected = activeDay?.day === day;
             const hasData = (priceView === 'outbound' && out) || (priceView === 'inbound' && inn) || (priceView === 'total');
             const dow = idx % 7;
+            const isPast = dayjs(currentFullDate).isBefore(dayjs().startOf('day'));
 
             const isDeparture = departureDate === currentFullDate;
             const isReturn = returnDate === currentFullDate;
-            const isInRange = departureDate && returnDate && 
-                             dayjs(currentFullDate).isAfter(dayjs(departureDate)) && 
+            const isInRange = departureDate && returnDate &&
+                             dayjs(currentFullDate).isAfter(dayjs(departureDate)) &&
                              dayjs(currentFullDate).isBefore(dayjs(returnDate));
             const isMinPrice = price !== undefined && price === minPrice;
 
             return (
               <button
                 key={day}
-                onMouseEnter={() => handleDayHover(day)}
-                onClick={() => onDayClick(day, out, inn)}
-                disabled={!hasData}
+                onMouseEnter={() => !isPast && handleDayHover(day)}
+                onClick={() => !isPast && onDayClick(day, out, inn)}
+                disabled={!hasData || isPast}
                 className={cn(
                   'relative flex flex-col items-center justify-center py-1.5 gap-0.5 min-h-[56px] border-r border-b border-border/40 last:border-r-0 transition-all',
-                  hasData && 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50',
-                  !hasData && 'cursor-default opacity-40',
-                  isInRange && 'bg-blue-50 dark:bg-blue-900/20',
-                  (isDeparture || isReturn) && 'bg-blue-600 text-white z-10 shadow-md scale-105 rounded-md',
-                  !isDeparture && !isReturn && isSelected && 'bg-slate-100 dark:bg-slate-800',
+                  isPast && 'cursor-not-allowed bg-[repeating-linear-gradient(135deg,transparent,transparent_4px,rgba(0,0,0,0.04)_4px,rgba(0,0,0,0.04)_5px)]',
+                  !isPast && hasData && 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50',
+                  !isPast && !hasData && 'cursor-default opacity-40',
+                  !isPast && isInRange && 'bg-blue-50 dark:bg-blue-900/20',
+                  !isPast && (isDeparture || isReturn) && 'bg-blue-600 text-white z-10 shadow-md scale-105 rounded-md',
+                  !isPast && !isDeparture && !isReturn && isSelected && 'bg-slate-100 dark:bg-slate-800',
                 )}
               >
                 <span className={cn(
                   'text-base font-black w-7 h-7 flex items-center justify-center rounded-full transition-all',
-                  isToday && !isDeparture && !isReturn && 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200',
-                  (isDeparture || isReturn) ? 'text-white' : (dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-foreground'),
+                  isPast && 'text-slate-300 line-through',
+                  !isPast && isToday && !isDeparture && !isReturn && 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200',
+                  !isPast && ((isDeparture || isReturn) ? 'text-white' : (dow === 0 ? 'text-red-500' : dow === 6 ? 'text-blue-500' : 'text-foreground')),
                 )}>
                   {day}
                 </span>
                 
-                {price !== undefined ? (
+                {!isPast && price !== undefined ? (
                   <span className={cn(
                     'text-[10px] leading-none font-black',
                     (isDeparture || isReturn) ? 'text-blue-50' : isMinPrice ? 'text-orange-600 underline decoration-2' : 'text-blue-600',
@@ -517,9 +519,9 @@ function FlightCalendarGrid({
                 ) : (
                   <span className="text-[10px] leading-none text-transparent select-none">-</span>
                 )}
-                
-                {isDeparture && <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px] font-black bg-white text-blue-600 px-1 rounded border border-blue-600">출발</span>}
-                {isReturn && <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px] font-black bg-white text-blue-600 px-1 rounded border border-blue-600">귀국</span>}
+
+                {!isPast && isDeparture && <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px] font-black bg-white text-blue-600 px-1 rounded border border-blue-600">출발</span>}
+                {!isPast && isReturn && <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px] font-black bg-white text-blue-600 px-1 rounded border border-blue-600">귀국</span>}
               </button>
             );
           })}
@@ -534,6 +536,10 @@ function FlightCalendarGrid({
           <div className="flex items-center gap-1">
             <div className="size-2.5 rounded-full bg-blue-600" />
             <span className="text-[10px] font-bold text-muted-foreground">오늘</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="size-2.5 rounded bg-[repeating-linear-gradient(135deg,#e2e8f0,#e2e8f0_2px,transparent_2px,transparent_4px)]" />
+            <span className="text-[10px] font-bold text-muted-foreground">지난 날짜</span>
           </div>
         </div>
       </div>
@@ -852,6 +858,7 @@ function TrendSection({ isLoading, trend }: { isLoading: boolean; trend: FlightT
   const lineColor = trendView === 'flight' ? '#3b82f6' : '#10b981';
 
   if (isLoading) return <Skeleton className="w-full h-80 rounded-xl" />;
+  if (!trend || trend.trend_data.length === 0) return <EmptyState message="추이 정보가 없습니다." />;
 
   return (
     <section aria-label="6개월 가격 추이" className="h-full flex flex-col">

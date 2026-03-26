@@ -32,11 +32,11 @@ def test_google_flight_skips_within_seven_days():
     assert run_scheduled_pipeline.should_run_source("google_flight", now, last_success) is False
 
 
-def test_google_flight_runs_after_seven_days():
+def test_google_flight_is_disabled_even_after_seven_days():
     now = datetime.fromisoformat("2026-03-18T03:00:00")
     last_success = datetime.fromisoformat("2026-03-11T02:59:59")
 
-    assert run_scheduled_pipeline.should_run_source("google_flight", now, last_success) is True
+    assert run_scheduled_pipeline.should_run_source("google_flight", now, last_success) is False
 
 
 def test_load_state_returns_empty_structure_when_file_missing(tmp_path):

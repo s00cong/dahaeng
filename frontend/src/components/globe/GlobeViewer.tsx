@@ -155,7 +155,7 @@ function ZoomControl({
       style={{
         position: "absolute",
         bottom: 24,
-        left,
+        left: left - 16,
         zIndex: 50,
         transition: "left 0.3s ease",
         background: "rgba(255,255,255,0.9)",
@@ -341,19 +341,27 @@ function normalizeLongitudes(points: [number, number][]): [number, number][] {
   return result;
 }
 
+
 /**
- * 대권 호의 최고 위도를 실제 항공 노선 수준(기본 68°N)으로 부드럽게 압축
- * 순수 대권은 서울↔뉴욕이 ~77°N까지 올라가지만 실제 항공편은 ~65~72°N
+ * 대권 호의 최고 위도를 peakLat(°)으로 부드럽게 압축
+ * 단거리(이미 peakLat 미만)는 그대로 반환
  */
 function limitArcPeakLatitude(
   points: [number, number][],
-  peakLat = 68,
+  peakLat = 60,
 ): [number, number][] {
   const actualPeak = Math.max(...points.map((p) => p[1]));
   if (actualPeak <= peakLat) return points;
-  // 초과분을 비율로 압축 (부드러운 형태 유지)
-  const overRatio = peakLat / actualPeak;
-  return points.map(([lng, lat]) => [lng, lat > 0 ? lat * overRatio : lat]);
+  const ratio = peakLat / actualPeak; // 목표 압축 비율
+  const last = points.length - 1;
+  return points.map(([lng, lat], i) => {
+    // sin(t·π): 양 끝 0 → 중앙 1 → 양 끝 0 으로 가중치 부드럽게 전환
+    const t = i / last;
+    const blend = Math.sin(t * Math.PI);
+    // blend=0(양끝)이면 원래 위도, blend=1(중앙)이면 ratio 적용
+    const newLat = lat > 0 ? lat * (1 - blend * (1 - ratio)) : lat;
+    return [lng, newLat];
+  });
 }
 
 /**
@@ -461,6 +469,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     isRightPanelOpen,
     isRightPanelCollapsed,
     isLeftSidebarCollapsed,
+    planeTrackingDest,
+    setPlaneTrackingDest,
   } = useUiStore();
 
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -486,6 +496,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     "none",
   );
   const [currentZoom, setCurrentZoom] = useState(1.5);
+  const [isSatellite, setIsSatellite] = useState(false);
   const medalMarkersRef = useRef<maplibregl.Marker[]>([]);
   const selectedMarkerRef = useRef<maplibregl.Marker | null>(null);
   const flightAnimRef = useRef<number | null>(null);
@@ -513,7 +524,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     selectedCityId ?? null,
     currentYearMonth,
   );
-  const avgDurationText = citySummary?.avg_duration_text ?? null;
+  const minDurationText = citySummary?.min_duration_text ?? null;
 
   const matchedCityIds = useMemo<Set<number>>(() => {
     if (!isRecommendActive || recommendResults.length === 0) return new Set();
@@ -1459,7 +1470,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     )
       return;
 
-    const rawArc = greatCircleArc(SEOUL, dest, 600);
+    const rawArc = limitArcPeakLatitude(greatCircleArc(SEOUL, dest, 600));
 
     // 선 렌더링용: 안티메리디안에서 분리 → MultiLineString (직선 아티팩트 방지)
     const lineSegments = splitAtAntimeridian(rawArc);
@@ -1512,8 +1523,8 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     overlay.appendChild(planeEl);
 
     // 비행 시간 라벨
-    const durationText = avgDurationText
-      ? parseDurationText(avgDurationText)
+    const durationText = minDurationText
+      ? parseDurationText(minDurationText)
       : null;
     const labelEl = document.createElement("div");
     labelEl.style.cssText =
@@ -1588,7 +1599,216 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
         // 컴포넌트 언마운트 시 지도가 이미 파괴된 경우 무시
       }
     };
-  }, [selectedCityCoords, mapReady, avgDurationText]);
+  }, [selectedCityCoords, mapReady, minDurationText]);
+
+  // ── 8. 비행 추적 모드: 카메라가 서울 출발 비행기를 따라가는 애니메이션 ─────
+  const TRACK_DURATION_MS = 8000;
+  useEffect(() => {
+    const map = mapRef.current;
+    const container = mapContainer.current;
+    if (!map || !mapReady || !planeTrackingDest || !container) return;
+
+    const dest: [number, number] = [planeTrackingDest.lng, planeTrackingDest.lat];
+
+    const TRACK_RASTER_SRC = "plane-track-raster";
+    const TRACK_RASTER_LAYER = "plane-track-raster-layer";
+
+    const FADE_DURATION = 600; // ms
+
+    const addTrackingRaster = () => {
+      try {
+        if (!map.getSource(TRACK_RASTER_SRC)) {
+          map.addSource(TRACK_RASTER_SRC, {
+            type: "raster",
+            tiles: [
+              "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            ],
+            tileSize: 256,
+          });
+        }
+        if (!map.getLayer(TRACK_RASTER_LAYER)) {
+          map.addLayer(
+            {
+              id: TRACK_RASTER_LAYER,
+              type: "raster",
+              source: TRACK_RASTER_SRC,
+              paint: { "raster-opacity": 0 }, // 투명하게 시작
+            },
+            "country-border",
+          );
+        }
+        // fade-in
+        const start = performance.now();
+        const fadeIn = (now: number) => {
+          const p = Math.min((now - start) / FADE_DURATION, 1);
+          try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", p); } catch (_) {}
+          if (p < 1) requestAnimationFrame(fadeIn);
+        };
+        requestAnimationFrame(fadeIn);
+      } catch (_) {}
+    };
+
+    const removeTrackingRaster = () => {
+      if (!map.getLayer(TRACK_RASTER_LAYER)) return;
+      // fade-out 후 레이어/소스 제거
+      const start = performance.now();
+      const fadeOut = (now: number) => {
+        const p = Math.min((now - start) / FADE_DURATION, 1);
+        try { map.setPaintProperty(TRACK_RASTER_LAYER, "raster-opacity", 1 - p); } catch (_) {}
+        if (p < 1) {
+          requestAnimationFrame(fadeOut);
+        } else {
+          try {
+            if (map.getLayer(TRACK_RASTER_LAYER)) map.removeLayer(TRACK_RASTER_LAYER);
+            if (map.getSource(TRACK_RASTER_SRC)) map.removeSource(TRACK_RASTER_SRC);
+          } catch (_) {}
+        }
+      };
+      requestAnimationFrame(fadeOut);
+    };
+
+    const startTrackingAnim = () => {
+      // 기존 애니메이션 정리
+      if (flightAnimRef.current !== null) {
+        cancelAnimationFrame(flightAnimRef.current);
+        flightAnimRef.current = null;
+      }
+      if (flightOverlayRef.current) {
+        flightOverlayRef.current.remove();
+        flightOverlayRef.current = null;
+      }
+
+      // 위성 실사 타일 활성화
+      addTrackingRaster();
+
+      const rawArc = limitArcPeakLatitude(greatCircleArc(SEOUL, dest, 600));
+      const arcPoints = resampleByMercatorDistance(normalizeLongitudes(rawArc), 200);
+
+      const outerEl = container.parentElement as HTMLDivElement;
+      const overlay = document.createElement("div");
+      overlay.style.cssText =
+        "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;overflow:hidden;";
+      outerEl.appendChild(overlay);
+      flightOverlayRef.current = overlay;
+
+      const planeEl = document.createElement("div");
+      planeEl.style.cssText =
+        "position:absolute;width:40px;height:40px;transform-origin:20px 20px;will-change:transform;";
+      planeEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24">
+        <path fill="#facc15" stroke="#1a2e4a" stroke-width="0.8"
+          d="M12 2c-.6 0-1 .4-1 1v7.3L4 14v2l7-2v4.2l-2 1.3V21l3-.8 3 .8v-1.5l-2-1.3V14l7 2v-2l-7-3.7V3c0-.6-.4-1-1-1z"/>
+      </svg>`;
+      overlay.appendChild(planeEl);
+
+      const PLANE_HALF = 20;
+      let startTime: number | null = null;
+
+      const animate = (timestamp: number) => {
+        if (startTime === null) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const t = Math.min(elapsed / TRACK_DURATION_MS, 1);
+
+        const rawIdx = t * (arcPoints.length - 1);
+        const i0 = Math.floor(rawIdx);
+        const i1 = Math.min(i0 + 1, arcPoints.length - 1);
+        const frac = rawIdx - i0;
+
+        const lng =
+          arcPoints[i0][0] + (arcPoints[i1][0] - arcPoints[i0][0]) * frac;
+        const lat =
+          arcPoints[i0][1] + (arcPoints[i1][1] - arcPoints[i0][1]) * frac;
+
+        // 카메라를 비행기 위치로 이동 (추적 효과)
+        map.jumpTo({ center: [lng, lat] });
+
+        const px = map.project([lng, lat]);
+        const bearingNext = arcPoints[Math.min(i0 + 1, arcPoints.length - 1)];
+        const bearing = getBearing([lng, lat], bearingNext);
+        planeEl.style.transform = `translate3d(${px.x - PLANE_HALF}px,${px.y - PLANE_HALF}px,0) rotate(${bearing}deg)`;
+
+        if (t < 1) {
+          flightAnimRef.current = requestAnimationFrame(animate);
+        } else {
+          // 애니메이션 완료: 정리 후 목적지 최종 줌인
+          overlay.remove();
+          flightOverlayRef.current = null;
+          flightAnimRef.current = null;
+          removeTrackingRaster();
+          setPlaneTrackingDest(null);
+          map.flyTo({ center: dest, zoom: 3.7, duration: 1200 });
+        }
+      };
+
+      flightAnimRef.current = requestAnimationFrame(animate);
+    };
+
+    // 카메라가 서울에 도착한 후 비행 추적 시작
+    map.once("moveend", startTrackingAnim);
+
+    return () => {
+      map.off("moveend", startTrackingAnim);
+      if (flightAnimRef.current !== null) {
+        cancelAnimationFrame(flightAnimRef.current);
+        flightAnimRef.current = null;
+      }
+      if (flightOverlayRef.current) {
+        flightOverlayRef.current.remove();
+        flightOverlayRef.current = null;
+      }
+      removeTrackingRaster();
+    };
+  }, [planeTrackingDest, mapReady, setPlaneTrackingDest]);
+
+  // ── 9. 위성 지도 토글 ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const SRC = "base-satellite-src";
+    const LAYER = "base-satellite-layer";
+    const FADE = 500;
+
+    if (isSatellite) {
+      try {
+        if (!map.getSource(SRC)) {
+          map.addSource(SRC, {
+            type: "raster",
+            tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+            tileSize: 256,
+          });
+        }
+        if (!map.getLayer(LAYER)) {
+          map.addLayer(
+            { id: LAYER, type: "raster", source: SRC, paint: { "raster-opacity": 0 } },
+            "country-border",
+          );
+        }
+        const t0 = performance.now();
+        const fadeIn = (now: number) => {
+          const p = Math.min((now - t0) / FADE, 1);
+          try { map.setPaintProperty(LAYER, "raster-opacity", p); } catch (_) {}
+          if (p < 1) requestAnimationFrame(fadeIn);
+        };
+        requestAnimationFrame(fadeIn);
+      } catch (_) {}
+    } else {
+      if (!map.getLayer(LAYER)) return;
+      const t0 = performance.now();
+      const fadeOut = (now: number) => {
+        const p = Math.min((now - t0) / FADE, 1);
+        try { map.setPaintProperty(LAYER, "raster-opacity", 1 - p); } catch (_) {}
+        if (p < 1) {
+          requestAnimationFrame(fadeOut);
+        } else {
+          try {
+            if (map.getLayer(LAYER)) map.removeLayer(LAYER);
+            if (map.getSource(SRC)) map.removeSource(SRC);
+          } catch (_) {}
+        }
+      };
+      requestAnimationFrame(fadeOut);
+    }
+  }, [isSatellite, mapReady]);
 
   const legendRight = isRightPanelOpen
     ? isRightPanelCollapsed
@@ -1703,7 +1923,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
       )}
 
       {/* 시각화 모드 토글 버튼 */}
-      {!hideButtons && (
+      {!hideButtons && !isSatellite && (
         <div
           style={{
             position: "absolute",
@@ -1711,7 +1931,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             left: "50%",
             transform: "translateX(-50%)",
             display: "flex",
-            gap: 4,
+            gap: 2,
             zIndex: 50,
           }}
         >
@@ -1739,6 +1959,38 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             </button>
           ))}
         </div>
+      )}
+
+      {/* 위성/기본 지도 스타일 토글 버튼 (줌 컨트롤 위) */}
+      {!hideZoom && (
+        <button
+          onClick={() => setIsSatellite((v) => !v)}
+          title={isSatellite ? "기본 지도로 전환" : "위성 지도로 전환"}
+          style={{
+            position: "absolute",
+            bottom: 120,
+            left: zoomLeft - 16,
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 12px",
+            borderRadius: 10,
+            border: "none",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+            transition: "all 0.3s ease",
+            background: isSatellite ? "rgba(15,23,42,0.85)" : "rgba(255,255,255,0.9)",
+            color: isSatellite ? "#e2e8f0" : "#334155",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.14)",
+            backdropFilter: "blur(8px)",
+            minWidth: 180,
+          }}
+        >
+          <span style={{ fontSize: 15 }}>{isSatellite ? "🗺️" : "🛰️"}</span>
+          {isSatellite ? "기본 지도" : "위성 지도"}
+        </button>
       )}
 
       {/* 줌 레벨 컨트롤 */}

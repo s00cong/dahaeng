@@ -9,6 +9,7 @@ import {
   Clock,
   Sparkles,
   Route,
+  AlertCircle,
 } from "lucide-react";
 import Map, { Marker, Popup, NavigationControl, Source, Layer } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -529,8 +530,8 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
   const lat = city.latitude || cityInfo?.latitude;
   const lon = city.longitude || cityInfo?.longitude;
 
-  const { data: places, isLoading: isPlacesLoading } = usePlaces(city.cityId);
-  const { data: nearbyAttractions } = useNearbyAttractions(city.cityId);
+  const { data: places, isLoading: isPlacesLoading, isError: isPlacesError } = usePlaces(city.cityId);
+  const { data: nearbyAttractions, isError: isNearbyError } = useNearbyAttractions(city.cityId);
   const { courses, selectedCourse, selectedIndex, setSelectedIndex, isLoading: isCourseLoading, error: courseError, generate, reset } = useTravelCourse();
 
   const cityNameKo = CITY_NAME_KO[city.cityName] ?? city.cityName;
@@ -695,6 +696,11 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                     </div>
                   ))}
                 </div>
+              ) : isPlacesError ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-4 justify-center">
+                  <AlertCircle className="size-4 text-destructive shrink-0" />
+                  명소 정보를 불러오지 못했습니다.
+                </div>
               ) : places && places.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2">
                   {places.map((place) => (
@@ -707,7 +713,16 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
             </section>
 
             {/* ── Section 3: 근처 관광지 + AI 여행 코스 ── */}
-            {nearbyAttractions && nearbyAttractions.length > 0 && (
+            {isNearbyError && (
+              <section>
+                <SectionHeader icon={<MapPin className="size-4 text-orange-500" />} title="근처 관광지" />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-4 justify-center">
+                  <AlertCircle className="size-4 text-destructive shrink-0" />
+                  근처 관광지 정보를 불러오지 못했습니다.
+                </div>
+              </section>
+            )}
+            {!isNearbyError && nearbyAttractions && nearbyAttractions.length > 0 && (
               <section>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">

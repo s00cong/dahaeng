@@ -25,3 +25,37 @@ def test_find_latest_partition_dir_returns_latest_hour_for_latest_date(tmp_path)
     latest = MODULE.find_latest_partition_dir(tmp_path)
 
     assert latest == tmp_path / "dt=2026-03-19" / "hour=11"
+
+
+def test_webhdfs_url_includes_user_name_query_param():
+    url = MODULE.webhdfs_url(
+        "http://namenode:9870/webhdfs/v1",
+        "/data/bronze/flight/trip_com/dt=2026-03-22/hour=00",
+        {"op": "MKDIRS", "user.name": "root"},
+    )
+
+    assert "op=MKDIRS" in url
+    assert "user.name=root" in url
+
+
+def test_ensure_hdfs_directory_passes_webhdfs_user(monkeypatch):
+    captured = {}
+
+    class DummyResponse:
+        def raise_for_status(self):
+            return None
+
+    def fake_put(url, timeout):
+        captured["url"] = url
+        captured["timeout"] = timeout
+        return DummyResponse()
+
+    monkeypatch.setattr(MODULE.requests, "put", fake_put)
+
+    MODULE.ensure_hdfs_directory(
+        "http://namenode:9870/webhdfs/v1",
+        "/data/bronze/flight/trip_com/dt=2026-03-22/hour=00",
+        "root",
+    )
+
+    assert "user.name=root" in captured["url"]
