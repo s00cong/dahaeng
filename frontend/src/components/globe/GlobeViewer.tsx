@@ -707,7 +707,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
             "#3b82f6",
           ],
           "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-color": "#e0e0e0",
           "circle-opacity": 0.9,
         },
       });
