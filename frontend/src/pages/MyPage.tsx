@@ -1,7 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/utils/queryKeys";
 import { youtubeApi } from "@/api/youtube.api";
+import { flightAlertApi } from "@/api/flight-alert.api";
+import { useUpsertFlightAlert } from "@/hooks/flight-alert/useUpsertFlightAlert";
+import { useDeleteFlightAlert } from "@/hooks/flight-alert/useDeleteFlightAlert";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Link2,
@@ -15,7 +19,14 @@ import {
   AlertTriangle,
   UserX,
   LogIn,
+  Bell,
+  BellOff,
+  Trash2,
+  Check,
 } from "lucide-react";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
+import type { FlightAlertSubscription } from "@/schemas/flight-alert.schema";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
 import { usePreferenceStore } from "@/stores/preferenceStore";
@@ -25,6 +36,219 @@ import { useMemberTags } from "@/hooks/auth/useMemberTags";
 import { useTagList } from "@/hooks/tag/useTagList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+// ─── 대륙 매핑 ────────────────────────────────────────────────────────────────
+
+const COUNTRY_TO_CONTINENT: Record<string, string> = {
+  // 아시아
+  Japan: "아시아",
+  China: "아시아",
+  Thailand: "아시아",
+  Philippines: "아시아",
+  Taiwan: "아시아",
+  Singapore: "아시아",
+  Malaysia: "아시아",
+  Cambodia: "아시아",
+  Mongolia: "아시아",
+  India: "아시아",
+  Indonesia: "아시아",
+  Laos: "아시아",
+  Vietnam: "아시아",
+  Nepal: "아시아",
+  Kazakhstan: "아시아",
+  "South Korea": "아시아",
+  Qatar: "아시아",
+  "United Arab Emirates": "아시아",
+  Maldives: "아시아",
+  Palau: "아시아",
+  // 유럽
+  France: "유럽",
+  Russia: "유럽",
+  "United Kingdom": "유럽",
+  Germany: "유럽",
+  Italy: "유럽",
+  Netherlands: "유럽",
+  Switzerland: "유럽",
+  "Czech Republic": "유럽",
+  Austria: "유럽",
+  Croatia: "유럽",
+  Portugal: "유럽",
+  Greece: "유럽",
+  Poland: "유럽",
+  Sweden: "유럽",
+  Norway: "유럽",
+  Iceland: "유럽",
+  Denmark: "유럽",
+  Belgium: "유럽",
+  Hungary: "유럽",
+  Finland: "유럽",
+  Turkey: "유럽",
+  // 북아메리카
+  Canada: "북아메리카",
+  Mexico: "북아메리카",
+  Cuba: "북아메리카",
+  "United States": "북아메리카",
+  // 남아메리카
+  Brazil: "남아메리카",
+  Bolivia: "남아메리카",
+  Argentina: "남아메리카",
+  Chile: "남아메리카",
+  Peru: "남아메리카",
+  // 아프리카
+  "South Africa": "아프리카",
+  Egypt: "아프리카",
+  Mauritius: "아프리카",
+  Morocco: "아프리카",
+  Kenya: "아프리카",
+  // 오세아니아
+  Australia: "오세아니아",
+  "New Zealand": "오세아니아",
+};
+
+const CONTINENT_ORDER = [
+  "아시아",
+  "유럽",
+  "북아메리카",
+  "남아메리카",
+  "아프리카",
+  "오세아니아",
+];
+
+// ─── FlightAlertItem ──────────────────────────────────────────────────────────
+
+interface FlightAlertItemProps {
+  sub: FlightAlertSubscription;
+  editingCityId: number | null;
+  setEditingCityId: (id: number | null) => void;
+}
+
+function FlightAlertItem({ sub, editingCityId, setEditingCityId }: FlightAlertItemProps) {
+  const isEditing = editingCityId === sub.cityId;
+  const [inputPrice, setInputPrice] = useState(String(sub.thresholdPrice));
+  const { mutate: upsert, isPending: isUpserting } = useUpsertFlightAlert();
+  const { mutate: deleteAlert, isPending: isDeleting } = useDeleteFlightAlert();
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
+        setEditingCityId(null);
+        setInputPrice(String(sub.thresholdPrice));
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [isEditing, sub.thresholdPrice, setEditingCityId]);
+
+  const handleSave = () => {
+    const price = Number(inputPrice.replace(/,/g, ""));
+    if (!price || price < 1) return;
+    upsert(
+      { cityId: sub.cityId, thresholdPrice: price },
+      { onSuccess: () => setEditingCityId(null) },
+    );
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") handleSave();
+    if (e.key === "Escape") {
+      setEditingCityId(null);
+      setInputPrice(String(sub.thresholdPrice));
+    }
+  };
+
+  return (
+    <div
+      ref={rowRef}
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+      style={{ background: "rgba(255,255,255,0.04)" }}
+    >
+      {/* 도시 / 국가 */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-white truncate">
+          {CITY_NAME_KO[sub.cityName] ?? sub.cityName}
+        </p>
+        <p className="text-xs text-white/40 truncate">
+          {COUNTRY_NAME_KO[sub.countryName] ?? sub.countryName}
+        </p>
+      </div>
+
+      {/* 목표가 표시 or 편집 */}
+      <div className="flex flex-col items-end gap-0.5 shrink-0">
+        {isEditing ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-white/50">₩</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={inputPrice}
+              onChange={(e) =>
+                setInputPrice(e.target.value.replace(/[^0-9]/g, ""))
+              }
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="w-28 px-2.5 py-1 text-sm rounded-md bg-white text-slate-800 border border-white/40 focus:outline-none focus:border-blue-400 text-right"
+            />
+            <button
+              onClick={handleSave}
+              disabled={isUpserting}
+              className="text-emerald-400 hover:text-emerald-300 transition-colors"
+              aria-label="저장"
+            >
+              {isUpserting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Check className="size-4" />
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setEditingCityId(null);
+                setInputPrice(String(sub.thresholdPrice));
+              }}
+              className="text-white/30 hover:text-white/60 transition-colors"
+              aria-label="취소"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <div className="flex flex-col items-end">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-white/40">목표</span>
+                <span className="text-sm font-bold text-blue-300">
+                  ₩{sub.thresholdPrice.toLocaleString()}
+                </span>
+                <button
+                  onClick={() => setEditingCityId(sub.cityId)}
+                  className="text-white/30 hover:text-white/60 transition-colors ml-0.5"
+                  aria-label="목표가 수정"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              </div>
+            </div>
+            {/* 삭제 버튼 */}
+            <button
+              onClick={() => deleteAlert(sub.cityId)}
+              disabled={isDeleting}
+              className="text-white/20 hover:text-red-400 transition-colors"
+              aria-label="알림 삭제"
+            >
+              {isDeleting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Framer Motion variants ───────────────────────────────────────────────────
 
@@ -324,8 +548,40 @@ const MyPage = () => {
   const queryClient = useQueryClient();
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
-  const { data: memberTags = [], isError: isMemberTagsError, isLoading: isMemberTagsLoading } = useMemberTags();
-  const { data: tagList = [], isError: isTagListError, isLoading: isTagListLoading } = useTagList();
+  const { data: subscriptions = [], isLoading: isSubLoading } = useQuery({
+    queryKey: queryKeys.flightAlert.subscriptions,
+    queryFn: flightAlertApi.getSubscriptions,
+    enabled: !isGuest,
+  });
+
+  const [editingCityId, setEditingCityId] = useState<number | null>(null);
+
+  // enabled=true만 필터링 후 대륙별 그룹핑
+  const activeSubscriptions = subscriptions.filter((s) => s.enabled);
+  const subscriptionsByContinent = CONTINENT_ORDER.reduce<
+    Record<string, typeof subscriptions>
+  >((acc, continent) => {
+    const items = activeSubscriptions.filter(
+      (s) => COUNTRY_TO_CONTINENT[s.countryName] === continent,
+    );
+    if (items.length > 0) acc[continent] = items;
+    return acc;
+  }, {});
+  const displayedCount = Object.values(subscriptionsByContinent).reduce(
+    (sum, items) => sum + items.length,
+    0,
+  );
+
+  const {
+    data: memberTags = [],
+    isError: isMemberTagsError,
+    isLoading: isMemberTagsLoading,
+  } = useMemberTags();
+  const {
+    data: tagList = [],
+    isError: isTagListError,
+    isLoading: isTagListLoading,
+  } = useTagList();
   const isTagLoading = isMemberTagsLoading || isTagListLoading;
   const isTagError = isMemberTagsError || isTagListError;
 
@@ -342,7 +598,11 @@ const MyPage = () => {
     .map((t) => t.tagName);
 
   // YouTube 연동 상태 (서버에서 조회)
-  const { data: syncStatus, isLoading: isSyncLoading, isError: isSyncError } = useQuery({
+  const {
+    data: syncStatus,
+    isLoading: isSyncLoading,
+    isError: isSyncError,
+  } = useQuery({
     queryKey: ["youtube", "sync-status"],
     queryFn: youtubeApi.getSyncStatus,
   });
@@ -373,7 +633,9 @@ const MyPage = () => {
             queryKey: ["youtube", "sync-status"],
           }),
         )
-        .catch(() => toast.error("YouTube 연동 해제에 실패했습니다. 다시 시도해주세요."));
+        .catch(() =>
+          toast.error("YouTube 연동 해제에 실패했습니다. 다시 시도해주세요."),
+        );
     } else if (action === "connect" && isYoutubeAccountLinked) {
       // 계정은 연결됐지만 sync만 꺼져 있던 경우 → 재활성화
       youtubeApi
@@ -383,7 +645,9 @@ const MyPage = () => {
             queryKey: ["youtube", "sync-status"],
           }),
         )
-        .catch(() => toast.error("YouTube 연동에 실패했습니다. 다시 시도해주세요."));
+        .catch(() =>
+          toast.error("YouTube 연동에 실패했습니다. 다시 시도해주세요."),
+        );
     }
     // 계정 자체가 미연동인 경우 → 모달 내부에서 OAuth 리다이렉트 처리
   };
@@ -423,8 +687,12 @@ const MyPage = () => {
                     <UserX className="size-8 text-white/40" />
                   </div>
                   <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                    <h3 className="text-xl font-bold text-white">비로그인 사용자</h3>
-                    <p className="text-sm text-white/40">로그인하면 더 많은 기능을 사용할 수 있어요</p>
+                    <h3 className="text-xl font-bold text-white">
+                      비로그인 사용자
+                    </h3>
+                    <p className="text-sm text-white/40">
+                      로그인하면 더 많은 기능을 사용할 수 있어요
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -492,7 +760,73 @@ const MyPage = () => {
             </div>
           </motion.div>
 
-          {/* ── Section 2: 나의 여행 태그 ────────────────────────────────── */}
+          {/* ── Section 2: 항공권 알림 목록 — 게스트 숨김 ──────────────── */}
+          {!isGuest && (
+            <motion.div variants={fadeInUp}>
+              <div
+                className="rounded-2xl p-6"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Bell className="size-4 text-white/70" />
+                  <h2 className="text-base font-bold text-white">
+                    항공권 알림
+                  </h2>
+                  {displayedCount > 0 && (
+                    <span className="ml-auto text-xs text-white/40">
+                      총 {displayedCount}개 도시
+                    </span>
+                  )}
+                </div>
+
+                {isSubLoading ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="size-4 animate-spin text-white/40" />
+                    <span className="text-sm text-white/40">
+                      불러오는 중...
+                    </span>
+                  </div>
+                ) : displayedCount === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-6 text-center">
+                    <BellOff className="size-8 text-white/20" />
+                    <p className="text-sm text-white/40">
+                      설정된 항공권 알림이 없습니다
+                    </p>
+                    <p className="text-xs text-white/25">
+                      도시 상세 페이지에서 목표 가격을 설정해보세요
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-4 max-h-72 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-transparent [&:hover::-webkit-scrollbar-thumb]:bg-white/20">
+                    {Object.entries(subscriptionsByContinent).map(
+                      ([continent, items]) => (
+                        <div key={continent}>
+                          <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">
+                            {continent}
+                          </p>
+                          <div className="flex flex-col gap-1.5">
+                            {items.map((sub) => (
+                              <FlightAlertItem
+                                key={sub.subscriptionId}
+                                sub={sub}
+                                editingCityId={editingCityId}
+                                setEditingCityId={setEditingCityId}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Section 3: 나의 여행 태그 ────────────────────────────────── */}
           <motion.div variants={fadeInUp}>
             <div
               className="rounded-2xl p-6"
@@ -524,7 +858,9 @@ const MyPage = () => {
               {isTagLoading ? (
                 <div className="flex items-center gap-2 mb-3">
                   <Loader2 className="size-4 animate-spin text-white/40" />
-                  <span className="text-sm text-white/40">태그 불러오는 중...</span>
+                  <span className="text-sm text-white/40">
+                    태그 불러오는 중...
+                  </span>
                 </div>
               ) : isTagError ? (
                 <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20">
@@ -559,86 +895,91 @@ const MyPage = () => {
             </div>
           </motion.div>
 
-          {/* ── Section 3: 연결된 계정 — 게스트 숨김 ───────────────────── */}
-          {!isGuest && <motion.div variants={fadeInUp}>
-            <div
-              className="rounded-2xl p-6"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <div className="flex items-center gap-2 mb-5">
-                <Link2 className="size-4 text-white/70" />
-                <h2 className="text-base font-bold text-white">연결된 계정</h2>
-              </div>
+          {/* ── Section 4: 연결된 계정 — 게스트 숨김 ───────────────────── */}
+          {!isGuest && (
+            <motion.div variants={fadeInUp}>
+              <div
+                className="rounded-2xl p-6"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-5">
+                  <Link2 className="size-4 text-white/70" />
+                  <h2 className="text-base font-bold text-white">
+                    연결된 계정
+                  </h2>
+                </div>
 
-              {/* YouTube */}
-              <div className="flex items-center gap-4 py-4">
-                <div
-                  className="size-12 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: "#ff0000" }}
-                  aria-label="YouTube"
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="size-6 fill-white"
-                    aria-hidden="true"
+                {/* YouTube */}
+                <div className="flex items-center gap-4 py-4">
+                  <div
+                    className="size-12 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: "#ff0000" }}
+                    aria-label="YouTube"
                   >
-                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                  </svg>
-                </div>
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="size-6 fill-white"
+                      aria-hidden="true"
+                    >
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                  </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">YouTube</p>
-                  <p className="text-xs text-white/40 mt-0.5">
-                    {youtubeConnected
-                      ? "마지막 동기화: 2시간 전"
-                      : "계정과 연결되어 있지 않습니다"}
-                  </p>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">YouTube</p>
+                    <p className="text-xs text-white/40 mt-0.5">
+                      {youtubeConnected
+                        ? "마지막 동기화: 2시간 전"
+                        : "계정과 연결되어 있지 않습니다"}
+                    </p>
+                  </div>
 
-                <div className="flex items-center gap-3">
-                  {isSyncLoading ? (
-                    <span className="flex items-center gap-1 text-xs text-white/40">
-                      <Loader2 className="size-3 animate-spin" />
-                      Loading...
-                    </span>
-                  ) : isSyncError ? (
-                    <span className="flex items-center gap-1 text-xs text-red-400">
-                      <AlertTriangle className="size-3" />
-                      연결 실패
-                    </span>
-                  ) : youtubeConnected ? (
-                    <span className="text-xs font-bold text-teal-400 tracking-widest">
-                      CONNECTED
-                    </span>
-                  ) : null}
-                  <Toggle
-                    checked={youtubeConnected}
-                    onChange={handleYoutubeToggleClick}
-                    disabled={isSyncLoading || isSyncError}
-                  />
-                  <button
-                    type="button"
-                    onClick={handleYoutubeToggleClick}
-                    disabled={isSyncLoading || isSyncError}
-                    className={`text-xs font-medium transition-colors disabled:opacity-40 ${youtubeConnected ? "text-white/40 hover:text-white/70" : "text-blue-400 hover:text-blue-300"}`}
-                  >
-                    {youtubeConnected ? "연결 해제" : "연결하기"}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {isSyncLoading ? (
+                      <span className="flex items-center gap-1 text-xs text-white/40">
+                        <Loader2 className="size-3 animate-spin" />
+                        Loading...
+                      </span>
+                    ) : isSyncError ? (
+                      <span className="flex items-center gap-1 text-xs text-red-400">
+                        <AlertTriangle className="size-3" />
+                        연결 실패
+                      </span>
+                    ) : youtubeConnected ? (
+                      <span className="text-xs font-bold text-teal-400 tracking-widest">
+                        CONNECTED
+                      </span>
+                    ) : null}
+                    <Toggle
+                      checked={youtubeConnected}
+                      onChange={handleYoutubeToggleClick}
+                      disabled={isSyncLoading || isSyncError}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleYoutubeToggleClick}
+                      disabled={isSyncLoading || isSyncError}
+                      className={`text-xs font-medium transition-colors disabled:opacity-40 ${youtubeConnected ? "text-white/40 hover:text-white/70" : "text-blue-400 hover:text-blue-300"}`}
+                    >
+                      {youtubeConnected ? "연결 해제" : "연결하기"}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>}
+            </motion.div>
+          )}
 
-          {/* ── Section 4: 하단 푸터 ─────────────────────────────────────── */}
+          {/* ── Section 5: 하단 푸터 ─────────────────────────────────────── */}
           <motion.div variants={fadeInUp}>
             <div className="text-center py-4 flex flex-col gap-2">
               {isGuest ? (
                 <>
                   <p className="text-xs text-white/30">
-                    로그인하면 북마크, 항공권 알림 등 모든 기능을 이용할 수 있어요
+                    로그인하면 북마크, 항공권 알림 등 모든 기능을 이용할 수
+                    있어요
                   </p>
                   <button
                     type="button"

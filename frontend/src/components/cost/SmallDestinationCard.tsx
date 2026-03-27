@@ -53,7 +53,7 @@ export function SmallDestinationCard({
     >
       {/* 썸네일 */}
       <div className="relative h-40 bg-slate-200">
-        {imgError ? (
+        {imgError || !imgUrl ? (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
             <Landmark className="size-10 text-slate-400" aria-hidden="true" />
           </div>

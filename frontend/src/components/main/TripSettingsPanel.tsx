@@ -194,6 +194,7 @@ export function TripSettingsPanel() {
 
   return (
     <section
+      data-tutorial="trip-settings"
       className={cn(
         "bg-white/85 backdrop-blur-md rounded-2xl shadow-lg p-4",
         "flex flex-col gap-4",

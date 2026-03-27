@@ -7,6 +7,7 @@ import { CityDetailModal } from "@/components/city/CityDetailModal";
 import { LeftSidebar } from "@/components/main/LeftSidebar";
 import { GlobeContainer } from "@/components/globe/GlobeContainer";
 import { RightPanel } from "@/components/main/RightPanel";
+import { TutorialOverlay } from "@/components/main/TutorialOverlay";
 import { youtubeApi } from "@/api/youtube.api";
 import { authApi } from "@/api/auth.api";
 import { tagApi } from "@/api/tag.api";
@@ -79,6 +80,9 @@ const MainPage = () => {
 
       {/* City Detail Modal — 전체 화면, 상세 보기 버튼으로 진입 */}
       <CityDetailModal />
+
+      {/* 최초 방문 튜토리얼 */}
+      <TutorialOverlay />
     </motion.div>
   );
 };
