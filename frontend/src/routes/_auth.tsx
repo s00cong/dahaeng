@@ -346,10 +346,10 @@ const AuthLayout = () => {
   const [globePhase, setGlobePhase] = useState<'idle' | 'zoomIn'>('idle');
   const nextRouteRef = useRef<'/main' | '/preference'>('/main');
 
-  // 팝업 방식 — AuthCallbackPage가 postMessage로 결과 전달
+  // 팝업 방식 — AuthCallbackPage가 BroadcastChannel로 결과 전달
   useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.origin !== window.location.origin) return;
+    const channel = new BroadcastChannel('google_auth');
+    channel.onmessage = (e: MessageEvent) => {
       if (e.data?.type === 'GOOGLE_AUTH_SUCCESS') {
         const { accessToken, user, hasCompletedPreference, nextRoute } = e.data;
         setAccessToken(accessToken);
@@ -361,8 +361,7 @@ const AuthLayout = () => {
         toast.error('Google 로그인에 실패했습니다. 다시 시도해주세요.');
       }
     };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
+    return () => channel.close();
   }, [setAccessToken, setUser, setHasCompletedPreference]);
 
   const [cardOffscreenX] = useState(() => {
