@@ -567,6 +567,10 @@ const MyPage = () => {
     if (items.length > 0) acc[continent] = items;
     return acc;
   }, {});
+  const displayedCount = Object.values(subscriptionsByContinent).reduce(
+    (sum, items) => sum + items.length,
+    0,
+  );
 
   const {
     data: memberTags = [],
@@ -771,9 +775,9 @@ const MyPage = () => {
                   <h2 className="text-base font-bold text-white">
                     항공권 알림
                   </h2>
-                  {activeSubscriptions.length > 0 && (
+                  {displayedCount > 0 && (
                     <span className="ml-auto text-xs text-white/40">
-                      총 {activeSubscriptions.length}개 도시
+                      총 {displayedCount}개 도시
                     </span>
                   )}
                 </div>
@@ -785,7 +789,7 @@ const MyPage = () => {
                       불러오는 중...
                     </span>
                   </div>
-                ) : activeSubscriptions.length === 0 ? (
+                ) : displayedCount === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-6 text-center">
                     <BellOff className="size-8 text-white/20" />
                     <p className="text-sm text-white/40">
