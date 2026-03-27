@@ -1426,7 +1426,7 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
     if (!city || (city.latitude === 0 && city.longitude === 0)) return;
 
     const el = document.createElement("div");
-    el.innerHTML = `<svg width="16" height="12" viewBox="0 0 16 12" xmlns="http://www.w3.org/2000/svg"><polygon points="8,12 0,0 16,0" fill="#1e3a5f" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    el.innerHTML = `<svg width="16" height="12" viewBox="0 0 16 12" xmlns="http://www.w3.org/2000/svg"><polygon points="8,12 0,0 16,0" fill="#FF0000" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
     el.style.pointerEvents = "none";
 
     selectedMarkerRef.current = new maplibregl.Marker({
