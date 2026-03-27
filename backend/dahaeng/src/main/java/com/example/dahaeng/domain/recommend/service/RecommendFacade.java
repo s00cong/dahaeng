@@ -33,6 +33,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class RecommendFacade {
 
+    private static final double BUDGET_HARD_MAX_RATIO = 1.5;
+
     private final RecommendQueryRepository recommendQueryRepository;
     private final CityTagRepository cityTagRepository;
     private final CityClimateTagRepository cityClimateTagRepository;
@@ -118,6 +120,9 @@ public class RecommendFacade {
                 usdToKrwRate,
                 nz(city.getAvgHotelPrice())
         );
+        if (isExcludedByExtremeBudget(request, flight, dailyLivingCost.total())) {
+            return null;
+        }
 
         TagMetrics tagMetrics = calculateTagMetrics(cityTags, climateTags, request.selectedTags());
         RecommendationScoreCalculator.ScoreBreakdown scoreBreakdown = RecommendationScoreCalculator.calculate(
@@ -163,6 +168,25 @@ public class RecommendFacade {
 
     private boolean isDomestic(CityCandidateProjection city) {
         return CountryEnum.SOUTH_KOREA.getCountryName().equalsIgnoreCase(city.getCountryName());
+    }
+
+    private boolean isExcludedByExtremeBudget(
+            RecommendCitiesRequest request,
+            double avgFlightPrice,
+            double livingCostFor1Day
+    ) {
+        if (request == null || request.userTotalBudget() == null || request.travelDays() == null || request.travelDays() <= 0) {
+            return false;
+        }
+
+        double totalBudget = nz(request.userTotalBudget());
+        if (totalBudget <= 0) {
+            return false;
+        }
+
+        double expectedTotalCost = avgFlightPrice + (livingCostFor1Day * request.travelDays());
+        double costBudgetRatio = expectedTotalCost / totalBudget;
+        return costBudgetRatio >= BUDGET_HARD_MAX_RATIO;
     }
 
     private boolean hasText(String value) {

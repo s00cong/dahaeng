@@ -22,9 +22,9 @@ class RecommendationScoreCalculatorTest {
         double muchTooExpensive = calculateBudgetScore(request, 1_300_000.0);
 
         assertThat(tooCheap).isZero();
-        assertThat(nearIdeal).isEqualTo(35.0);
-        assertThat(nearBudget).isBetween(33.0, 34.0);
-        assertThat(expensiveButStillConsidered).isBetween(22.0, 23.0);
+        assertThat(nearIdeal).isEqualTo(40.0);
+        assertThat(nearBudget).isBetween(38.0, 39.0);
+        assertThat(expensiveButStillConsidered).isBetween(25.0, 26.0);
         assertThat(tooExpensive).isZero();
         assertThat(muchTooExpensive).isZero();
     }
@@ -46,8 +46,8 @@ class RecommendationScoreCalculatorTest {
                 0.0
         );
 
-        assertThat(score.tagScore()).isEqualTo(45.0);
-        assertThat(score.budgetScore()).isEqualTo(35.0);
+        assertThat(score.tagScore()).isEqualTo(50.0);
+        assertThat(score.budgetScore()).isEqualTo(40.0);
     }
 
     private static double calculateBudgetScore(RecommendCitiesRequest request, double expectedTotalCost) {
