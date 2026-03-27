@@ -4,13 +4,13 @@ import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 
 public final class RecommendationScoreCalculator {
 
-    private static final double TAG_SCORE_MAX = 45.0;
+    private static final double TAG_SCORE_MAX = 50.0;
     private static final double TAG_AVERAGE_WEIGHT = 0.55;
     private static final double TAG_MATCH_RATE_WEIGHT = 0.45;
-    private static final double BUDGET_SCORE_MAX = 35.0;
+    private static final double BUDGET_SCORE_MAX = 40.0;
     private static final double BUDGET_IDEAL_RATIO = 0.95;
     private static final double BUDGET_MIN_RATIO = 0.30;
-    private static final double BUDGET_MAX_RATIO = 1.20;
+    private static final double BUDGET_MAX_RATIO = 1.30;
 
     private RecommendationScoreCalculator() {
     }

@@ -20,7 +20,7 @@
   - 변경: 예산에 가장 가까울 때 최고점인 ideal-point 곡선
 - 추천 후보 처리
   - 기존: `expectedTotalCost > totalBudget * 1.3` 이면 제외
-  - 변경: 자동 제외 없이 예산 점수로만 불리하게 반영
+  - 변경: `costBudgetRatio >= 1.5` 이면 제외하고, 그 이하는 ideal-point 예산 점수로 평가
 
 ## 0.5 이론적 근거
 
@@ -60,11 +60,11 @@ totalBudget = userTotalBudget
 expectedTotalCost = avgFlightPrice + (livingCostFor1Day * travelDays)
 ```
 
-- 후보 제외 없음
+- 예산 극단값 제외 + 곡선 점수
 
 ```text
-예산 차이가 커도 후보를 바로 제거하지 않음
-budgetScore에서 비선형으로 불리하게 반영
+costBudgetRatio >= 1.5 이면 추천 후보 제외
+그보다 낮은 구간은 budgetScore에서 비선형으로 반영
 ```
 
 예시:
@@ -94,7 +94,7 @@ expectedTotalCost = 400,000 + (1,250,000 * 3)
                   = 4,150,000
 
 costBudgetRatio = 4,150,000 / 3,000,000 = 1.3833
--> 후보 제외는 아니지만 예산 점수 0점
+-> 후보 유지 가능, 다만 예산 ideal-point 구간 밖이라 점수는 매우 낮음
 ```
 
 ## 2. 태그 점수 로직 변경
@@ -292,12 +292,16 @@ limita = "출국권고"
 - 이상점: `expectedTotalCost / totalBudget = 0.95`
 - 너무 저렴한 구간 시작: `0.30`
 - 너무 비싼 구간 시작: `1.20`
+- 하드 필터 시작: `1.50`
 - 최고 점수: `35점`
 
 계산식:
 
 ```text
 costBudgetRatio = expectedTotalCost / totalBudget
+
+if costBudgetRatio >= 1.5:
+    추천 후보 제외
 
 if costBudgetRatio <= 0.30 or costBudgetRatio >= 1.20:
     budgetScore = 0
@@ -314,7 +318,7 @@ budgetScore = (1 - normalizedDistance^2) * 35
 
 - 너무 싼 도시도, 너무 비싼 도시도 덜 선호되게 반영
 - 사용자가 생각한 예산에 가까운 도시를 가장 높게 평가
-- 30% 초과 여부만으로 기계적으로 제외하지 않고, 곡선 점수로 순위를 조정
+- 극단적으로 비싼 후보만 하드 필터로 제거해 비현실적 추천을 방지
 - 예산 항목의 최대 영향력을 이전보다 더 크게 가져감
 
 ### 예시 1. 예산 여유가 있는 경우
@@ -381,6 +385,19 @@ costBudgetRatio = 4,200,000 / 3,000,000
                 = 1.40
 
 budgetScore = 0
+```
+
+### 예시 5. 예산 초과가 극단적인 경우
+
+```text
+totalBudget = 3,000,000
+expectedTotalCost = 4,800,000
+
+costBudgetRatio = 4,800,000 / 3,000,000
+                = 1.60
+
+결과:
+추천 후보 제외
 ```
 
 ## 5. 최종 점수식
