@@ -1,4 +1,4 @@
-package com.example.dahaeng.member.entity;
+package com.example.dahaeng.domain.member.entity;
 
 import com.example.dahaeng.global.entity.BaseEntity;
 import jakarta.persistence.*;
@@ -22,7 +22,7 @@ public class Member extends BaseEntity {
     @Column(name = "social_id", length = 50, nullable = false)
     private String socialId;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "profile_image_url", columnDefinition = "TEXT")
     private String profileImageUrl;
 
     @Column(name = "deleted_at")

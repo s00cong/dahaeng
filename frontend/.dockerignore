@@ -1,0 +1,25 @@
+# VCS / IDE
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+
+# Build output / caches
+node_modules
+dist
+dist-ssr
+.vite
+
+# Local env / secrets
+.env
+.env.*
+
+# Non-build docs / workspace artifacts
+docs
+stitch
+.claude
+
+# OS files
+.DS_Store
+Thumbs.db

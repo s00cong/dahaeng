@@ -1,4 +1,4 @@
-package com.example.dahaeng.youtube.dto;
+package com.example.dahaeng.domain.youtube.dto;
 
 import lombok.*;
 

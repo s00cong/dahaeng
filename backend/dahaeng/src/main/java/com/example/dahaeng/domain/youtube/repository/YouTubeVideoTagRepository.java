@@ -1,6 +1,6 @@
-package com.example.dahaeng.youtube.repository;
+package com.example.dahaeng.domain.youtube.repository;
 
-import com.example.dahaeng.youtube.entity.YouTubeVideoTag;
+import com.example.dahaeng.domain.youtube.entity.YouTubeVideoTag;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

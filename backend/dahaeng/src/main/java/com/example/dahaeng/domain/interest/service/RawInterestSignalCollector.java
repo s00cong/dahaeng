@@ -1,8 +1,8 @@
-package com.example.dahaeng.interest.service;
+package com.example.dahaeng.domain.interest.service;
 
-import com.example.dahaeng.interest.dto.RawInterestSignal;
-import com.example.dahaeng.interest.enums.InterestSourceType;
-import com.example.dahaeng.interest.repository.RawSignalRepository;
+import com.example.dahaeng.domain.interest.dto.RawInterestSignal;
+import com.example.dahaeng.domain.interest.enums.InterestSourceType;
+import com.example.dahaeng.domain.interest.repository.RawSignalRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

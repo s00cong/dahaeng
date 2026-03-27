@@ -1,8 +1,9 @@
-package com.example.dahaeng.domain.location.exchange.enums;
+package com.example.dahaeng.domain.exchange.enums;
 
 public enum Currency {
-	USD, VND, JPY, CNY, HKD, MOP, THB, PHP, EUR, RUB,
+	KRW, USD, VND, JPY, CNY, HKD, MOP, THB, PHP, EUR, RUB,
 	AUD, TWD, GBP, SGD, IDR, MYR, CAD, KHR, MNT, NZD,
-	INR, BRL, CHF, MXN, HUF, PLN, SEK, NOK, TRY, ZAR,
-	AED, QAR, CZK
+	INR, BRL, CHF, MXN, HUF, TRY, ZAR, LAK, CZK, AED,
+	MVR, QAR, PLN, SEK, NOK, PEN, EGP, MUR, ISK, DKK,
+	BOB, ARS, CLP, NPR, KZT, MAD, CUP, KES
 }

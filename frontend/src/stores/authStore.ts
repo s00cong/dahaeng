@@ -1,19 +1,15 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { User } from "@/schemas/auth.schema";
 
 interface AuthState {
   accessToken: string | null;
-  user: {
-    id: number;
-    email: string;
-    name: string;
-    profileImageUrl: string;
-  } | null;
+  user: User | null;
   hasCompletedPreference: boolean;
   isLoggedIn: boolean;
 
   setAccessToken: (token: string) => void;
-  setUser: (user: AuthState['user']) => void;
+  setUser: (user: User) => void;
   setHasCompletedPreference: (v: boolean) => void;
   logout: () => void;
 }
@@ -38,7 +34,7 @@ export const useAuthStore = create<AuthState>()(
         }),
     }),
     {
-      name: 'dahang-auth',
+      name: "dahaeng-auth",
       partialize: (state) => ({
         accessToken: state.accessToken,
         user: state.user,

@@ -1,62 +1,119 @@
-package com.example.dahaeng.interest.service;
+package com.example.dahaeng.domain.interest.service;
 
-import com.example.dahaeng.interest.dto.InterestAnalysisResult;
-import com.example.dahaeng.interest.dto.InterestKeywordCandidate;
-import com.example.dahaeng.interest.enums.InterestCategory;
+import com.example.dahaeng.domain.interest.dto.ExtractedInterestFeatures;
+import com.example.dahaeng.domain.interest.dto.EvidenceKeywordResponse;
+import com.example.dahaeng.domain.interest.dto.InterestAnalyzeResultResponse;
+import com.example.dahaeng.domain.interest.dto.InterestKeywordResponse;
+import com.example.dahaeng.domain.interest.dto.InterestAnalysisResult;
+import com.example.dahaeng.domain.interest.dto.InterestTagResponse;
+import com.example.dahaeng.domain.interest.dto.SourceBadgeResponse;
+import com.example.dahaeng.domain.interest.dto.TravelTagScore;
+import com.example.dahaeng.domain.interest.repository.YoutubeInterestKeywordRepository;
+import com.example.dahaeng.domain.youtube.repository.YouTubeTravelTagRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 
+/**
+ * Interest Analysis Orchestrator
+ * 트랜잭션 경계를 관리하고 각 엔진/클라이언트를 조합합니다.
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InterestAnalysisService {
 
-    private final RawInterestSignalCollector collector;
-    private final InterestTextCleaner cleaner;
-    private final InterestPhraseNormalizer phraseNormalizer;
-    private final InterestTokenizer tokenizer;
-    private final InterestKeywordNormalizer normalizer;
-    private final InterestScoreCalculator scoreCalculator;
-    private final InterestCategoryMapper categoryMapper;
+    private final KeywordExtractionEngine extractionEngine;
+    private final TravelTagInferenceClient aiClient;
+    private final TravelTagValidator validator;
     private final InterestResultSaver saver;
+    private final YouTubeTravelTagRepository youTubeTravelTagRepository;
+    private final YoutubeInterestKeywordRepository youtubeInterestKeywordRepository;
+    private final TravelTagEvidenceService travelTagEvidenceService;
 
-    /**
-     * 전체 관심사 분석 파이프라인 실행
-     * 수집 -> 정제 -> 복합어 보호 -> 토큰화 -> 키워드 정규화 -> 점수 계산(최근성 포함) -> 카테고리 매핑 -> 저장
-     */
-    @Transactional
     public InterestAnalysisResult analyze(Long accountId) {
-        // 1. 데이터 수집 (시점 정보 포함)
-        var raw = collector.collect(accountId);
-        
-        // 2. 텍스트 정제 (URL, 이모지 등 제거)
-        var cleaned = cleaner.clean(raw);
-        
-        // 3. 복합어 보호 (백엔드_개발 등)
-        var phrased = phraseNormalizer.normalizePhrases(cleaned);
-        
-        // 4. 토큰화 및 조사 트리밍
-        var tokens = tokenizer.tokenize(phrased);
-        
-        // 5. 키워드 정규화 (유의어 통합)
-        var normalized = normalizer.normalize(tokens);
-        
-        // 6. 점수 계산 (Frequency Damping, Diversity Bonus, Recency Weight, Generic Penalty)
-        List<InterestKeywordCandidate> keywordScores = scoreCalculator.score(normalized);
-        
-        // 7. 카테고리 매핑
-        Map<InterestCategory, Double> categoryScores = categoryMapper.map(keywordScores);
-        
-        // 8. 결과 저장
-        saver.save(accountId, keywordScores, categoryScores);
-        
+        log.info(">>> [COORDINATOR] Starting orchestrated analysis for account: {}", accountId);
+
+        // Phase 1: Feature Engineering (Short Read-only Transaction)
+        ExtractedInterestFeatures features = extractionEngine.extractFeatures(accountId);
+
+        // Phase 2: AI Inference (No Transaction - DB Connection Released)
+        List<TravelTagScore> rawTags = aiClient.inferTags(features.getTop30ForAi());
+
+        // Phase 3: Evidence-based Validation (No Transaction)
+        List<TravelTagScore> validatedTags = validator.validate(rawTags, features.getTop30ForAi());
+        log.info(">>> [VALIDATION] {}/{} tags passed evidence check.", validatedTags.size(), rawTags.size());
+
+        // Phase 4: Persistence (Short Write Transaction)
+        saveFinalResults(features, validatedTags);
+
         return InterestAnalysisResult.builder()
                 .accountId(accountId)
-                .keywords(keywordScores)
-                .categories(categoryScores)
+                .keywords(features.getAllKeywords())
+                .travelTags(validatedTags)
                 .build();
+    }
+
+    private void saveFinalResults(ExtractedInterestFeatures features, List<TravelTagScore> validatedTags) {
+        saver.save(features.getAccountId(), features.getAllKeywords(), features.getTop30ForAi(), validatedTags);
+
+        log.info(">>> [Phase 3] All results successfully persisted to DB.");
+    }
+
+    public List<InterestTagResponse> getAnalyzedTags(Long accountId) {
+        return youTubeTravelTagRepository.findAllByAccountIdWithTag(accountId).stream()
+                .map(tag -> InterestTagResponse.builder()
+                        .tagId(tag.getTag() != null ? tag.getTag().getId() : null)
+                        .categoryName(resolveCategoryName(tag))
+                        .tagName(resolveTagName(tag))
+                        .score(tag.getScore())
+                        .confidence(tag.getConfidence())
+                        .reason(tag.getReason())
+                        .evidenceKeywords(readEvidenceKeywords(tag.getEvidenceKeywordsJson()))
+                        .sourceBadges(readSourceBadges(tag.getSourceBadgesJson()))
+                        .build())
+                .toList();
+    }
+
+    public InterestAnalyzeResultResponse getAnalyzeResult(Long accountId) {
+        List<InterestTagResponse> tags = getAnalyzedTags(accountId);
+        List<InterestKeywordResponse> topKeywords = youtubeInterestKeywordRepository
+                .findTop60ByAccount_IdOrderByScoreDesc(accountId).stream()
+                .map(keyword -> InterestKeywordResponse.builder()
+                        .keyword(keyword.getKeyword())
+                        .normalizedKeyword(keyword.getNormalizedKeyword())
+                        .sourceType(keyword.getSourceType() != null ? keyword.getSourceType().name() : null)
+                        .score(keyword.getScore())
+                        .build())
+                .toList();
+
+        return InterestAnalyzeResultResponse.builder()
+                .tags(tags)
+                .topKeywords(topKeywords)
+                .build();
+    }
+
+    private String resolveCategoryName(com.example.dahaeng.domain.youtube.entity.YouTubeTravelTag tag) {
+        if (tag.getTag() != null && tag.getTag().getCategory() != null) {
+            return tag.getTag().getCategory().getName();
+        }
+        return tag.getCategoryName();
+    }
+
+    private String resolveTagName(com.example.dahaeng.domain.youtube.entity.YouTubeTravelTag tag) {
+        if (tag.getTag() != null) {
+            return tag.getTag().getName();
+        }
+        return tag.getTagName();
+    }
+
+    private List<EvidenceKeywordResponse> readEvidenceKeywords(String json) {
+        return travelTagEvidenceService.readEvidenceKeywordsJson(json);
+    }
+
+    private List<SourceBadgeResponse> readSourceBadges(String json) {
+        return travelTagEvidenceService.readSourceBadgesJson(json);
     }
 }

@@ -1,6 +1,6 @@
-package com.example.dahaeng.auth.service;
+package com.example.dahaeng.domain.auth.service;
 
-import com.example.dahaeng.auth.dto.CustomOAuth2User;
+import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class OAuthCodeService {
 
-    private static final long TTL_SECONDS = 60; // 1분
+    private static final long TTL_SECONDS = 60 * 3; // 3분
     private final Map<String, Entry> store = new ConcurrentHashMap<>();
 
     public String issueCode(CustomOAuth2User user) {

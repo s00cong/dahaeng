@@ -1,0 +1,24 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+
+# Test/cache tooling
+.pytest_cache/
+
+# Local env files
+.env
+.env.*
+!.env*.example
+
+# Runtime/generated artifacts
+*.log
+country_items.json
+special_travel_alert_items.json
+
+run-local.ps1
+
+tests/

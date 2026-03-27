@@ -1,6 +1,6 @@
-package com.example.dahaeng.domain.location.city.entity;
+package com.example.dahaeng.domain.city.entity;
 
-import com.example.dahaeng.domain.location.country.entity.Country;
+import com.example.dahaeng.domain.country.entity.Country;
 import com.example.dahaeng.global.entity.BaseEntity;
 
 import jakarta.persistence.*;
@@ -16,6 +16,7 @@ import lombok.*;
 public class City extends BaseEntity {
 
 	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
 	@ManyToOne(fetch = FetchType.LAZY)
@@ -32,5 +33,7 @@ public class City extends BaseEntity {
 	private String description;
 
 	private Double lat;
-	private Double lng;
+	private Double lon;
+
+	private Double news_penalty_score;
 }

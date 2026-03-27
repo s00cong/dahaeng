@@ -1,4 +1,4 @@
-package com.example.dahaeng.interest.enums;
+package com.example.dahaeng.domain.interest.enums;
 
 public enum InterestSourceType {
     PLAYLIST_TITLE,

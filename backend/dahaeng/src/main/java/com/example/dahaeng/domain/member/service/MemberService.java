@@ -1,10 +1,10 @@
-package com.example.dahaeng.member.service;
+package com.example.dahaeng.domain.member.service;
 
-import com.example.dahaeng.auth.dto.UserResponse;
+import com.example.dahaeng.domain.auth.dto.UserResponse;
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
-import com.example.dahaeng.member.entity.Member;
-import com.example.dahaeng.member.repository.MemberRepository;
+import com.example.dahaeng.domain.member.entity.Member;
+import com.example.dahaeng.domain.member.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

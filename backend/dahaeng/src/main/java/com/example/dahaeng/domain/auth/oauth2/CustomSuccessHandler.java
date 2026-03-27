@@ -1,7 +1,7 @@
-package com.example.dahaeng.auth.oauth2;
+package com.example.dahaeng.domain.auth.oauth2;
 
-import com.example.dahaeng.auth.dto.CustomOAuth2User;
-import com.example.dahaeng.auth.service.OAuthCodeService;
+import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
+import com.example.dahaeng.domain.auth.service.OAuthCodeService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

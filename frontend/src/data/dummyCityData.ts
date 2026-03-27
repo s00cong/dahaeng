@@ -2,7 +2,7 @@ import type { CityDetail, CityListItem } from "@/schemas/city.schema";
 
 /**
  * 백엔드 없이 UI 확인용 더미 도시 상세 데이터
- * GlobeViewer의 DUMMY_CITIES(cityId 1~15)와 cityId 일치
+ * 백엔드 RecommendCityDetailResponse 구조에 맞춤
  */
 export const DUMMY_CITY_DETAILS: Record<number, CityDetail> = {
   1: {
@@ -11,22 +11,60 @@ export const DUMMY_CITY_DETAILS: Record<number, CityDetail> = {
     countryId: 1,
     countryName: "일본",
     imgUrl: "https://picsum.photos/seed/tokyo/800/1200",
-    matchingScore: 92,
-    recommendReason:
-      "일본 특유의 현대와 전통이 공존하는 문화, 안전한 치안, 다양한 미식 경험이 당신의 여행 스타일과 92% 일치합니다. 도쿄 타워와 센소지 사원 등 세계적인 명소를 합리적인 예산으로 즐길 수 있습니다.",
-    keywords: [
-      "미식",
-      "전통문화",
-      "쇼핑",
-      "안전",
-      "야경",
-      "깔끔",
-      "애니메이션",
-    ],
-    dailyCost: 120000,
-    flightPrice: 320000,
     latitude: 35.6762,
     longitude: 139.6503,
+    score: {
+      finalScore: 92,
+      budgetScore: 85,
+      safetyScore: 95,
+      tagMatchScore: 90,
+      newPenaltyScore: -5,
+    },
+    recommendationReason:
+      "일본 특유의 현대와 전통이 공존하는 문화, 안전한 치안, 다양한 미식 경험이 당신의 여행 스타일과 92% 일치합니다.",
+    tags: [
+      { name: "미식", tagScore: 90 },
+      { name: "전통문화", tagScore: 85 },
+      { name: "쇼핑", tagScore: 80 },
+      { name: "야경", tagScore: 88 },
+      { name: "애니메이션", tagScore: 75 },
+    ],
+    danger: {
+      countryName: "일본",
+      items: [{ level: "유의", description: "일부 번화가 호객 행위 주의" }],
+    },
+    livingCostFor1Day: {
+      food: 45000,
+      transportation: 10000,
+    },
+    airTicketAndHotel: {
+      airTicket: 160000,
+      hotel: 65000,
+    },
+    news: {
+      summation: "벚꽃 개화 시기가 예년보다 빨라져 관광객이 급증하고 있으며, 주요 명소 예약이 필수적입니다.",
+      top3: [
+        {
+          title: "도쿄 벚꽃 축제 개막 소식",
+          url: "https://example.com/tokyo-sakura",
+          publishedAt: "2026-03-09T10:00:00Z",
+        },
+        {
+          title: "시부야 스카이 입장권 매진 행렬",
+          url: "https://example.com/shibuya-sky",
+          publishedAt: "2026-03-08T15:30:00Z",
+        },
+        {
+          title: "신규 오픈한 해리포터 스튜디오 가이드",
+          url: "https://example.com/warner-bros-tokyo",
+          publishedAt: "2026-03-07T09:00:00Z",
+        },
+      ],
+    },
+    touristSpot: [
+      { name: "센소지", description: "도쿄 최고의 불교 사원", lat: 35.7148, lon: 139.7967, imageUrl: null },
+      { name: "시부야 스크램블", description: "세계에서 가장 바쁜 교차로", lat: 35.6598, lon: 139.7004, imageUrl: null },
+    ],
   },
   2: {
     cityId: 2,
@@ -34,119 +72,45 @@ export const DUMMY_CITY_DETAILS: Record<number, CityDetail> = {
     countryId: 2,
     countryName: "프랑스",
     imgUrl: "https://picsum.photos/seed/paris/800/1200",
-    matchingScore: 85,
-    recommendReason:
-      "세계 예술과 패션의 중심지 파리는 루브르 박물관, 에펠탑 등 문화 콘텐츠가 풍부해 당신의 문화/역사 취향과 85% 매칭됩니다. 센강 크루즈와 몽마르뜨 언덕에서 잊지 못할 낭만을 경험하세요.",
-    keywords: ["예술", "패션", "미식", "낭만", "역사", "감성", "럭셔리"],
-    dailyCost: 180000,
-    flightPrice: 780000,
     latitude: 48.8566,
     longitude: 2.3522,
-  },
-  3: {
-    cityId: 3,
-    cityName: "뉴욕",
-    countryId: 3,
-    countryName: "미국",
-    imgUrl: "https://picsum.photos/seed/newyork/800/1200",
-    matchingScore: 78,
-    recommendReason:
-      "잠들지 않는 도시 뉴욕은 브로드웨이 공연, 세계 최고의 박물관들과 다양한 나이트라이프로 당신의 액티비티 취향과 78% 일치합니다.",
-    keywords: ["도시", "쇼핑", "공연", "다양성", "나이트라이프"],
-    dailyCost: 250000,
-    flightPrice: 950000,
-    latitude: 40.7128,
-    longitude: -74.006,
-  },
-  4: {
-    cityId: 4,
-    cityName: "시드니",
-    countryId: 4,
-    countryName: "호주",
-    imgUrl: "https://picsum.photos/seed/sydney/800/1200",
-    matchingScore: 70,
-    recommendReason:
-      "하버브리지와 오페라 하우스가 어우러진 시드니는 도시와 자연을 동시에 즐길 수 있어 자연/경관 취향과 70% 매칭됩니다.",
-    keywords: ["해변", "자연", "서핑", "도시", "국립공원"],
-    dailyCost: 200000,
-    flightPrice: 680000,
-    latitude: -33.8688,
-    longitude: 151.2093,
-  },
-  5: {
-    cityId: 5,
-    cityName: "방콕",
-    countryId: 5,
-    countryName: "태국",
-    imgUrl: "https://picsum.photos/seed/bangkok/800/1200",
-    matchingScore: 88,
-    recommendReason:
-      "화려한 왕궁과 사원, 세계 최고 수준의 스트리트 푸드, 합리적인 물가가 당신의 음식/미식 취향과 88% 일치합니다.",
-    keywords: ["길거리음식", "사원", "수상시장", "저물가", "야시장", "쇼핑"],
-    dailyCost: 70000,
-    flightPrice: 280000,
-    latitude: 13.7563,
-    longitude: 100.5018,
-  },
-  6: {
-    cityId: 6,
-    cityName: "두바이",
-    countryId: 6,
-    countryName: "UAE",
-    imgUrl: "https://picsum.photos/seed/dubai/800/1200",
-    matchingScore: 65,
-    recommendReason:
-      "세계 최고층 빌딩 부르즈 칼리파와 럭셔리 쇼핑몰로 대표되는 두바이는 현대적인 도시 경험을 원하는 여행자와 65% 매칭됩니다.",
-    keywords: ["럭셔리", "쇼핑", "사막", "현대건축"],
-    dailyCost: 230000,
-    flightPrice: 620000,
-    latitude: 25.2048,
-    longitude: 55.2708,
-  },
-  7: {
-    cityId: 7,
-    cityName: "바르셀로나",
-    countryId: 7,
-    countryName: "스페인",
-    imgUrl: "https://picsum.photos/seed/barcelona/800/1200",
-    matchingScore: 82,
-    recommendReason:
-      "가우디의 사그라다 파밀리아와 구엘 공원, 지중해 해변, 플라멩코가 어우러진 바르셀로나는 문화와 자연 취향을 모두 충족시켜 82% 매칭됩니다.",
-    keywords: ["건축", "해변", "축구", "야경", "음식"],
-    dailyCost: 140000,
-    flightPrice: 820000,
-    latitude: 41.3851,
-    longitude: 2.1734,
-  },
-  8: {
-    cityId: 8,
-    cityName: "싱가포르",
-    countryId: 8,
-    countryName: "싱가포르",
-    imgUrl: "https://picsum.photos/seed/singapore/800/1200",
-    matchingScore: 90,
-    recommendReason:
-      "아시아의 허브 싱가포르는 완벽한 치안, 다양한 음식 문화, 마리나베이 샌즈 등 세계적 명소로 당신의 도시/쇼핑 취향과 90% 일치합니다.",
-    keywords: ["안전", "미식", "쇼핑", "도시", "나이트라이프"],
-    dailyCost: 160000,
-    flightPrice: 350000,
-    latitude: 1.3521,
-    longitude: 103.8198,
-  },
-  9: {
-    cityId: 9,
-    cityName: "로마",
-    countryId: 9,
-    countryName: "이탈리아",
-    imgUrl: "https://picsum.photos/seed/rome/800/1200",
-    matchingScore: 76,
-    recommendReason:
-      "콜로세움, 바티칸, 트레비 분수 등 2000년 역사의 유적이 살아 숨쉬는 로마는 문화/역사 취향과 76% 매칭됩니다.",
-    keywords: ["유적지", "역사", "미식", "예술", "성당", "감성", "클래식"],
-    dailyCost: 160000,
-    flightPrice: 850000,
-    latitude: 41.9028,
-    longitude: 12.4964,
+    score: {
+      finalScore: 85,
+      budgetScore: 70,
+      safetyScore: 80,
+      tagMatchScore: 92,
+      newPenaltyScore: -3,
+    },
+    recommendationReason:
+      "세계 예술과 패션의 중심지 파리는 루브르 박물관, 에펠탑 등 문화 콘텐츠가 풍부해 당신의 문화/역사 취향과 85% 매칭됩니다.",
+    tags: [
+      { name: "예술", tagScore: 95 },
+      { name: "패션", tagScore: 90 },
+      { name: "낭만", tagScore: 92 },
+      { name: "역사", tagScore: 88 },
+    ],
+    danger: {
+      countryName: "프랑스",
+      items: [{ level: "주의", description: "소매치기 및 분실물 주의 (에펠탑 인근)" }],
+    },
+    livingCostFor1Day: {
+      food: 70000,
+      transportation: 15000,
+    },
+    airTicketAndHotel: {
+      airTicket: 420000,
+      hotel: 120000,
+    },
+    news: {
+      summation: "올림픽 준비로 인한 일부 지하철 노선 공사 중입니다.",
+      top3: [
+        {
+          title: "파리 루브르 박물관 야간 개장 안내",
+          url: "https://example.com/louvre",
+          publishedAt: "2026-03-05T10:00:00Z",
+        },
+      ],
+    },
   },
   10: {
     cityId: 10,
@@ -154,40 +118,44 @@ export const DUMMY_CITY_DETAILS: Record<number, CityDetail> = {
     countryId: 10,
     countryName: "인도네시아",
     imgUrl: "https://picsum.photos/seed/bali/800/1200",
-    matchingScore: 95,
-    recommendReason:
-      "신들의 섬 발리는 우붓의 라이스 테라스, 꾸따 해변의 서핑, 합리적인 물가가 당신의 자연/경관 취향과 95% 완벽하게 매칭됩니다.",
-    keywords: [
-      "해변",
-      "서핑",
-      "힐링",
-      "사원",
-      "저물가",
-      "휴양",
-      "자연",
-      "여유",
-      "요가",
-      "감성",
-    ],
-    dailyCost: 60000,
-    flightPrice: 420000,
     latitude: -8.3405,
     longitude: 115.092,
-  },
-  11: {
-    cityId: 11,
-    cityName: "암스테르담",
-    countryId: 11,
-    countryName: "네덜란드",
-    imgUrl: "https://picsum.photos/seed/amsterdam/800/1200",
-    matchingScore: 72,
-    recommendReason:
-      "운하와 자전거의 도시 암스테르담은 반 고흐 미술관, 앤 프랑크 하우스 등 풍부한 문화 콘텐츠로 72% 매칭됩니다.",
-    keywords: ["운하", "미술관", "자전거", "튤립", "야경"],
-    dailyCost: 170000,
-    flightPrice: 890000,
-    latitude: 52.3676,
-    longitude: 4.9041,
+    score: {
+      finalScore: 95,
+      budgetScore: 98,
+      safetyScore: 80,
+      tagMatchScore: 96,
+      newPenaltyScore: -2,
+    },
+    recommendationReason:
+      "신들의 섬 발리는 우붓의 라이스 테라스, 꾸따 해변의 서핑, 합리적인 물가가 당신의 자연/경관 취향과 95% 완벽하게 매칭됩니다.",
+    tags: [
+      { name: "해변", tagScore: 95 },
+      { name: "서핑", tagScore: 88 },
+      { name: "힐링", tagScore: 92 },
+      { name: "사원", tagScore: 85 },
+      { name: "저물가", tagScore: 98 },
+      { name: "휴양", tagScore: 90 },
+    ],
+    danger: {
+      countryName: "인도네시아",
+      items: [{ level: "유의", description: "환전 시 공식 환전소 이용 권장" }],
+    },
+    livingCostFor1Day: {
+      food: 20000,
+      transportation: 15000,
+    },
+    airTicketAndHotel: {
+      airTicket: 210000,
+      hotel: 35000,
+    },
+    news: {
+      summation: "디지털 노마드를 위한 신규 비자 정책이 발표되어 장기 체류 여행객이 늘고 있습니다.",
+      top3: [
+        { title: "발리 우붓 요가 페스티벌 일정", url: "https://example.com/bali-yoga", publishedAt: "2026-03-01T10:00:00Z" },
+        { title: "짱구 지역 교통 체증 심화 주의", url: "https://example.com/canggu-traffic", publishedAt: "2026-02-28T10:00:00Z" },
+      ],
+    },
   },
   12: {
     cityId: 12,
@@ -195,90 +163,83 @@ export const DUMMY_CITY_DETAILS: Record<number, CityDetail> = {
     countryId: 12,
     countryName: "한국",
     imgUrl: "https://picsum.photos/seed/seoul/800/1200",
-    matchingScore: 87,
-    recommendReason:
-      "경복궁과 남산, K-팝과 K-뷰티, 홍대와 강남의 쇼핑까지 전통과 트렌드가 공존하는 서울은 도시/쇼핑 취향과 87% 매칭됩니다.",
-    keywords: ["K팝", "쇼핑", "미식", "야경", "전통문화"],
-    dailyCost: 80000,
-    flightPrice: 0,
     latitude: 37.5665,
     longitude: 126.978,
-  },
-  13: {
-    cityId: 13,
-    cityName: "이스탄불",
-    countryId: 13,
-    countryName: "터키",
-    imgUrl: "https://picsum.photos/seed/istanbul/800/1200",
-    matchingScore: 60,
-    recommendReason:
-      "동서양 문명이 교차하는 이스탄불은 블루 모스크, 하기아 소피아, 그랜드 바자르 등 이국적인 매력으로 60% 매칭됩니다.",
-    keywords: ["역사", "이슬람문화", "시장", "크루즈", "미식"],
-    dailyCost: 90000,
-    flightPrice: 650000,
-    latitude: 41.0082,
-    longitude: 28.9784,
-  },
-  14: {
-    cityId: 14,
-    cityName: "프라하",
-    countryId: 14,
-    countryName: "체코",
-    imgUrl: "https://picsum.photos/seed/prague/800/1200",
-    matchingScore: 80,
-    recommendReason:
-      "백탑의 도시 프라하는 중세 건축의 보고로 카를 교와 프라하 성이 문화/역사 취향과 80% 매칭됩니다.",
-    keywords: ["중세건축", "맥주", "야경", "저물가", "유적지"],
-    dailyCost: 100000,
-    flightPrice: 870000,
-    latitude: 50.0755,
-    longitude: 14.4378,
-  },
-  15: {
-    cityId: 15,
-    cityName: "칸쿤",
-    countryId: 15,
-    countryName: "멕시코",
-    imgUrl: "https://picsum.photos/seed/cancun/800/1200",
-    matchingScore: 55,
-    recommendReason:
-      "카리브해의 에메랄드빛 바다와 마야 문명 유적이 공존하는 칸쿤은 액티비티 취향과 55% 매칭됩니다.",
-    keywords: ["해변", "스노클링", "마야유적", "리조트", "서핑"],
-    dailyCost: 130000,
-    flightPrice: 1100000,
-    latitude: 21.1619,
-    longitude: -86.8515,
+    score: {
+      finalScore: 87,
+      budgetScore: 80,
+      safetyScore: 95,
+      tagMatchScore: 88,
+      newPenaltyScore: 0,
+    },
+    recommendationReason:
+      "경복궁과 남산, K-팝과 K-뷰티, 홍대와 강남의 쇼핑까지 전통과 트렌드가 공존하는 서울은 도시/쇼핑 취향과 87% 매칭됩니다.",
+    tags: [
+      { name: "K팝", tagScore: 90 },
+      { name: "쇼핑", tagScore: 88 },
+      { name: "미식", tagScore: 85 },
+      { name: "야경", tagScore: 82 },
+    ],
+    danger: {
+      countryName: "한국",
+      items: [],
+    },
+    livingCostFor1Day: {
+      food: 40000,
+      transportation: 10000,
+    },
+    airTicketAndHotel: {
+      airTicket: 0,
+      hotel: 80000,
+    },
+    news: {
+      summation: "서울 페스타 준비로 광화문 일대 행사가 진행 중입니다.",
+      top3: [
+        { title: "서울 야경 명소 TOP 5", url: "https://example.com/seoul-night", publishedAt: "2026-03-09T10:00:00Z" },
+      ],
+    },
   },
 };
+
+// 나머지 도시들을 위한 기본 객체 생성 함수
+const createDefaultCity = (id: number, name: string, country: string): CityDetail => ({
+  cityId: id,
+  cityName: name,
+  countryId: id,
+  countryName: country,
+  imgUrl: `https://picsum.photos/seed/${id}/800/1200`,
+  latitude: 0,
+  longitude: 0,
+  score: { finalScore: 70 },
+  recommendationReason: `${name}은 매력적인 도시입니다.`,
+  tags: [{ name: "여행", tagScore: 70 }],
+  livingCostFor1Day: { food: 30000, transportation: 10000 },
+  airTicketAndHotel: { airTicket: 200000, hotel: 50000 },
+  news: { summation: "활기찬 분위기입니다.", top3: [] },
+  danger: { countryName: country, items: [] },
+});
+
+// 기존 DUMMY_CITY_DETAILS 보완 (누락된 ID들에 대해 기본값 채우기)
+[3, 4, 5, 6, 7, 8, 9, 11, 13, 14, 15].forEach((id) => {
+  if (!DUMMY_CITY_DETAILS[id]) {
+    DUMMY_CITY_DETAILS[id] = createDefaultCity(id, `도시 ${id}`, "국가");
+  }
+});
 
 const RISK_LEVEL_BY_CITY: Record<number, number> = {
-  1: 1,
-  2: 2,
-  3: 2,
-  4: 1,
-  5: 2,
-  6: 1,
-  7: 2,
-  8: 1,
-  9: 2,
-  10: 2,
-  11: 1,
-  12: 1,
-  13: 3,
-  14: 1,
-  15: 3,
+  1: 1, 2: 2, 3: 2, 4: 1, 5: 2, 6: 1, 7: 2, 8: 1, 9: 2, 10: 2, 11: 1, 12: 1, 13: 3, 14: 1, 15: 3,
 };
 
-export const DUMMY_CITIES: CityListItem[] = Object.values(
-  DUMMY_CITY_DETAILS,
-).map((d) => ({
+export const DUMMY_CITIES: CityListItem[] = Object.values(DUMMY_CITY_DETAILS).map((d) => ({
   cityId: d.cityId,
   cityName: d.cityName,
   countryName: d.countryName,
   imgUrl: d.imgUrl,
-  estimatedBudget: (d.dailyCost ?? 0) * 7,
+  estimatedBudget: d.airTicketAndHotel
+    ? ((d.livingCostFor1Day ? d.livingCostFor1Day.food + d.livingCostFor1Day.transportation : 40000) + d.airTicketAndHotel.hotel) * 7
+    : 700000,
   riskLevel: RISK_LEVEL_BY_CITY[d.cityId] ?? 2,
   latitude: d.latitude,
   longitude: d.longitude,
-  matchingScore: d.matchingScore,
+  matchingScore: d.score?.finalScore ?? undefined,
 }));

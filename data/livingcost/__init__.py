@@ -1,0 +1,2 @@
+"""livingcost worker package."""
+

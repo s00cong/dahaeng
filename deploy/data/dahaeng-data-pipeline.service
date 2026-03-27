@@ -1,0 +1,10 @@
+[Unit]
+Description=Dahaeng flight data batch pipeline
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/ubuntu/S14P21D206
+ExecStartPre=/usr/bin/mkdir -p /var/log/dahaeng
+ExecStart=/bin/bash -lc '/usr/bin/docker compose --env-file /home/ubuntu/S14P21D206/deploy/app/.env -f /home/ubuntu/S14P21D206/deploy/app/docker-compose.worker.yml run --rm flight-data-worker python data/flight/run_scheduled_pipeline.py >> /var/log/dahaeng/data-pipeline.log 2>&1'

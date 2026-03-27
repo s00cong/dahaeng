@@ -1,8 +1,8 @@
-package com.example.dahaeng.interest.service;
+package com.example.dahaeng.domain.interest.service;
 
-import com.example.dahaeng.interest.dto.InterestKeywordCandidate;
-import com.example.dahaeng.interest.enums.InterestSourceType;
-import org.springframework.beans.factory.annotation.Qualifier;
+import com.example.dahaeng.domain.interest.dto.InterestKeywordCandidate;
+import com.example.dahaeng.domain.interest.enums.InterestSourceType;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -11,90 +11,98 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class InterestScoreCalculator {
 
-    private final Map<InterestSourceType, Double> sourceWeightMap;
-    private final Set<String> genericKeywords;
-    
-    private static final double MIN_SCORE_THRESHOLD = 1.0;
+    private final TravelRelevanceScorer relevanceScorer;
 
-    public InterestScoreCalculator(Map<InterestSourceType, Double> sourceWeightMap,
-                                   @Qualifier("genericKeywords") Set<String> genericKeywords) {
-        this.sourceWeightMap = sourceWeightMap;
-        this.genericKeywords = genericKeywords;
-    }
+    // 소스별 정교한 가중치 설정
+    private static final Map<InterestSourceType, Double> SOURCE_WEIGHTS = Map.of(
+        InterestSourceType.LIKED_VIDEO_TAG, 1.0,
+        InterestSourceType.LIKED_VIDEO_TITLE, 0.9,
+        InterestSourceType.PLAYLIST_VIDEO_TAG, 0.8,
+        InterestSourceType.PLAYLIST_VIDEO_TITLE, 0.7,
+        InterestSourceType.PLAYLIST_TITLE, 0.5,
+        InterestSourceType.SUBSCRIPTION_TITLE, 0.3
+    );
 
-    public List<InterestKeywordCandidate> score(List<InterestKeywordCandidate> normalizedCandidates) {
+    public List<InterestKeywordCandidate> calculate(List<InterestKeywordCandidate> normalizedCandidates) {
         if (normalizedCandidates == null || normalizedCandidates.isEmpty()) {
             return Collections.emptyList();
         }
 
         Map<String, KeywordScoreModel> scoreModels = new HashMap<>();
 
+        // 1. 키워드별 통합 모델 생성
         for (InterestKeywordCandidate candidate : normalizedCandidates) {
             String normKey = candidate.getNormalizedKeyword();
-            String rawKey = candidate.getRawKeyword();
-            
-            KeywordScoreModel model = scoreModels.computeIfAbsent(normKey, k -> new KeywordScoreModel(normKey, rawKey));
+            KeywordScoreModel model = scoreModels.computeIfAbsent(normKey, k -> new KeywordScoreModel(normKey, candidate.getRawKeyword()));
             model.addOccurrence(candidate.getSourceType(), candidate.getLatestSignalTime());
         }
 
+        // 2. 최종 점수 및 신뢰도 계산
         return scoreModels.values().stream()
                 .map(this::calculateFinalCandidate)
-                .filter(c -> c.getTotalScore() >= MIN_SCORE_THRESHOLD)
-                .sorted(Comparator.comparingDouble(InterestKeywordCandidate::getTotalScore).reversed())
+                .sorted(Comparator.comparingDouble((InterestKeywordCandidate k) -> 
+                    k.getScore() * k.getConfidence() * k.getTravelRelevance()).reversed())
                 .collect(Collectors.toList());
     }
 
     private InterestKeywordCandidate calculateFinalCandidate(KeywordScoreModel model) {
-        double dampedScoreSum = 0.0;
+        double baseScoreSum = 0.0;
         InterestSourceType representativeSource = null;
         double maxContribution = -1.0;
 
+        // A. 소스별 가중치 합산 (Sqrt Damping 적용)
         for (Map.Entry<InterestSourceType, Integer> entry : model.sourceCounts.entrySet()) {
-            InterestSourceType source = entry.getKey();
-            int count = entry.getValue();
-            double weight = sourceWeightMap.getOrDefault(source, 1.0);
-            
-            double contribution = weight * Math.sqrt(count);
-            dampedScoreSum += contribution;
+            double weight = SOURCE_WEIGHTS.getOrDefault(entry.getKey(), 0.2);
+            double contribution = weight * Math.sqrt(entry.getValue());
+            baseScoreSum += contribution;
 
             if (contribution > maxContribution) {
                 maxContribution = contribution;
-                representativeSource = source;
+                representativeSource = entry.getKey();
             }
         }
 
-        int distinctSources = model.getDistinctSourceCount();
-        double diversityBonus = (distinctSources >= 2) ? (distinctSources - 1) * 0.2 : 0.0;
-        double recencyWeight = getRecencyWeight(model.latestSignalTime);
+        // B. 다양성 보너스 및 최신성 가중치
+        double diversityBonus = 1.0 + (Math.min(model.getDistinctSourceCount(), 5) * 0.15);
+        double recencyFactor = getRecencyFactor(model.latestSignalTime);
 
-        double finalScore = dampedScoreSum * (1 + diversityBonus) * recencyWeight;
+        // C. 여행 연관성 계산
+        double relevance = relevanceScorer.calculate(model.normalizedKeyword);
 
-        if (genericKeywords.contains(model.normalizedKeyword.toLowerCase(Locale.ROOT))) {
-            finalScore *= 0.5;
-        }
+        // D. 최종 점수 (중요도)
+        double finalScore = baseScoreSum * diversityBonus * recencyFactor * (0.5 + relevance);
+
+        // E. 신뢰도(Confidence) 계산
+        // log 기반 빈도 점수(40%) + 소스 다양성(30%) + 최신성(30%)
+        double frequencyConfidence = Math.min(1.0, Math.log10(model.getTotalCount() + 1) / 1.5);
+        double sourceConfidence = Math.min(1.0, model.getDistinctSourceCount() / 4.0);
+        double finalConfidence = (frequencyConfidence * 0.4) + (sourceConfidence * 0.3) + (recencyFactor * 0.3);
 
         return InterestKeywordCandidate.builder()
                 .rawKeyword(model.representativeRawKeyword)
                 .normalizedKeyword(model.normalizedKeyword)
-                .totalScore(finalScore)
+                .score(finalScore)
+                .confidence(finalConfidence)
+                .travelRelevance(relevance)
+                .sourceCounts(model.sourceCounts)
                 .sourceTypes(model.sourceCounts.keySet())
-                .totalCount(model.getTotalCount())
-                .distinctSourceCount(distinctSources)
-                .latestSignalTime(model.latestSignalTime)
                 .sourceType(representativeSource)
+                .totalCount(model.getTotalCount())
+                .distinctSourceCount(model.getDistinctSourceCount())
+                .latestSignalTime(model.latestSignalTime)
                 .build();
     }
 
-    private double getRecencyWeight(LocalDateTime signalTime) {
-        if (signalTime == null) return 1.0;
-        long days = ChronoUnit.DAYS.between(signalTime, LocalDateTime.now());
-        if (days <= 7) return 1.3;
-        if (days <= 30) return 1.15;
-        if (days <= 90) return 1.0;
-        if (days <= 180) return 0.8;
-        return 0.6;
+    private double getRecencyFactor(LocalDateTime time) {
+        if (time == null) return 0.5;
+        long days = ChronoUnit.DAYS.between(time, LocalDateTime.now());
+        if (days <= 7) return 1.0;
+        if (days <= 30) return 0.85;
+        if (days <= 90) return 0.7;
+        return 0.5;
     }
 
     private static class KeywordScoreModel {

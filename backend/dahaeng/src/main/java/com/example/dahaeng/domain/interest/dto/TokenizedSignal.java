@@ -1,6 +1,6 @@
-package com.example.dahaeng.interest.dto;
+package com.example.dahaeng.domain.interest.dto;
 
-import com.example.dahaeng.interest.enums.InterestSourceType;
+import com.example.dahaeng.domain.interest.enums.InterestSourceType;
 import lombok.Builder;
 import lombok.Getter;
 

@@ -4,16 +4,16 @@ import { queryKeys } from '@/utils/queryKeys';
 
 /**
  * 환율 추이 조회
- * GET /api/exchange-rate/history?target_currency=XXX&type=d|w|m
+ * GET /api/exchange-rate/history?target_currency=XXX&type=D|W|M
  * staleTime: 30분
  */
 export const useExchangeRateHistory = (
   targetCurrency: string,
-  type: 'd' | 'w' | 'm' = 'd',
+  type: 'D' | 'W' | 'M' = 'D',
 ) =>
   useQuery({
     queryKey: queryKeys.cost.exchangeHistory(targetCurrency, type),
     queryFn: () => costApi.getExchangeRateHistory(targetCurrency, type),
-    enabled: !!targetCurrency,
+    enabled: !!targetCurrency && targetCurrency !== 'KRW',
     staleTime: 30 * 60 * 1000,
   });

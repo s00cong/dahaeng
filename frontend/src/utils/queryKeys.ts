@@ -1,4 +1,7 @@
 export const queryKeys = {
+  tag: {
+    all: ['tag'] as const,
+  },
   city: {
     all: ['city'] as const,
     list: (params?: object) => ['city', 'list', params] as const,
@@ -19,19 +22,22 @@ export const queryKeys = {
   },
   flight: {
     all: ['flight'] as const,
-    monthly: (cityId: number, year: number, month: number) =>
-      ['flight', 'monthly', cityId, year, month] as const,
-    daily: (cityId: number, date: string) => ['flight', 'daily', cityId, date] as const,
-    info: (cityId: number) => ['flight', 'info', cityId] as const,
-    monthlyDaily: (cityId: number, year: number, month: number) =>
-      ['flight', 'monthly-daily', cityId, year, month] as const,
+    citySummary: (cityId: number, yearMonth: string) =>
+      ['flight', 'city-summary', cityId, yearMonth] as const,
+    calendar: (cityId: number, yearMonth: string) =>
+      ['flight', 'calendar', cityId, yearMonth] as const,
+    trend: (cityId: number) => ['flight', 'trend', cityId] as const,
   },
   news: {
     byCountry: (countryId: number) => ['news', countryId] as const,
   },
+  country: {
+    flagMap: ['country', 'flagMap'] as const,
+    maps: ['country', 'maps'] as const,
+  },
   bookmark: {
     all: ['bookmark'] as const,
-    list: (keyword?: string) => ['bookmark', 'list', keyword] as const,
+    list: (keyword?: string, page?: number, size?: number) => ['bookmark', 'list', keyword, page, size] as const,
     detail: (id: number) => ['bookmark', 'detail', id] as const,
   },
 } as const;

@@ -1,4 +1,4 @@
-package com.example.dahaeng.youtube.entity;
+package com.example.dahaeng.domain.youtube.entity;
 
 import com.example.dahaeng.global.entity.BaseEntity;
 import jakarta.persistence.*;

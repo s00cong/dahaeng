@@ -1,10 +1,12 @@
-package com.example.dahaeng.interest.dto;
+package com.example.dahaeng.domain.interest.dto;
 
-import com.example.dahaeng.interest.enums.InterestCategory;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
-import java.util.Map;
 
 @Getter
 @Setter
@@ -14,5 +16,5 @@ import java.util.Map;
 public class InterestAnalysisResult {
     private Long accountId;
     private List<InterestKeywordCandidate> keywords;
-    private Map<InterestCategory, Double> categories;
+    private List<TravelTagScore> travelTags;
 }

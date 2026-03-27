@@ -13,7 +13,7 @@ export function useCityPriceTab(cityId: number, currency: string) {
 
   // currency는 props로 전달되거나 costDetail 로드 후 상위에서 업데이트
   const exchangeRate = useExchangeRateNew(currency);
-  const exchangeHistory = useExchangeRateHistory(currency, 'd');
+  const exchangeHistory = useExchangeRateHistory(currency, 'D');
 
   const isLoading =
     costDetail.isLoading ||

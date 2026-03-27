@@ -1,8 +1,8 @@
-package com.example.dahaeng.interest.service;
+package com.example.dahaeng.domain.interest.service;
 
-import com.example.dahaeng.interest.dto.InterestKeywordCandidate;
-import com.example.dahaeng.interest.dto.TokenizedSignal;
-import com.example.dahaeng.interest.enums.InterestSourceType;
+import com.example.dahaeng.domain.interest.dto.InterestKeywordCandidate;
+import com.example.dahaeng.domain.interest.dto.TokenizedSignal;
+import com.example.dahaeng.domain.interest.enums.InterestSourceType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +30,7 @@ public class InterestKeywordNormalizer {
                     .sourceType(token.getSourceType())
                     .sourceTypes(Set.of(token.getSourceType()))
                     .latestSignalTime(token.getSignalTime())
-                    .totalScore(0.0)
+                    .score(0.0)
                     .totalCount(1)
                     .distinctSourceCount(1)
                     .build());

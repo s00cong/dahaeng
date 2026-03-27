@@ -1,6 +1,6 @@
-package com.example.dahaeng.domain.location.livingcost.entity;
+package com.example.dahaeng.domain.livingcost.entity;
 
-import com.example.dahaeng.domain.location.city.entity.City;
+import com.example.dahaeng.domain.city.entity.City;
 import com.example.dahaeng.global.entity.BaseEntity;
 
 import jakarta.persistence.*;
@@ -16,9 +16,10 @@ import lombok.*;
 public class LivingCostOfCity extends BaseEntity {
 
 	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@OneToOne(fetch = FetchType.LAZY)
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "city_id", nullable = false)
 	private City city;
 

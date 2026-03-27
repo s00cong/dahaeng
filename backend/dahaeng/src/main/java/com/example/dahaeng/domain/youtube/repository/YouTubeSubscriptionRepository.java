@@ -1,6 +1,6 @@
-package com.example.dahaeng.youtube.repository;
+package com.example.dahaeng.domain.youtube.repository;
 
-import com.example.dahaeng.youtube.entity.YouTubeSubscription;
+import com.example.dahaeng.domain.youtube.entity.YouTubeSubscription;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

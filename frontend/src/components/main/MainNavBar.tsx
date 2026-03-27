@@ -24,10 +24,7 @@ export function MainNavBar() {
   const { openRightPanel } = useUiStore();
   const { data: cities } = useCityList();
 
-  const fallbackCities = useMemo(
-    () => Object.values(DUMMY_CITY_DETAILS),
-    [],
-  );
+  const fallbackCities = useMemo(() => Object.values(DUMMY_CITY_DETAILS), []);
   const citySource = cities ?? fallbackCities;
 
   const suggestions = useMemo(() => {
@@ -78,7 +75,6 @@ export function MainNavBar() {
         className="hidden md:flex flex-col flex-1 max-w-sm mx-6 relative"
       >
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={query}
@@ -95,6 +91,7 @@ export function MainNavBar() {
               "transition-all",
             )}
           />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-blue-600 pointer-events-none" />
         </div>
 
         {/* 자동완성 드롭다운 */}
@@ -104,7 +101,10 @@ export function MainNavBar() {
               <li
                 key={city.cityId}
                 onMouseDown={() => {
-                  openRightPanel(city.cityId, city.imgUrl, { lat: city.latitude, lng: city.longitude });
+                  openRightPanel(city.cityId, city.imgUrl, {
+                    lat: city.latitude,
+                    lng: city.longitude,
+                  });
                   setQuery(city.cityName);
                   setOpen(false);
                 }}
@@ -162,7 +162,7 @@ export function MainNavBar() {
           {user?.profileImageUrl ? (
             <img
               src={user.profileImageUrl}
-              alt={user.name ?? "사용자"}
+              alt={user.nickname ?? "사용자"}
               className="size-full object-cover"
             />
           ) : (

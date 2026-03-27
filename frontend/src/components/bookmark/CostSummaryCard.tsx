@@ -2,19 +2,9 @@ import { useNavigate } from '@tanstack/react-router';
 import { Bus, Utensils, BedDouble, ArrowRight, Wallet } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useCostDetail } from '@/hooks/cost/useCostDetail';
 import type { LucideIcon } from 'lucide-react';
-
-interface CostItem {
-  icon: LucideIcon;
-  label: string;
-  price: string;
-}
-
-const DUMMY_COST_ITEMS: CostItem[] = [
-  { icon: Bus, label: '교통 (버스)', price: '약 1,200원' },
-  { icon: Utensils, label: '식사 (로컬)', price: '약 8,000원' },
-  { icon: BedDouble, label: '숙박 (중급)', price: '약 80,000원' },
-];
 
 interface CostItemRowProps {
   icon: LucideIcon;
@@ -36,12 +26,19 @@ function CostItemRow({ icon: Icon, label, price }: CostItemRowProps) {
   );
 }
 
+function fmt(val: number | undefined): string {
+  if (!val) return '-';
+  return `₩${Math.round(val).toLocaleString()}`;
+}
+
 interface CostSummaryCardProps {
   cityId: number;
 }
 
 export function CostSummaryCard({ cityId }: CostSummaryCardProps) {
   const navigate = useNavigate();
+  const { data, isLoading } = useCostDetail('city', cityId);
+  const lc = data?.living_cost;
 
   return (
     <Card className="gap-4">
@@ -52,12 +49,19 @@ export function CostSummaryCard({ cityId }: CostSummaryCardProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div>
-          {DUMMY_COST_ITEMS.map((item) => (
-            <CostItemRow key={item.label} icon={item.icon} label={item.label} price={item.price} />
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-slate-400">* 추후 실제 물가 데이터로 연동 예정입니다.</p>
+        {isLoading ? (
+          <div className="flex flex-col gap-3 py-1">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : (
+          <div>
+            <CostItemRow icon={Bus} label="편도 대중교통" price={fmt(lc?.transportation?.local_transport_ticket)} />
+            <CostItemRow icon={Utensils} label="점심 식사" price={fmt(lc?.eating_out?.lunch_menu)} />
+            <CostItemRow icon={BedDouble} label="숙박 (일 평균)" price={fmt(lc?.without_rent ? lc.without_rent / 30 : undefined)} />
+          </div>
+        )}
       </CardContent>
       <CardFooter>
         <Button

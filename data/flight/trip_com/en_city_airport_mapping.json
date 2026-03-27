@@ -1,0 +1,277 @@
+{
+  "United States": {
+    "New York City": ["JFK", "LGA", "EWR"],
+    "Las Vegas": ["LAS"],
+    "Los Angeles": ["LAX"],
+    "San Francisco": ["SFO"],
+    "Miami": ["MIA"],
+    "Chicago": ["ORD", "MDW"],
+    "Washington": ["IAD", "DCA"],
+    "Hawaii": ["HNL"],
+    "Guam": ["GUM"],
+    "Saipan": ["SPN"],
+    "Seattle": ["SEA"]
+  },
+  "Vietnam": {
+    "Da Nang": ["DAD"],
+    "Nha Trang": ["CXR"],
+    "Phu Quoc": ["PQC"],
+    "Hanoi": ["HAN"],
+    "Ho Chi Minh": ["SGN"],
+    "Ha Long": ["VDO", "HPH", "HAN"]
+  },
+  "Japan": {
+    "Tokyo": ["HND", "NRT"],
+    "Osaka": ["KIX", "ITM"],
+    "Kyoto": ["KIX", "ITM"],
+    "Fukuoka": ["FUK"],
+    "Sapporo": ["CTS"],
+    "Okinawa": ["OKA"]
+  },
+  "China": {
+    "Shanghai": ["PVG", "SHA"],
+    "Beijing": ["PEK", "PKX"],
+    "Qingdao": ["TAO"],
+    "Guangzhou": ["CAN"],
+    "Shenzhen": ["SZX"],
+    "Harbin": ["HRB"],
+    "Zhangjiajie": ["DYG"],
+    "Hong Kong": ["HKG"],
+    "Macau": ["MFM"]
+  },
+  "Thailand": {
+    "Bangkok": ["BKK", "DMK"],
+    "Phuket": ["HKT"],
+    "Chiang Mai": ["CNX"],
+    "Pattaya": ["UTP"],
+    "Krabi": ["KBV"]
+  },
+  "Philippines": {
+    "Manila": ["MNL"],
+    "Cebu": ["CEB"],
+    "Boracay": ["MPH", "KLO"],
+    "Puerto Princesa": ["PPS"],
+    "Davao": ["DVO"],
+    "Iloilo": ["ILO"],
+    "Baguio": ["CRK", "MNL"],
+    "Bohol": ["TAG"]
+  },
+  "France": {
+    "Paris": ["CDG", "ORY"],
+    "Nice": ["NCE"],
+    "Lyon": ["LYS"],
+    "Marseille": ["MRS"],
+    "Bordeaux": ["BOD"]
+  },
+  "Russia": {
+    "Moscow": ["SVO", "DME", "VKO"],
+    "Saint Petersburg": ["LED"],
+    "Vladivostok": ["VVO"]
+  },
+  "Australia": {
+    "Sydney": ["SYD"],
+    "Melbourne": ["MEL"],
+    "Brisbane": ["BNE"],
+    "Gold Coast": ["OOL"],
+    "Perth": ["PER"]
+  },
+  "Taiwan": {
+    "Taipei": ["TPE", "TSA"],
+    "Kaohsiung": ["KHH"],
+    "Taichung": ["RMQ"]
+  },
+  "United Kingdom": {
+    "London": ["LHR", "LGW", "STN"],
+    "Edinburgh": ["EDI"],
+    "Manchester": ["MAN"],
+    "Liverpool": ["LPL"]
+  },
+  "Germany": {
+    "Berlin": ["BER"],
+    "Munich": ["MUC"],
+    "Frankfurt": ["FRA"],
+    "Hamburg": ["HAM"],
+    "Cologne": ["CGN"]
+  },
+  "Singapore": {
+    "Singapore": ["SIN"]
+  },
+  "Italy": {
+    "Rome": ["FCO"],
+    "Venice": ["VCE"],
+    "Milan": ["MXP", "LIN"],
+    "Florence": ["FLR"],
+    "Naples": ["NAP"]
+  },
+  "Netherlands": {
+    "Amsterdam": ["AMS"],
+    "Rotterdam": ["RTM"],
+    "The Hague": ["RTM"]
+  },
+  "Switzerland": {
+    "Zurich": ["ZRH"],
+    "Interlaken": ["ZRH", "GVA"],
+    "Lucerne": ["ZRH"],
+    "Geneva": ["GVA"]
+  },
+  "Malaysia": {
+    "Kuala Lumpur": ["KUL"],
+    "Kota Kinabalu": ["BKI"],
+    "Langkawi": ["LGK"],
+    "Johor Bahru": ["JHB"],
+    "Malacca": ["KUL"],
+    "Ipoh": ["IPH"]
+  },
+  "Canada": {
+    "Vancouver": ["YVR"],
+    "Toronto": ["YYZ"],
+    "Montreal": ["YUL"],
+    "Quebec City": ["YQB"]
+  },
+  "Cambodia": {
+    "Siem Reap": ["SAI"],
+    "Phnom Penh": ["PNH"],
+    "Sihanoukville": ["KOS"]
+  },
+  "Mongolia": {
+    "Ulaanbaatar": ["UBN"],
+    "Bulgan": ["UGA"]
+  },
+  "New Zealand": {
+    "Auckland": ["AKL"],
+    "Queenstown": ["ZQN"],
+    "Christchurch": ["CHC"]
+  },
+  "India": {
+    "Delhi": ["DEL"],
+    "Mumbai": ["BOM"],
+    "Agra": ["AGR", "DEL"],
+    "Jaipur": ["JAI"],
+    "Goa": ["GOI"]
+  },
+  "Spain": {
+    "Barcelona": ["BCN"],
+    "Madrid": ["MAD"],
+    "Seville": ["SVQ"],
+    "Granada": ["GRX"]
+  },
+  "Brazil": {
+    "Rio De Janeiro": ["GIG"],
+    "Sao Paulo": ["GRU"],
+    "Foz Do Iguacu": ["IGU"]
+  },
+  "Mexico": {
+    "Cancun": ["CUN"],
+    "Mexico City": ["MEX"],
+    "Playa Del Carmen": ["CUN"]
+  },
+  "Hungary": {
+    "Budapest": ["BUD"],
+    "Debrecen": ["DEB"]
+  },
+  "Finland": {
+    "Helsinki": ["HEL"],
+    "Rovaniemi": ["RVN"]
+  },
+  "Turkey": {
+    "Istanbul": ["IST", "SAW"],
+    "Antalya": ["AYT"]
+  },
+  "South Africa": {
+    "Cape Town": ["CPT"],
+    "Johannesburg": ["JNB"],
+    "Durban": ["DUR"]
+  },
+  "Indonesia": {
+    "Bali": ["DPS"],
+    "Jakarta": ["CGK"],
+    "Denpasar": ["DPS"],
+    "Yogyakarta": ["YIA"],
+    "Batam": ["BTH"]
+  },
+  "Laos": {
+    "Vientiane": ["VTE"],
+    "Luang Prabang": ["LPQ"]
+  },
+  "Czech Republic": {
+    "Prague": ["PRG"]
+  },
+  "Austria": {
+    "Vienna": ["VIE"]
+  },
+  "Croatia": {
+    "Zagreb": ["ZAG"]
+  },
+  "United Arab Emirates": {
+    "Dubai": ["DXB"]
+  },
+  "Maldives": {
+    "Male": ["MLE"]
+  },
+  "Portugal": {
+    "Lisbon": ["LIS"],
+    "Porto": ["OPO"]
+  },
+  "Qatar": {
+    "Doha": ["DOH"]
+  },
+  "Greece": {
+    "Athens": ["ATH"]
+  },
+  "Poland": {
+    "Warsaw": ["WAW"]
+  },
+  "Sweden": {
+    "Stockholm": ["ARN"]
+  },
+  "Norway": {
+    "Oslo": ["OSL"]
+  },
+  "Peru": {
+    "Lima": ["LIM"]
+  },
+  "Egypt": {
+    "Cairo": ["CAI"]
+  },
+  "Mauritius": {
+    "Port Louis": ["MRU"]
+  },
+  "Iceland": {
+    "Reykjavik": ["KEF"]
+  },
+  "Denmark": {
+    "Copenhagen": ["CPH"]
+  },
+  "Belgium": {
+    "Brussels": ["BRU"]
+  },
+  "Bolivia": {
+    "La Paz": ["LPB"],
+    "Uyuni": ["UYU"]
+  },
+  "Argentina": {
+    "Buenos Aires": ["EZE"]
+  },
+  "Chile": {
+    "Santiago": ["SCL"]
+  },
+  "Nepal": {
+    "Kathmandu": ["KTM"]
+  },
+  "Palau": {
+    "Koror": ["ROR"]
+  },
+  "Kazakhstan": {
+    "Almaty": ["ALA"]
+  },
+  "Morocco": {
+    "Casablanca": ["CMN"],
+    "Marrakesh": ["RAK"]
+  },
+  "Cuba": {
+    "Havana": ["HAV"]
+  },
+  "Kenya": {
+    "Nairobi": ["NBO"]
+  }
+}

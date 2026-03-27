@@ -1,5 +1,5 @@
-package com.example.dahaeng.domain.location.livingcost.entity;
-import com.example.dahaeng.domain.location.country.entity.Country;
+package com.example.dahaeng.domain.livingcost.entity;
+import com.example.dahaeng.domain.country.entity.Country;
 import com.example.dahaeng.global.entity.BaseEntity;
 
 import jakarta.persistence.*;
@@ -15,9 +15,10 @@ import lombok.*;
 public class LivingCostOfCountry extends BaseEntity {
 
 	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@OneToOne(fetch = FetchType.LAZY)
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "country_id", nullable = false)
 	private Country country;
 

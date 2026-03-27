@@ -1,8 +1,8 @@
-package com.example.dahaeng.youtube.service;
+package com.example.dahaeng.domain.youtube.service;
 
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
-import com.example.dahaeng.youtube.dto.response.*;
+import com.example.dahaeng.domain.youtube.dto.response.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
@@ -23,12 +23,12 @@ public class YouTubeFetchService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public YouTubeApiResponse<YouTubePlaylistResponse> fetchPlaylists(String accessToken) {
-        String url = YOUTUBE_API_BASE_URL + "/playlists?part=snippet,status&mine=true&maxResults=50";
+        String url = YOUTUBE_API_BASE_URL + "/playlists?part=snippet,status&mine=true&maxResults=30";
         return callYouTubeApi(url, accessToken, YouTubePlaylistResponse.class);
     }
 
     public YouTubeApiResponse<YouTubePlaylistItemResponse> fetchPlaylistItems(String accessToken, String playlistId) {
-        String url = YOUTUBE_API_BASE_URL + "/playlistItems?part=snippet,contentDetails&playlistId=" + playlistId + "&maxResults=50";
+        String url = YOUTUBE_API_BASE_URL + "/playlistItems?part=snippet,contentDetails&playlistId=" + playlistId + "&maxResults=20";
         return callYouTubeApi(url, accessToken, YouTubePlaylistItemResponse.class);
     }
 

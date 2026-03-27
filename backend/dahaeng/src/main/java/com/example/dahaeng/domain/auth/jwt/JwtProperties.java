@@ -1,4 +1,4 @@
-package com.example.dahaeng.auth.jwt;
+package com.example.dahaeng.domain.auth.jwt;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,4 +1,4 @@
-package com.example.dahaeng.youtube.enums;
+package com.example.dahaeng.domain.youtube.enums;
 
 public enum PrivacyStatus {
     PUBLIC,

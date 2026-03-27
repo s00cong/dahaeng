@@ -1,5 +1,7 @@
-import type { BookmarkDetail } from '@/schemas/bookmark.schema';
-import { MatchScoreBadge } from './MatchScoreBadge';
+import type { BookmarkDetail } from "@/schemas/bookmark.schema";
+import { MatchScoreBadge } from "./MatchScoreBadge";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 
 interface BookmarkHeroSectionProps {
   data: BookmarkDetail;
@@ -7,12 +9,16 @@ interface BookmarkHeroSectionProps {
 
 export function BookmarkHeroSection({ data }: BookmarkHeroSectionProps) {
   return (
-    <section className="relative h-[400px] w-full overflow-hidden" aria-label="도시 히어로 섹션">
+    <section
+      className="relative h-[300px] w-full overflow-hidden"
+      aria-label="도시 히어로 섹션"
+    >
       {/* 배경 이미지 */}
       <img
-        src={data.imgUrl}
+        src={data.imgUrl ?? undefined}
         alt={`${data.cityName} 도시 전경`}
         className="absolute inset-0 h-full w-full object-cover"
+        onError={(e) => { e.currentTarget.style.display = 'none'; }}
       />
 
       {/* 어두운 그라디언트 오버레이 */}
@@ -24,13 +30,13 @@ export function BookmarkHeroSection({ data }: BookmarkHeroSectionProps) {
           저장된 도시
         </p>
         <h1 className="text-4xl font-bold text-white drop-shadow-md">
-          {data.cityName}, {data.countryName}
+          {CITY_NAME_KO[data.cityName] ?? data.cityName}, {COUNTRY_NAME_KO[data.countryName] ?? data.countryName}
         </h1>
       </div>
 
       {/* 우상단 매칭 점수 배지 */}
       {data.matchingScore !== undefined && (
-        <div className="absolute right-8 top-8">
+        <div className="absolute right-8 bottom-8">
           <MatchScoreBadge score={data.matchingScore} />
         </div>
       )}

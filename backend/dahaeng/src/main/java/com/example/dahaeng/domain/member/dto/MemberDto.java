@@ -1,4 +1,4 @@
-package com.example.dahaeng.member.dto;
+package com.example.dahaeng.domain.member.dto;
 
 import lombok.*;
 

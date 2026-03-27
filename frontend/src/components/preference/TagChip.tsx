@@ -5,14 +5,14 @@ import { cn } from '@/lib/utils';
 interface TagChipProps {
   label: string;
   selected: boolean;
-  onToggle: (tag: string) => void;
+  onToggle: () => void;
 }
 
 export function TagChip({ label, selected, onToggle }: TagChipProps) {
   return (
     <motion.button
       type="button"
-      onClick={() => onToggle(label)}
+      onClick={onToggle}
       whileTap={{ scale: 0.93 }}
       whileHover={{ scale: 1.04 }}
       transition={{ type: 'spring', stiffness: 400, damping: 25 }}

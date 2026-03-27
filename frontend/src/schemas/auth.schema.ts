@@ -1,19 +1,20 @@
 import { z } from 'zod';
 
-// 사용자 정보
+// 사용자 정보 (백엔드 UserResponse와 일치)
 export const UserSchema = z.object({
   id: z.number(),
-  email: z.string().email(),
-  name: z.string(),
-  profileImageUrl: z.string(),
-  hasCompletedPreference: z.boolean(),
+  role: z.string(),
+  nickname: z.string(),
+  profileImageUrl: z.string().nullable(),
+  email: z.string().email().optional(), // /api/auth/me 등에서 사용될 수 있음
 });
 export type User = z.infer<typeof UserSchema>;
 
-// 로그인/콜백 응답
+// 로그인/콜백 응답 (백엔드 ExchangeResponse와 일치)
 export const AuthCallbackResponseSchema = z.object({
+  tokenType: z.string(),
   accessToken: z.string(),
-  user: UserSchema,
+  member: UserSchema,
 });
 export type AuthCallbackResponse = z.infer<typeof AuthCallbackResponseSchema>;
 
@@ -25,13 +26,13 @@ export type TokenReissueResponse = z.infer<typeof TokenReissueResponseSchema>;
 
 // Google 로그인 URL 응답
 export const GoogleLoginUrlResponseSchema = z.object({
-  loginUrl: z.string().url(),
+  loginUrl: z.string(), // 백엔드가 "/oauth2/authorization/google" (상대경로) 반환
 });
 export type GoogleLoginUrlResponse = z.infer<typeof GoogleLoginUrlResponseSchema>;
 
-// 선호도 태그 요청
+// 선호도 태그 요청 — 백엔드 MemberTagCreateRequest { tagIds: Long[] } 와 일치
 export const PreferenceTagRequestSchema = z.object({
-  tags: z.array(z.string()),
+  tagIds: z.array(z.number()),
 });
 export type PreferenceTagRequest = z.infer<typeof PreferenceTagRequestSchema>;
 

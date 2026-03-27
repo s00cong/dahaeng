@@ -1,16 +1,16 @@
-package com.example.dahaeng.youtube.service;
+package com.example.dahaeng.domain.youtube.service;
 
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
-import com.example.dahaeng.youtube.dto.YouTubePlaylistDto;
-import com.example.dahaeng.youtube.dto.YouTubeSubscriptionDto;
-import com.example.dahaeng.youtube.dto.YouTubeVideoDto;
-import com.example.dahaeng.youtube.entity.YouTubeAccount;
-import com.example.dahaeng.youtube.entity.YouTubePlaylist;
-import com.example.dahaeng.youtube.entity.YouTubePlaylistVideo;
-import com.example.dahaeng.youtube.entity.YouTubeVideoTag;
-import com.example.dahaeng.youtube.enums.SyncStatus;
-import com.example.dahaeng.youtube.repository.*;
+import com.example.dahaeng.domain.youtube.dto.YouTubePlaylistDto;
+import com.example.dahaeng.domain.youtube.dto.YouTubeSubscriptionDto;
+import com.example.dahaeng.domain.youtube.dto.YouTubeVideoDto;
+import com.example.dahaeng.domain.youtube.entity.YouTubeAccount;
+import com.example.dahaeng.domain.youtube.entity.YouTubePlaylist;
+import com.example.dahaeng.domain.youtube.entity.YouTubePlaylistVideo;
+import com.example.dahaeng.domain.youtube.entity.YouTubeVideoTag;
+import com.example.dahaeng.domain.youtube.enums.SyncStatus;
+import com.example.dahaeng.domain.youtube.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,9 +32,9 @@ public class YouTubeQueryService {
     public SyncStatusResponse getSyncStatus(Long memberId) {
         YouTubeAccount account = accountRepository.findByMemberId(memberId).orElse(null);
         if (account == null) {
-            return new SyncStatusResponse(false, null, null);
+            return new SyncStatusResponse(false, null, null, false);
         }
-        return new SyncStatusResponse(true, account.getSyncStatus(), account.getLastSyncedAt());
+        return new SyncStatusResponse(true, account.getSyncStatus(), account.getLastSyncedAt(), account.isSyncEnabledEffective());
     }
 
     public List<YouTubePlaylistDto> getPlaylists(Long memberId) {
@@ -95,5 +95,5 @@ public class YouTubeQueryService {
                 .toList();
     }
 
-    public record SyncStatusResponse(boolean connected, SyncStatus syncStatus, LocalDateTime lastSyncedAt) {}
+    public record SyncStatusResponse(boolean connected, SyncStatus syncStatus, LocalDateTime lastSyncedAt, Boolean syncEnabled) {}
 }

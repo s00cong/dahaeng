@@ -1,15 +1,15 @@
-package com.example.dahaeng.auth.controller;
+package com.example.dahaeng.domain.auth.controller;
 
-import com.example.dahaeng.auth.dto.CustomOAuth2User;
-import com.example.dahaeng.auth.dto.ExchangeRequest;
-import com.example.dahaeng.auth.dto.ExchangeResponse;
-import com.example.dahaeng.auth.dto.UserResponse;
-import com.example.dahaeng.auth.jwt.JwtUtil;
-import com.example.dahaeng.auth.service.OAuthCodeService;
+import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
+import com.example.dahaeng.domain.auth.dto.ExchangeRequest;
+import com.example.dahaeng.domain.auth.dto.ExchangeResponse;
+import com.example.dahaeng.domain.auth.dto.UserResponse;
+import com.example.dahaeng.domain.auth.jwt.JwtUtil;
+import com.example.dahaeng.domain.auth.service.OAuthCodeService;
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
-import com.example.dahaeng.member.dto.MemberDto;
-import com.example.dahaeng.member.service.MemberService;
+import com.example.dahaeng.domain.member.dto.MemberDto;
+import com.example.dahaeng.domain.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

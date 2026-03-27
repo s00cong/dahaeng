@@ -7,81 +7,78 @@ import type {
 
 // ── A. /api/exchange-rate?currency=JPY ───────────────────────────────────────
 export const DUMMY_EXCHANGE_RATE: ExchangeRateNew = {
-  base: 'KRW',
   target: 'JPY',
-  rate: 0.11,
-  asOf: '2026-03-08',
-  meta: {
-    lastUpdatedAt: '2026-03-08T01:00:00Z',
-    source: 'fx_provider_v1',
-  },
-};
-
-// ── B. /api/exchange-rate/history (일별/주별/월별) ────────────────────────────
-const EXCHANGE_LATEST = {
   event_date: '2026-03-08',
   rate_1krw_to_target: 0.11,
   krw_per_1target: 9.09,
   display_unit: 100,
   display_symbol: 'JPY(100)',
   krw_per_display_unit: 909.0,
+  updatedAt: '2026-03-08T01:00:00Z',
+};
+
+// ── B. /api/exchange-rate/history (일별/주별/월별) ────────────────────────────
+const EXCHANGE_LATEST = {
+  eventDate: '2026-03-08',
+  rate1krwToTarget: 0.11,
+  krwPer1target: 9.09,
+  displayUnit: 100,
+  displaySymbol: 'JPY(100)',
+  krwPerDisplayUnit: 909.0,
 };
 
 export const DUMMY_EXCHANGE_RATE_HISTORY_D: ExchangeRateHistory = {
-  base_currency: 'KRW',
-  target_currency: 'JPY',
-  type: 'd',
+  baseCurrency: 'KRW',
+  targetCurrency: 'JPY',
+  type: 'D',
   latest: EXCHANGE_LATEST,
-  trend: [
-    { date: '2026-03-02', rate_1krw_to_target: 0.108, krw_per_1target: 9.26 },
-    { date: '2026-03-03', rate_1krw_to_target: 0.109, krw_per_1target: 9.17 },
-    { date: '2026-03-04', rate_1krw_to_target: 0.109, krw_per_1target: 9.17 },
-    { date: '2026-03-05', rate_1krw_to_target: 0.108, krw_per_1target: 9.26 },
-    { date: '2026-03-06', rate_1krw_to_target: 0.110, krw_per_1target: 9.09 },
-    { date: '2026-03-07', rate_1krw_to_target: 0.111, krw_per_1target: 9.01 },
-    { date: '2026-03-08', rate_1krw_to_target: 0.110, krw_per_1target: 9.09 },
+  history: [
+    { date: '2026-03-02', rate1krwToTarget: 0.108, krwPer1target: 9.26 },
+    { date: '2026-03-03', rate1krwToTarget: 0.109, krwPer1target: 9.17 },
+    { date: '2026-03-04', rate1krwToTarget: 0.109, krwPer1target: 9.17 },
+    { date: '2026-03-05', rate1krwToTarget: 0.108, krwPer1target: 9.26 },
+    { date: '2026-03-06', rate1krwToTarget: 0.110, krwPer1target: 9.09 },
+    { date: '2026-03-07', rate1krwToTarget: 0.111, krwPer1target: 9.01 },
+    { date: '2026-03-08', rate1krwToTarget: 0.110, krwPer1target: 9.09 },
   ],
 };
 
 export const DUMMY_EXCHANGE_RATE_HISTORY_W: ExchangeRateHistory = {
-  base_currency: 'KRW',
-  target_currency: 'JPY',
-  type: 'w',
+  baseCurrency: 'KRW',
+  targetCurrency: 'JPY',
+  type: 'W',
   latest: EXCHANGE_LATEST,
-  trend: [
-    { date: '2026-01-19', rate_1krw_to_target: 0.106, krw_per_1target: 9.43 },
-    { date: '2026-01-26', rate_1krw_to_target: 0.107, krw_per_1target: 9.35 },
-    { date: '2026-02-02', rate_1krw_to_target: 0.108, krw_per_1target: 9.26 },
-    { date: '2026-02-09', rate_1krw_to_target: 0.109, krw_per_1target: 9.17 },
-    { date: '2026-02-16', rate_1krw_to_target: 0.110, krw_per_1target: 9.09 },
-    { date: '2026-02-23', rate_1krw_to_target: 0.111, krw_per_1target: 9.01 },
-    { date: '2026-03-02', rate_1krw_to_target: 0.110, krw_per_1target: 9.09 },
+  history: [
+    { date: '2026-01-19', rate1krwToTarget: 0.106, krwPer1target: 9.43 },
+    { date: '2026-01-26', rate1krwToTarget: 0.107, krwPer1target: 9.35 },
+    { date: '2026-02-02', rate1krwToTarget: 0.108, krwPer1target: 9.26 },
+    { date: '2026-02-09', rate1krwToTarget: 0.109, krwPer1target: 9.17 },
+    { date: '2026-02-16', rate1krwToTarget: 0.110, krwPer1target: 9.09 },
+    { date: '2026-02-23', rate1krwToTarget: 0.111, krwPer1target: 9.01 },
+    { date: '2026-03-02', rate1krwToTarget: 0.110, krwPer1target: 9.09 },
   ],
 };
 
 export const DUMMY_EXCHANGE_RATE_HISTORY_M: ExchangeRateHistory = {
-  base_currency: 'KRW',
-  target_currency: 'JPY',
-  type: 'm',
+  baseCurrency: 'KRW',
+  targetCurrency: 'JPY',
+  type: 'M',
   latest: EXCHANGE_LATEST,
-  trend: [
-    { date: '2025-09-01', rate_1krw_to_target: 0.104, krw_per_1target: 9.62 },
-    { date: '2025-10-01', rate_1krw_to_target: 0.105, krw_per_1target: 9.52 },
-    { date: '2025-11-01', rate_1krw_to_target: 0.107, krw_per_1target: 9.35 },
-    { date: '2025-12-01', rate_1krw_to_target: 0.108, krw_per_1target: 9.26 },
-    { date: '2026-01-01', rate_1krw_to_target: 0.109, krw_per_1target: 9.17 },
-    { date: '2026-02-01', rate_1krw_to_target: 0.111, krw_per_1target: 9.01 },
-    { date: '2026-03-01', rate_1krw_to_target: 0.110, krw_per_1target: 9.09 },
+  history: [
+    { date: '2025-09-01', rate1krwToTarget: 0.104, krwPer1target: 9.62 },
+    { date: '2025-10-01', rate1krwToTarget: 0.105, krwPer1target: 9.52 },
+    { date: '2025-11-01', rate1krwToTarget: 0.107, krwPer1target: 9.35 },
+    { date: '2025-12-01', rate1krwToTarget: 0.108, krwPer1target: 9.26 },
+    { date: '2026-01-01', rate1krwToTarget: 0.109, krwPer1target: 9.17 },
+    { date: '2026-02-01', rate1krwToTarget: 0.111, krwPer1target: 9.01 },
+    { date: '2026-03-01', rate1krwToTarget: 0.110, krwPer1target: 9.09 },
   ],
 };
-
-// 타입별 더미 선택 헬퍼
-export const DUMMY_EXCHANGE_RATE_HISTORY: ExchangeRateHistory = DUMMY_EXCHANGE_RATE_HISTORY_M;
 
 // ── Seoul 기준 더미 (city_id=1) ───────────────────────────────────────────────
 export const DUMMY_SEOUL_COST_DETAIL: CostDetail = {
   target_type: 'city',
-  target: { id: 1, name: 'Seoul', continent: 'Asia', currency: 'USD' },
+  target: { id: 1, name: 'Seoul', parentRegion: 'Asia', currency: 'KRW' },
   living_cost: {
     id: 1,
     daily_budget: 55.0,
@@ -102,7 +99,7 @@ export const DUMMY_SEOUL_COST_DETAIL: CostDetail = {
       local_transport_ticket: 1.4,
       monthly_ticket_local_transport: 55.0,
       taxi_ride: 9.5,
-      gas_pterol: 1.55,
+      gas_petrol: 1.55,
     },
     groceries: {
       milk: 2.0, bread: 2.2, rice: 3.0, egg: 2.0,
@@ -130,8 +127,8 @@ export const DUMMY_COST_DETAIL: CostDetail = {
   target: {
     id: 120,
     name: 'Tokyo',
-    continent: 'Asia',
-    currency: 'USD',
+    parentRegion: 'Asia',
+    currency: 'JPY',
     img_url: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400',
   },
   living_cost: {
@@ -154,7 +151,7 @@ export const DUMMY_COST_DETAIL: CostDetail = {
       local_transport_ticket: 2.3,
       monthly_ticket_local_transport: 80.0,
       taxi_ride: 14.0,
-      gas_pterol: 1.6,
+      gas_petrol: 1.6,
     },
     groceries: {
       milk: 1.8,
@@ -191,29 +188,28 @@ export const DUMMY_COST_DETAIL: CostDetail = {
   },
 };
 
-// ── D. /api/cost/compare/{city_id} ──────────────────────────────────────────
+// ── D. /api/cost/compare ────────────────────────────────────────────────────
 export const DUMMY_COST_COMPARE: CostCompare = {
-  base_city: {
+  base: {
     id: 1,
     name: 'Seoul',
-    country: 'South Korea',
+    parentRegion: 'South Korea',
     currency: 'KRW',
   },
-  target_city: {
+  target: {
     id: 120,
     name: 'Tokyo',
-    country: 'Japan',
+    parentRegion: 'Japan',
     currency: 'JPY',
   },
-  cost_vs_seoul: {
+  costCompare: {
     currency: 'KRW',
-    seoul_daily_budget: 150000,
-    target_daily_budget: 180000,
-    daily_budget_gap_krw: 30000,
-    daily_budget_gap_percent: 20.0,
-    summary: 'Tokyo is more expensive than Seoul based on expected daily budget.',
+    baseDailyBudget: 150000,
+    targetDailyBudget: 180000,
+    dailyBudgetGap: 30000,
+    dailyBudgetGapPercent: 20.0,
   },
-  expected_daily_budget: {
+  expectedTargetDailyBudget: {
     currency: 'KRW',
     total: 180000,
     breakdown: {
@@ -221,26 +217,26 @@ export const DUMMY_COST_COMPARE: CostCompare = {
       transport: 15000,
       accommodation: 115000,
     },
-    calculation_notes: [
+    calculationNotes: [
       'food = estimated breakfast + lunch + dinner',
       'transport = average daily local transport usage',
       'accommodation = average 1 night stay cost',
     ],
   },
-  item_comparison: {
+  itemComparison: {
     currency: 'KRW',
-    base_city: 'Seoul',
-    target_city: 'Tokyo',
+    base: 'Seoul',
+    target: 'Tokyo',
     items: [
-      { item_key: 'lunch_menu', item_name: '점심 식사', seoul_price: 12000, target_price: 15000, difference_krw: 3000, difference_percent: 25.0 },
-      { item_key: 'dinner_for_2', item_name: '저녁비 (2인)', seoul_price: 70000, target_price: 82000, difference_krw: 12000, difference_percent: 17.1 },
-      { item_key: 'big_mac', item_name: '빅맥지수', seoul_price: 5500, target_price: 6200, difference_krw: 700, difference_percent: 12.7 },
-      { item_key: 'cappuccino', item_name: '카푸치노', seoul_price: 4800, target_price: 5600, difference_krw: 800, difference_percent: 16.7 },
-      { item_key: 'coke', item_name: '콜라', seoul_price: 2200, target_price: 2500, difference_krw: 300, difference_percent: 13.6 },
-      { item_key: 'bus_ticket', item_name: '버스비', seoul_price: 1500, target_price: 2100, difference_krw: 600, difference_percent: 40.0 },
-      { item_key: 'taxi_8km', item_name: '택시비 (8km)', seoul_price: 12000, target_price: 18500, difference_krw: 6500, difference_percent: 54.2 },
-      { item_key: 'brand_jeans', item_name: '브랜드 청바지', seoul_price: 89000, target_price: 97000, difference_krw: 8000, difference_percent: 9.0 },
-      { item_key: 'brand_sneakers', item_name: '브랜드 운동화', seoul_price: 110000, target_price: 128000, difference_krw: 18000, difference_percent: 16.4 },
+      { itemKey: 'lunch_menu', itemName: '점심 식사', basePrice: 12000, targetPrice: 15000, difference: 3000, differencePercent: 25.0 },
+      { itemKey: 'dinner_for_2', itemName: '저녁비 (2인)', basePrice: 70000, targetPrice: 82000, difference: 12000, differencePercent: 17.1 },
+      { itemKey: 'big_mac', itemName: '빅맥지수', basePrice: 5500, targetPrice: 6200, difference: 700, differencePercent: 12.7 },
+      { itemKey: 'cappuccino', itemName: '카푸치노', basePrice: 4800, targetPrice: 5600, difference: 800, differencePercent: 16.7 },
+      { itemKey: 'coke', itemName: '콜라', basePrice: 2200, targetPrice: 2500, difference: 300, differencePercent: 13.6 },
+      { itemKey: 'bus_ticket', itemName: '버스비', basePrice: 1500, targetPrice: 2100, difference: 600, differencePercent: 40.0 },
+      { itemKey: 'taxi_8km', itemName: '택시비 (8km)', basePrice: 12000, targetPrice: 18500, difference: 6500, differencePercent: 54.2 },
+      { itemKey: 'brand_jeans', itemName: '브랜드 청바지', basePrice: 89000, targetPrice: 97000, difference: 8000, differencePercent: 9.0 },
+      { itemKey: 'brand_sneakers', itemName: '브랜드 운동화', basePrice: 110000, targetPrice: 128000, difference: 18000, differencePercent: 16.4 },
     ],
   },
 };

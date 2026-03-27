@@ -1,12 +1,12 @@
-package com.example.dahaeng.auth.service;
+package com.example.dahaeng.domain.auth.service;
 
-import com.example.dahaeng.auth.dto.CustomOAuth2User;
-import com.example.dahaeng.auth.dto.GoogleResponse;
-import com.example.dahaeng.auth.dto.OAuth2Response;
-import com.example.dahaeng.member.dto.MemberDto;
-import com.example.dahaeng.member.entity.Member;
-import com.example.dahaeng.member.repository.MemberRepository;
-import com.example.dahaeng.youtube.service.YouTubeSaveService;
+import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
+import com.example.dahaeng.domain.auth.dto.GoogleResponse;
+import com.example.dahaeng.domain.auth.dto.OAuth2Response;
+import com.example.dahaeng.domain.member.dto.MemberDto;
+import com.example.dahaeng.domain.member.entity.Member;
+import com.example.dahaeng.domain.member.repository.MemberRepository;
+import com.example.dahaeng.domain.youtube.service.YouTubeSaveService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;

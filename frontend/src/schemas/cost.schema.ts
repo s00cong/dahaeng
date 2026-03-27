@@ -57,45 +57,45 @@ export const ExchangeRateSchema = z.object({
 });
 export type ExchangeRate = z.infer<typeof ExchangeRateSchema>;
 
-// ── New API schemas (Costapi.md) ──────────────────────────────────────────────
+// ── New API schemas (Aligned with Costapi.md) ──────────────────────────────
 
 // A. GET /api/exchange-rate
 export const ExchangeRateNewSchema = z.object({
-  base: z.string(),
   target: z.string(),
-  rate: z.number(),
-  asOf: z.string(),
-  meta: z.object({
-    lastUpdatedAt: z.string(),
-    source: z.string(),
-  }),
-});
-export type ExchangeRateNew = z.infer<typeof ExchangeRateNewSchema>;
-
-// B. GET /api/exchange-rate/history
-export const ExchangeRateTrendItemSchema = z.object({
-  date: z.string(),
-  rate_1krw_to_target: z.number(),
-  krw_per_1target: z.number(),
-});
-export type ExchangeRateTrendItem = z.infer<typeof ExchangeRateTrendItemSchema>;
-
-export const ExchangeRateLatestSchema = z.object({
   event_date: z.string(),
   rate_1krw_to_target: z.number(),
   krw_per_1target: z.number(),
   display_unit: z.number(),
   display_symbol: z.string(),
   krw_per_display_unit: z.number(),
+  updatedAt: z.string().optional(),
+});
+export type ExchangeRateNew = z.infer<typeof ExchangeRateNewSchema>;
+
+// B. GET /api/exchange-rate/history
+export const ExchangeRateTrendItemSchema = z.object({
+  date: z.string(),
+  rate1krwToTarget: z.number(),
+  krwPer1target: z.number(),
+});
+export type ExchangeRateTrendItem = z.infer<typeof ExchangeRateTrendItemSchema>;
+
+export const ExchangeRateLatestSchema = z.object({
+  eventDate: z.string(),
+  rate1krwToTarget: z.number(),
+  krwPer1target: z.number(),
+  displayUnit: z.number(),
+  displaySymbol: z.string(),
+  krwPerDisplayUnit: z.number(),
 });
 export type ExchangeRateLatest = z.infer<typeof ExchangeRateLatestSchema>;
 
 export const ExchangeRateHistorySchema = z.object({
-  base_currency: z.string(),
-  target_currency: z.string(),
-  type: z.enum(['d', 'w', 'm']),
+  baseCurrency: z.string(),
+  targetCurrency: z.string(),
+  type: z.enum(['D', 'W', 'M']),
   latest: ExchangeRateLatestSchema,
-  trend: z.array(ExchangeRateTrendItemSchema),
+  history: z.array(ExchangeRateTrendItemSchema), // trend -> history 로 변경
 });
 export type ExchangeRateHistory = z.infer<typeof ExchangeRateHistorySchema>;
 
@@ -114,7 +114,7 @@ export const CostTransportationSchema = z.object({
   local_transport_ticket: z.number(),
   monthly_ticket_local_transport: z.number(),
   taxi_ride: z.number(),
-  gas_pterol: z.number(),
+  gas_petrol: z.number(),
 });
 export type CostTransportation = z.infer<typeof CostTransportationSchema>;
 
@@ -172,9 +172,9 @@ export type LivingCost = z.infer<typeof LivingCostSchema>;
 export const CostTargetSchema = z.object({
   id: z.number(),
   name: z.string(),
-  continent: z.string().optional(),
+  parentRegion: z.string().optional(), // continent -> parentRegion
   currency: z.string(),
-  img_url: z.string().optional(),
+  img_url: z.string().nullable().optional(),
 });
 export type CostTarget = z.infer<typeof CostTargetSchema>;
 
@@ -185,53 +185,59 @@ export const CostDetailSchema = z.object({
 });
 export type CostDetail = z.infer<typeof CostDetailSchema>;
 
-// D. GET /api/cost/compare/{city_id}
+// D. GET /api/cost/compare
 export const CompareItemSchema = z.object({
-  item_key: z.string(),
-  item_name: z.string(),
-  seoul_price: z.number(),
-  target_price: z.number(),
-  difference_krw: z.number(),
-  difference_percent: z.number(),
+  itemKey: z.string(),
+  itemName: z.string(),
+  basePrice: z.number(), // seoul_price -> basePrice
+  targetPrice: z.number(),
+  difference: z.number(), // difference_krw -> difference
+  differencePercent: z.number(),
 });
 export type CompareItem = z.infer<typeof CompareItemSchema>;
 
 export const CostCompareSchema = z.object({
-  base_city: z.object({
-    id: z.number(),
-    name: z.string(),
-    country: z.string(),
+  base: CostTargetSchema,
+  target: CostTargetSchema,
+  costCompare: z.object({
     currency: z.string(),
+    baseDailyBudget: z.number(),
+    targetDailyBudget: z.number(),
+    dailyBudgetGap: z.number(),
+    dailyBudgetGapPercent: z.number(),
+    summary: z.string().optional(),
   }),
-  target_city: z.object({
-    id: z.number(),
-    name: z.string(),
-    country: z.string(),
-    currency: z.string(),
-  }),
-  cost_vs_seoul: z.object({
-    currency: z.string(),
-    seoul_daily_budget: z.number(),
-    target_daily_budget: z.number(),
-    daily_budget_gap_krw: z.number(),
-    daily_budget_gap_percent: z.number(),
-    summary: z.string(),
-  }),
-  expected_daily_budget: z.object({
+  expectedTargetDailyBudget: z.object({
     currency: z.string(),
     total: z.number(),
     breakdown: z.object({
       food: z.number(),
       transport: z.number(),
-      accommodation: z.number(),
+      accommodation: z.number().optional(),
     }),
-    calculation_notes: z.array(z.string()),
+    calculationNotes: z.array(z.string()),
   }),
-  item_comparison: z.object({
+  itemComparison: z.object({
     currency: z.string(),
-    base_city: z.string(),
-    target_city: z.string(),
+    base: z.string(),
+    target: z.string(),
     items: z.array(CompareItemSchema),
   }),
+  localCostCompare: z.object({
+    currency: z.string(),
+    baseLocalDailyCost: z.number(),
+    targetLocalDailyCost: z.number(),
+    localDailyCostGap: z.number(),
+    localDailyCostGapPercent: z.number(),
+  }).optional(),
+  affordabilityCompare: z.object({
+    currency: z.string(),
+    baseDailyIncome: z.number(),
+    targetDailyIncome: z.number(),
+    baseLocalCostBurdenPercent: z.number(),
+    targetLocalCostBurdenPercent: z.number(),
+    burdenGapPercentPoint: z.number(),
+    targetMoreAffordable: z.boolean(),
+  }).optional(),
 });
 export type CostCompare = z.infer<typeof CostCompareSchema>;

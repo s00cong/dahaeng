@@ -1,7 +1,7 @@
-package com.example.dahaeng.interest.service;
+package com.example.dahaeng.domain.interest.service;
 
-import com.example.dahaeng.interest.dto.RawInterestSignal;
-import com.example.dahaeng.interest.dto.TokenizedSignal;
+import com.example.dahaeng.domain.interest.dto.RawInterestSignal;
+import com.example.dahaeng.domain.interest.dto.TokenizedSignal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;

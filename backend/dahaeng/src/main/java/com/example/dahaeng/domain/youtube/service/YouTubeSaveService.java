@@ -1,11 +1,11 @@
-package com.example.dahaeng.youtube.service;
+package com.example.dahaeng.domain.youtube.service;
 
-import com.example.dahaeng.member.entity.Member;
-import com.example.dahaeng.youtube.entity.*;
-import com.example.dahaeng.youtube.enums.PrivacyStatus;
-import com.example.dahaeng.youtube.enums.SnapshotType;
-import com.example.dahaeng.youtube.enums.SyncStatus;
-import com.example.dahaeng.youtube.repository.*;
+import com.example.dahaeng.domain.member.entity.Member;
+import com.example.dahaeng.domain.youtube.entity.*;
+import com.example.dahaeng.domain.youtube.enums.PrivacyStatus;
+import com.example.dahaeng.domain.youtube.enums.SnapshotType;
+import com.example.dahaeng.domain.youtube.enums.SyncStatus;
+import com.example.dahaeng.domain.youtube.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +48,7 @@ public class YouTubeSaveService {
                 .refreshToken(refreshToken)
                 .tokenExpiresAt(tokenExpiresAt)
                 .syncStatus(SyncStatus.PENDING)
+                .syncEnabled(true)
                 .build();
 
         return accountRepository.save(newAccount);
@@ -197,17 +198,8 @@ public class YouTubeSaveService {
     }
 
     public void updateSyncStatus(YouTubeAccount account, SyncStatus status, LocalDateTime lastSyncedAt) {
-        YouTubeAccount updated = YouTubeAccount.builder()
-                .id(account.getId())
-                .member(account.getMember())
-                .youtubeChannelId(account.getYoutubeChannelId())
-                .googleEmail(account.getGoogleEmail())
-                .accessToken(account.getAccessToken())
-                .refreshToken(account.getRefreshToken())
-                .syncStatus(status)
-                .lastSyncedAt(lastSyncedAt)
-                .build();
-        accountRepository.save(updated);
+        account.updateSyncStatus(status, lastSyncedAt);
+        accountRepository.save(account);
     }
 
     public record PlaylistVideoInput(YouTubeVideo video, Integer position) {}
