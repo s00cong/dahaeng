@@ -185,6 +185,7 @@ export function RightPanel() {
           {/* 패널 콘텐츠 */}
           <div
             ref={panelRef}
+            data-tutorial="right-panel"
             className="h-full rounded-2xl bg-white/90 backdrop-blur-md shadow-xl
                        flex flex-col overflow-hidden
                        w-60 md:w-64 lg:w-[300px]"
