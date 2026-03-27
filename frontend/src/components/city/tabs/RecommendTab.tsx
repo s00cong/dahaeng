@@ -247,13 +247,10 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
             </p>
           )}
           {/* 키워드 뱃지 */}
-          {city.tags && city.tags.some((t) => (t.tagScore ?? 0) >= 0.2) && (
+          {city.tags && city.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
               {(() => {
-                const sorted = [...city.tags!].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0));
-                const high = sorted.filter((t) => (t.tagScore ?? 0) >= 0.6);
-                const tags = high.length >= 5 ? high.slice(0, 5) : [...high, ...sorted.filter((t) => (t.tagScore ?? 0) >= 0.2 && (t.tagScore ?? 0) < 0.6)].slice(0, 5);
-                return tags.map((t) => t.name);
+                return [...city.tags!].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).map((t) => t.name);
               })().map((kw) => (
                 <Badge
                   key={kw}

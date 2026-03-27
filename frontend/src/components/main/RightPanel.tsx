@@ -19,6 +19,9 @@ import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
 import defaultCityImg from "@/assets/no-picture.png";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
+import { useQueryClient } from "@tanstack/react-query";
+import { placesApi } from "@/api/places.api";
+import { nearbyAttractionsApi } from "@/api/nearbyAttractions.api";
 
 const TAB_W = 24;
 const GAP = 8;
@@ -124,7 +127,21 @@ export function RightPanel() {
     return () => ro.disconnect();
   }, []);
 
+  const queryClient = useQueryClient();
+
   const handleOpenDetail = () => {
+    if (selectedCityId != null) {
+      void queryClient.prefetchQuery({
+        queryKey: ['places', selectedCityId],
+        queryFn: () => placesApi.getPlaces(selectedCityId),
+        staleTime: 5 * 60 * 1000,
+      });
+      void queryClient.prefetchQuery({
+        queryKey: ['nearbyAttractions', selectedCityId],
+        queryFn: () => nearbyAttractionsApi.getNearbyAttractions(selectedCityId),
+        staleTime: 10 * 60 * 1000,
+      });
+    }
     openCityModal(isGuest ? "cost" : "recommend");
   };
 
@@ -257,11 +274,7 @@ export function RightPanel() {
                 </div>
               ) : city?.tags && city.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {(() => {
-                    const sorted = [...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0));
-                    const high = sorted.filter((t) => (t.tagScore ?? 0) >= 0.6);
-                    return high.length >= 5 ? high.slice(0, 5) : [...high, ...sorted.filter((t) => (t.tagScore ?? 0) >= 0.2 && (t.tagScore ?? 0) < 0.6)].slice(0, 5);
-                  })().map((tag) => (
+                  {[...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).map((tag) => (
                       <span
                         key={tag.name}
                         className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"

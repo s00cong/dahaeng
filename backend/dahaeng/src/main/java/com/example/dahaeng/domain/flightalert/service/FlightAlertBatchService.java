@@ -2,12 +2,13 @@ package com.example.dahaeng.domain.flightalert.service;
 
 import java.time.LocalDateTime;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.dahaeng.domain.flightalert.entity.FlightAlertNotification;
 import com.example.dahaeng.domain.flightalert.entity.FlightAlertSubscription;
-import com.example.dahaeng.domain.bookmark.repository.BookmarkRepository;
+import com.example.dahaeng.domain.flightalert.event.FlightAlertCreatedEvent;
 import com.example.dahaeng.domain.flightalert.repository.FlightAlertNotificationRepository;
 import com.example.dahaeng.domain.flightalert.repository.FlightAlertSubscriptionRepository;
 
@@ -20,18 +21,10 @@ public class FlightAlertBatchService {
 	private final FlightAlertSubscriptionRepository subscriptionRepository;
 	private final FlightAlertNotificationRepository notificationRepository;
 	private final FlightAlertPriceService priceService;
-	private final BookmarkRepository bookmarkRepository;
+	private final ApplicationEventPublisher applicationEventPublisher;
 
 	public void evaluateActiveSubscriptions() {
 		for (FlightAlertSubscription subscription : subscriptionRepository.findAllByEnabledTrueAndIsDeletedFalse()) {
-			if (!bookmarkRepository.existsByMemberIdAndCityIdAndIsDeletedFalse(
-				subscription.getMember().getId(),
-				subscription.getCity().getId()
-			)) {
-				subscription.disable();
-				continue;
-			}
-
 			priceService.findAlertCandidate(subscription.getCity().getId(), subscription.getThresholdPrice())
 				.ifPresent(match -> createNotificationIfNeeded(subscription, match));
 		}
@@ -57,5 +50,18 @@ public class FlightAlertBatchService {
 			.build());
 
 		subscription.updateLastNotification(match.matchedPrice(), LocalDateTime.now());
+
+		if (subscription.getMember().isEmailAlertEnabled()) {
+			applicationEventPublisher.publishEvent(new FlightAlertCreatedEvent(
+				subscription.getMember().getId(),
+				subscription.getMember().getEmail(),
+				subscription.getCity().getCityName(),
+				subscription.getThresholdPrice(),
+				match.matchedPrice(),
+				match.nearestMatchDate(),
+				match.bestPriceDate(),
+				match.matchedDateCount()
+			));
+		}
 	}
 }

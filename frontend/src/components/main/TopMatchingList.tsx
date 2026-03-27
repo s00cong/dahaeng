@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import {
   MapPin,
   Loader2,
@@ -22,7 +22,6 @@ import type { CityListItem } from "@/schemas/city.schema";
 import type { ViewHistoryItem } from "@/api/city.api";
 import defaultCityImg from "@/assets/no-picture.png";
 
-const TOP_N = 3;
 
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
@@ -102,10 +101,6 @@ function RecentCityCard({
         </div>
       </div>
       <div className="flex flex-col items-end gap-0.5 shrink-0">
-        <span className="text-xs font-bold text-slate-700">
-          ₩{(item.dailyBudget / 10000).toFixed(0)}만
-          <span className="text-[10px] font-normal text-slate-400">/일</span>
-        </span>
         <div className="flex items-center gap-0.5 text-[10px] text-slate-400">
           <Clock className="size-2.5" />
           {formatRelativeTime(item.lastViewTime)}
@@ -158,9 +153,17 @@ export function TopMatchingList() {
     setTab(TABS[nextIdx]);
   };
 
+  // 추천 업데이트 시작되면 자동으로 matching 탭으로 전환
+  useEffect(() => {
+    if (isRecommendLoading && tab !== "matching") {
+      dirRef.current = -1;
+      setTab("matching");
+    }
+  }, [isRecommendLoading]);
+
   const topCities = useMemo((): CityListItem[] => {
     if (isRecommendActive && recommendResults.length > 0) {
-      return recommendResults.slice(0, TOP_N).map((r) => {
+      return recommendResults.map((r) => {
         const matched = cities.find((c) => c.cityName === r.city);
         return matched
           ? {
@@ -252,7 +255,7 @@ export function TopMatchingList() {
               <>
                 {isCityLoading && (
                   <div className="flex flex-col gap-2">
-                    {Array.from({ length: TOP_N }).map((_, i) => (
+                    {Array.from({ length: 3 }).map((_, i) => (
                       <div key={i} className="flex items-center gap-3 p-2.5">
                         <Skeleton className="size-4 rounded" />
                         <Skeleton className="size-10 rounded-xl" />
@@ -329,7 +332,7 @@ export function TopMatchingList() {
                   isRecommendActive &&
                   topCities.length > 0 && (
                     <ul
-                      className="flex flex-col overflow-y-auto flex-1"
+                      className="flex flex-col overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-full"
                       role="list"
                     >
                       {topCities.map((city, index) => (

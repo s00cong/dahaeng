@@ -11,6 +11,8 @@ export type Place = {
   address: string | null;
   socialUrl: string | null;
   websiteUrl: string | null;
+  lat: number | null;
+  lon: number | null;
   tags: PlaceTag[];
 };
 

@@ -14,6 +14,7 @@ import com.example.dahaeng.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,6 +35,7 @@ public class InterestController {
     @PostMapping("/analyze")
     public ResponseEntity<Map<String, String>> analyze(@AuthenticationPrincipal CustomOAuth2User principal) {
         YouTubeAccount account = getLoginUserYouTubeAccount(principal);
+        validateYouTubeChannelReady(account);
         if (!account.isSyncEnabledEffective()) {
             throw new CustomException(ErrorCode.OPERATION_NOT_ALLOWED, "YouTube sync is disabled by user preference.");
         }
@@ -60,5 +62,15 @@ public class InterestController {
 
         return accountRepository.findByMemberId(member.getId())
                 .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHORIZED, "YouTube account is not linked."));
+    }
+
+    private void validateYouTubeChannelReady(YouTubeAccount account) {
+        if (!StringUtils.hasText(account.getYoutubeChannelId())) {
+            throw new CustomException(
+                    ErrorCode.YOUTUBE_CHANNEL_NOT_READY,
+                    "유튜브 채널이 없어 분석을 진행할 수 없습니다. 유튜브 채널 생성 후 다시 시도해 주세요.",
+                    "youtubeChannelId is missing. accountId=" + account.getId() + ", memberId=" + account.getMember().getId()
+            );
+        }
     }
 }

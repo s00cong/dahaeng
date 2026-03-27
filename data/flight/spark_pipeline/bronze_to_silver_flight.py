@@ -109,6 +109,17 @@ def build_city_name_mapping_expr(code_to_city_name: dict[str, str]):
     return F.create_map(*items)
 
 
+def resolve_tripcom_direction_column():
+    normalized_direction = F.lower(F.trim(F.col("entity.direction")))
+    normalized_origin = normalize_city_key("entity.origin")
+    return (
+        F.when(normalized_direction.isin("outbound", "inbound"), normalized_direction)
+        .when(normalized_origin == F.lit("ICN"), F.lit("outbound"))
+        .when(normalized_origin.isNotNull(), F.lit("inbound"))
+        .otherwise(F.lit(None))
+    )
+
+
 def read_google_normalized(spark: SparkSession, google_path: str) -> DataFrame:
     print(f"[INFO] Reading Google Flights normalized JSONL from: {google_path}")
     df_raw = spark.read.json(google_path)
@@ -147,13 +158,37 @@ def transform_to_silver(df: DataFrame, df_tripcom_avg: DataFrame | None = None) 
         F.to_date(F.col("ingest_time")).alias("ingest_date"),
     ).withColumn("city_join_key", normalize_city_key("city_code"))
 
-    window = Window.partitionBy("city_join_key", "year_month").orderBy(
+    latest_window = Window.partitionBy("city_join_key", "year_month").orderBy(
         F.col("flight_collected_date").desc()
     )
-    df_dedup = (
-        df_silver.withColumn("rn", F.row_number().over(window))
+    best_flight_window = Window.partitionBy("city_join_key").orderBy(
+        F.col("flight_duration").asc_nulls_last(),
+        F.col("stops").asc_nulls_last(),
+        F.col("flight_collected_date").desc(),
+    )
+    df_latest = (
+        df_silver.withColumn("rn", F.row_number().over(latest_window))
         .filter(F.col("rn") == 1)
         .drop("rn")
+    )
+    df_best_flight = (
+        df_silver.withColumn("best_flight_rn", F.row_number().over(best_flight_window))
+        .filter(F.col("best_flight_rn") == 1)
+        .select(
+            F.col("city_join_key"),
+            F.col("stops").alias("best_stops"),
+            F.col("flight_duration").alias("best_flight_duration"),
+        )
+        .drop("best_flight_rn")
+    )
+    df_dedup = (
+        df_latest.join(df_best_flight, on=["city_join_key"], how="left")
+        .withColumn("stops", F.coalesce(F.col("best_stops"), F.col("stops")))
+        .withColumn(
+            "flight_duration",
+            F.coalesce(F.col("best_flight_duration"), F.col("flight_duration")),
+        )
+        .drop("best_stops", "best_flight_duration")
     )
 
     if df_tripcom_avg is None:
@@ -193,21 +228,28 @@ def read_and_agg_tripcom_price(
         df_raw,
         ["entity.city_code", "entity.city_id"],
     )
+    tripcom_direction_column = resolve_tripcom_direction_column()
 
-    return (
+    directional_averages = (
         df_raw.select(
             tripcom_city_column.alias("city_code"),
             F.substring(F.col("event_time"), 1, 7).alias("year_month"),
+            tripcom_direction_column.alias("direction"),
             F.col("payload.price").alias("price"),
             F.to_timestamp(F.col("event_time")).alias("flight_collected_date"),
         )
-        .filter(F.col("price").isNotNull())
+        .filter(F.col("price").isNotNull() & F.col("direction").isin("outbound", "inbound"))
         .withColumn("city_join_key", normalize_city_key("city_code"))
-        .groupBy("city_join_key", "year_month")
+        .groupBy("city_join_key", "year_month", "direction")
         .agg(
-            F.round(F.avg("price")).cast("integer").alias("tc_avg_flight_price"),
-            F.max("flight_collected_date").alias("tc_flight_collected_date"),
+            F.round(F.avg("price")).cast("integer").alias("directional_avg_flight_price"),
+            F.max("flight_collected_date").alias("directional_flight_collected_date"),
         )
+    )
+
+    return directional_averages.groupBy("city_join_key", "year_month").agg(
+        F.sum("directional_avg_flight_price").cast("integer").alias("tc_avg_flight_price"),
+        F.max("directional_flight_collected_date").alias("tc_flight_collected_date"),
     )
 
 

@@ -29,6 +29,13 @@ interface SpotTabProps {
   isRecommended?: boolean;
 }
 
+// ── Google Maps URL 생성 ───────────────────────────────────────────────────────
+
+function buildGoogleMapsUrl(name: string, address?: string | null): string {
+  const query = address ? `${name} ${address}` : name;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 // ── 섹션 헤더 ─────────────────────────────────────────────────────────────────
 
 function SectionHeader({ icon, title, sub }: { icon: React.ReactNode; title: string; sub?: string }) {
@@ -67,7 +74,7 @@ function TouristSpotCard({
       : null
   );
 
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${spot.name} ${cityName}`)}`;
+  const mapUrl = buildGoogleMapsUrl(spot.name, spot.address ?? cityName);
 
   return (
     <a
@@ -134,8 +141,7 @@ function TouristSpotCard({
 // ── 2. Places 카드 (/api/{cityId}/places) ────────────────────────────────────
 
 function PlaceCard({ place }: { place: Place }) {
-  const mapQuery = place.address ?? place.name;
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+  const mapUrl = buildGoogleMapsUrl(place.name, place.address);
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all">
@@ -210,8 +216,7 @@ function NearbyAttractionCard({
     ? (p.name !== p.nameKo ? p.name : undefined)
     : (p.nameEn && p.name !== p.nameEn ? p.name : undefined);
   const category = p.categories?.[0] ?? null;
-  const mapQuery = p.formatted ? `${mainName} ${p.formatted}` : mainName;
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+  const mapUrl = buildGoogleMapsUrl(mainName, p.formatted);
 
   return (
     <div className={`flex flex-col rounded-xl border bg-white overflow-hidden hover:shadow-sm transition-all ${courseOrder != null ? 'border-indigo-200 hover:border-indigo-300' : 'border-border hover:border-orange-200'}`}>
@@ -536,10 +541,21 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
 
   const cityNameKo = CITY_NAME_KO[city.cityName] ?? city.cityName;
 
-  // recommend=true 일 때 서버 AI 추천 관광지
-  const touristSpots = isRecommended && city.touristSpot && city.touristSpot.length > 0
-    ? city.touristSpot
-    : null;
+  // recommend=true 일 때 서버 AI 추천 관광지 (name 중복 제거 — imgUrl 있는 것 우선)
+  const touristSpots = useMemo(() => {
+    const raw = isRecommended && city.touristSpot && city.touristSpot.length > 0
+      ? city.touristSpot
+      : null;
+    if (!raw) return null;
+    const nameMap = new globalThis.Map<string, typeof raw[number]>();
+    for (const s of raw) {
+      const existing = nameMap.get(s.name);
+      if (!existing || (!existing.imageUrl && s.imageUrl)) {
+        nameMap.set(s.name, s);
+      }
+    }
+    return [...nameMap.values()];
+  }, [isRecommended, city.touristSpot]);
 
   // 코스 이름 → { order, description } 맵
   const courseMap = useMemo(() => {
@@ -609,10 +625,53 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
     return markers;
   }, [touristSpots, nearbyAttractions, courseMap]);
 
+  // AI 추천 관광지 이름 set
+  const aiSpotNames = useMemo(
+    () => new Set(touristSpots?.map((s) => s.name) ?? []),
+    [touristSpots],
+  );
+
+  // 명소: name 내부 중복 제거 후 AI 추천과 중복 제거 (명소에는 사진 없으므로 예외 없음)
+  const filteredPlaces = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: Place[] = [];
+    for (const p of (places ?? [])) {
+      if (!seen.has(p.name)) { seen.add(p.name); unique.push(p); }
+    }
+    return unique.filter((p) => !aiSpotNames.has(p.name));
+  }, [places, aiSpotNames]);
+
+  // 명소 이름 set (중복 제거 후)
+  const placeNames = useMemo(
+    () => new Set(filteredPlaces.map((p) => p.name)),
+    [filteredPlaces],
+  );
+
   // 근처 관광지 정렬: 코스 포함(순서대로) → 이미지 있음 → 나머지
   const sortedNearby = useMemo(() => {
     if (!nearbyAttractions) return [];
-    return [...nearbyAttractions].sort((a, b) => {
+    // 근처관광지 내부 name 중복 제거 (사진 있는 것 우선)
+    const nameMap: Record<string, NearbyAttractionFeature> = {};
+    for (const f of nearbyAttractions) {
+      const name = f.properties.name;
+      if (!name) continue;
+      const existing = nameMap[name];
+      if (!existing || (!existing.properties.imageUrl && f.properties.imageUrl)) {
+        nameMap[name] = f;
+      }
+    }
+    const unique = Object.values(nameMap);
+
+    // 상위 소스(AI 추천, 명소)와 중복 시 사진 없으면 제거
+    const deduped = unique.filter((f) => {
+      const displayName = f.properties.nameKo ?? f.properties.nameEn ?? f.properties.name;
+      const hasPhoto = !!f.properties.imageUrl;
+      if (aiSpotNames.has(displayName) && !hasPhoto) return false;
+      if (placeNames.has(displayName) && !hasPhoto) return false;
+      return true;
+    });
+
+    return [...deduped].sort((a, b) => {
       const nameA = a.properties.nameKo ?? a.properties.nameEn ?? a.properties.name;
       const nameB = b.properties.nameKo ?? b.properties.nameEn ?? b.properties.name;
       const orderA = courseMap.get(nameA)?.order ?? Infinity;
@@ -620,7 +679,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
       if (orderA !== orderB) return orderA - orderB;
       return (b.properties.imageUrl ? 1 : 0) - (a.properties.imageUrl ? 1 : 0);
     });
-  }, [nearbyAttractions, courseMap]);
+  }, [nearbyAttractions, courseMap, aiSpotNames, placeNames]);
 
   const centerLat = lat ?? city.latitude ?? 0;
   const centerLon = lon ?? city.longitude ?? 0;
@@ -637,7 +696,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
       >
           <div className="p-5 flex flex-col gap-6 pb-8">
 
-            {/* ── Section 0: 관광지 지도 ── */}
+            {/* ── Section 0: 관광지 지도 + AI 여행 코스 ── */}
             {mapMarkers.length > 0 && centerLat !== 0 && (
               <section>
                 <SectionHeader
@@ -651,6 +710,64 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                   centerLon={centerLon}
                   courseRoute={courseRoute.length >= 2 ? courseRoute : undefined}
                 />
+
+                {/* AI 여행 코스 버튼 + 탭 */}
+                {nearbyAttractions && nearbyAttractions.length > 0 && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Route className="size-4 text-indigo-500" />
+                        <h3 className="text-sm font-semibold text-foreground">AI 여행 코스</h3>
+                      </div>
+                      {courses ? (
+                        <button
+                          onClick={reset}
+                          className="text-[10px] text-slate-400 hover:text-red-400 transition-colors"
+                        >
+                          초기화
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => nearbyAttractions && generate(nearbyAttractions, cityNameKo, touristSpots ?? undefined, city.tags ?? undefined)}
+                          disabled={isCourseLoading}
+                          className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-2.5 py-1 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+                        >
+                          {isCourseLoading ? (
+                            <>
+                              <Route className="size-3 animate-pulse" />
+                              코스 생성 중...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="size-3" />
+                              AI 여행 코스 생성
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    {courseError && (
+                      <p className="text-xs text-red-500 mb-2">{courseError}</p>
+                    )}
+                    {courses && (
+                      <div className="flex flex-col gap-1.5">
+                        {courses.courses.map((c, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setSelectedIndex(i)}
+                            className={`flex items-center justify-between gap-2 text-left px-3 py-1.5 rounded-xl border transition-colors ${
+                              selectedIndex === i
+                                ? 'bg-indigo-500 text-white border-indigo-500'
+                                : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100'
+                            }`}
+                          >
+                            <span className="text-[11px] font-medium">{c.courseTitle}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </section>
             )}
 
@@ -701,9 +818,9 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                   <AlertCircle className="size-4 text-destructive shrink-0" />
                   명소 정보를 불러오지 못했습니다.
                 </div>
-              ) : places && places.length > 0 ? (
+              ) : filteredPlaces.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2">
-                  {places.map((place) => (
+                  {filteredPlaces.map((place) => (
                     <PlaceCard key={place.id} place={place} />
                   ))}
                 </div>
@@ -724,62 +841,11 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
             )}
             {!isNearbyError && nearbyAttractions && nearbyAttractions.length > 0 && (
               <section>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="size-4 text-orange-500" />
-                    <h3 className="text-sm font-semibold text-foreground">근처 관광지</h3>
-                    <span className="text-xs text-muted-foreground">{nearbyAttractions.length}곳</span>
-                  </div>
-                  {courses ? (
-                    <button
-                      onClick={reset}
-                      className="text-[10px] text-slate-400 hover:text-red-400 transition-colors"
-                    >
-                      초기화
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => nearbyAttractions && generate(nearbyAttractions, cityNameKo, touristSpots ?? undefined, city.tags ?? undefined)}
-                      disabled={isCourseLoading}
-                      className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-full px-2.5 py-1 hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                    >
-                      {isCourseLoading ? (
-                        <>
-                          <Route className="size-3 animate-pulse" />
-                          코스 생성 중...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="size-3" />
-                          AI 여행 코스
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-                {courseError && (
-                  <p className="text-xs text-red-500 mb-2">{courseError}</p>
-                )}
-
-                {/* 코스 탭 선택 */}
-                {courses && (
-                  <div className="flex flex-col gap-1.5 mb-3">
-                    {courses.courses.map((c, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setSelectedIndex(i)}
-                        className={`flex items-center justify-between gap-2 text-left px-3 py-1.5 rounded-xl border transition-colors ${
-                          selectedIndex === i
-                            ? 'bg-indigo-500 text-white border-indigo-500'
-                            : 'bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100'
-                        }`}
-                      >
-                        <span className="text-[11px] font-medium">{c.courseTitle}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
+                <SectionHeader
+                  icon={<MapPin className="size-4 text-orange-500" />}
+                  title="근처 관광지"
+                  sub={`${nearbyAttractions.length}곳`}
+                />
                 <div className="grid grid-cols-2 gap-2.5">
                   {sortedNearby.map((feature, i) => {
                     const name = feature.properties.nameKo ?? feature.properties.nameEn ?? feature.properties.name;
