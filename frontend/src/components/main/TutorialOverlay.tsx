@@ -80,7 +80,7 @@ const STEPS: TutorialStep[] = [
   },
 ];
 
-const TOOLTIP_W = 264;
+const TOOLTIP_W = 360;
 const TOOLTIP_GAP = 14;
 
 export function TutorialOverlay() {
