@@ -22,7 +22,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CityController {
     private final CityService cityService;
-    private final CityViewService cityViewService;
 
     @GetMapping("")
     public ResponseEntity<List<AllCitiesResponse>> getAllCities() {
@@ -40,11 +39,9 @@ public class CityController {
             @RequestParam(value = "recommendId", required = false) UUID recommendId,
             @AuthenticationPrincipal CustomOAuth2User user
     ) {
-        cityViewService.view(id, user.getId());
-
         if (recommend) {
             RecommendCitiesRequest request = new RecommendCitiesRequest(selectedTags, userTotalBudget, travelDays, month, recommendId);
-            RecommendCityDetailResponse recommendCityDetailResponse = cityService.getRecommendCityDetail(id, request);
+            RecommendCityDetailResponse recommendCityDetailResponse = cityService.getRecommendCityDetail(id, request, user);
             return ResponseEntity.ok(recommendCityDetailResponse);
         }
 

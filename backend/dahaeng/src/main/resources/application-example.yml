@@ -71,7 +71,7 @@
 
 
 app:
-  front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:3000/}
+  front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:3000/auth/callback}
   internal-image-upload:
     enabled: ${INTERNAL_IMAGE_UPLOAD_ENABLED:false}
     max-files: ${INTERNAL_IMAGE_UPLOAD_MAX_FILES:5}

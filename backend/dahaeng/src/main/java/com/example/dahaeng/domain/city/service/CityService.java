@@ -1,5 +1,6 @@
 package com.example.dahaeng.domain.city.service;
 
+import com.example.dahaeng.domain.auth.dto.CustomOAuth2User;
 import com.example.dahaeng.domain.bookmark.repository.BookmarkRepository;
 import com.example.dahaeng.domain.city.dto.response.AllCitiesResponse;
 import com.example.dahaeng.domain.city.dto.response.CityResponse;
@@ -75,6 +76,8 @@ public class CityService {
     private final RecommendationNarrationService narrationService;
     private final PlaceEnrichmentService placeEnrichmentService;
     private final BookmarkRepository bookmarkRepository;
+    private final CityViewService cityViewService;
+
 
     public List<AllCitiesResponse> getAllCities() {
         String targetYearMonth = currentYearMonth();
@@ -133,7 +136,12 @@ public class CityService {
         return result;
     }
 
-    public RecommendCityDetailResponse getRecommendCityDetail(Long id, RecommendCitiesRequest request) {
+    @Transactional
+    public RecommendCityDetailResponse getRecommendCityDetail(Long id, RecommendCitiesRequest request, CustomOAuth2User user) {
+        if (user != null && user.getId() != null) {
+            cityViewService.view(id, user.getId());
+        }
+
         long totalStart = System.nanoTime();
         validateRecommendDetailRequest(request);
 
