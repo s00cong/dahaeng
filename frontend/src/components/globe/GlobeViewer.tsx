@@ -13,6 +13,7 @@ import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
 import { COUNTRY_NAME_ISO3 } from "@/data/countryNameIso3";
 import { PARTIAL_EVAC_ZONES, EVAC_COLOR } from "@/data/partialEvacZones";
+import { COUNTRY_TO_CONTINENT, CONTINENT_COLORS, DEFAULT_CONTINENT_COLOR } from "@/data/continentData";
 import medal1Img from "@/assets/medal1.png";
 import medal2Img from "@/assets/medal2.png";
 import medal3Img from "@/assets/medal3.png";
@@ -29,8 +30,8 @@ interface GlobeViewerProps {
 }
 
 // ── 색상 유틸 ──────────────────────────────────────────────────────────────────
-function getMarkerColor(score: number | null | undefined): string {
-  if (score == null) return "#3b82f6";
+function getMarkerColor(score: number | null | undefined, fallback: string): string {
+  if (score == null) return fallback;
   if (score >= 80) return "#10b981";
   if (score >= 50) return "#3b82f6";
   return "#f59e0b";
@@ -1105,7 +1106,9 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
               ? city.riskLevel / 4
               : 0.5;
 
-        const color = !isMatched ? "#CBD5E1" : getMarkerColor(score);
+        const continentColor =
+          CONTINENT_COLORS[COUNTRY_TO_CONTINENT[city.countryName]] ?? DEFAULT_CONTINENT_COLOR;
+        const color = !isMatched ? "#CBD5E1" : getMarkerColor(score, continentColor);
         return {
           type: "Feature",
           geometry: {

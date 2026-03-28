@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
+import { COUNTRY_TO_CONTINENT } from "@/data/continentData";
 import type { FlightAlertSubscription } from "@/schemas/flight-alert.schema";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/stores/authStore";
@@ -36,74 +37,6 @@ import { useMemberTags } from "@/hooks/auth/useMemberTags";
 import { useTagList } from "@/hooks/tag/useTagList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-// ─── 대륙 매핑 ────────────────────────────────────────────────────────────────
-
-const COUNTRY_TO_CONTINENT: Record<string, string> = {
-  // 아시아
-  Japan: "아시아",
-  China: "아시아",
-  Thailand: "아시아",
-  Philippines: "아시아",
-  Taiwan: "아시아",
-  Singapore: "아시아",
-  Malaysia: "아시아",
-  Cambodia: "아시아",
-  Mongolia: "아시아",
-  India: "아시아",
-  Indonesia: "아시아",
-  Laos: "아시아",
-  Vietnam: "아시아",
-  Nepal: "아시아",
-  Kazakhstan: "아시아",
-  "South Korea": "아시아",
-  Qatar: "아시아",
-  "United Arab Emirates": "아시아",
-  Maldives: "아시아",
-  Palau: "아시아",
-  // 유럽
-  France: "유럽",
-  Russia: "유럽",
-  "United Kingdom": "유럽",
-  Germany: "유럽",
-  Italy: "유럽",
-  Netherlands: "유럽",
-  Switzerland: "유럽",
-  "Czech Republic": "유럽",
-  Austria: "유럽",
-  Croatia: "유럽",
-  Portugal: "유럽",
-  Greece: "유럽",
-  Poland: "유럽",
-  Sweden: "유럽",
-  Norway: "유럽",
-  Iceland: "유럽",
-  Denmark: "유럽",
-  Belgium: "유럽",
-  Hungary: "유럽",
-  Finland: "유럽",
-  Turkey: "유럽",
-  // 북아메리카
-  Canada: "북아메리카",
-  Mexico: "북아메리카",
-  Cuba: "북아메리카",
-  "United States": "북아메리카",
-  // 남아메리카
-  Brazil: "남아메리카",
-  Bolivia: "남아메리카",
-  Argentina: "남아메리카",
-  Chile: "남아메리카",
-  Peru: "남아메리카",
-  // 아프리카
-  "South Africa": "아프리카",
-  Egypt: "아프리카",
-  Mauritius: "아프리카",
-  Morocco: "아프리카",
-  Kenya: "아프리카",
-  // 오세아니아
-  Australia: "오세아니아",
-  "New Zealand": "오세아니아",
-};
 
 const CONTINENT_ORDER = [
   "아시아",
@@ -122,7 +55,11 @@ interface FlightAlertItemProps {
   setEditingCityId: (id: number | null) => void;
 }
 
-function FlightAlertItem({ sub, editingCityId, setEditingCityId }: FlightAlertItemProps) {
+function FlightAlertItem({
+  sub,
+  editingCityId,
+  setEditingCityId,
+}: FlightAlertItemProps) {
   const isEditing = editingCityId === sub.cityId;
   const [inputPrice, setInputPrice] = useState(String(sub.thresholdPrice));
   const { mutate: upsert, isPending: isUpserting } = useUpsertFlightAlert();
