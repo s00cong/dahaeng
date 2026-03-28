@@ -44,6 +44,7 @@ export function UnifiedNavBar() {
     useUiStore();
   const { data: cities } = useCityList();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [confirmingIds, setConfirmingIds] = useState<Set<number>>(new Set());
   const notifRef = useRef<HTMLDivElement>(null);
   const { data: unreadData } = useFlightAlertUnreadCount();
   const { data: notifData } = useFlightAlertNotifications(0);
@@ -332,20 +333,17 @@ export function UnifiedNavBar() {
                     </div>
 
                     <ul className="max-h-80 overflow-y-auto divide-y divide-slate-50">
-                      {!notifData?.content.length && (
+                      {!notifData?.content.filter((n) => !n.isRead).length && (
                         <li className="px-4 py-8 text-center text-sm text-slate-400">
                           알림이 없습니다
                         </li>
                       )}
-                      {notifData?.content.map((n) => (
+                      {notifData?.content.filter((n) => !n.isRead).map((n) => (
                         <li
                           key={n.notificationId}
-                          onClick={() => {
-                            if (!n.isRead) markRead(n.notificationId);
-                          }}
                           className={cn(
-                            "flex gap-3 px-4 py-3 cursor-pointer transition-colors",
-                            n.isRead ? "hover:bg-slate-50" : "bg-blue-50/60 hover:bg-blue-50",
+                            "flex gap-3 px-4 py-3 transition-colors",
+                            n.isRead ? "bg-white" : "bg-blue-50/60",
                           )}
                         >
                           <div className={cn(
@@ -383,13 +381,27 @@ export function UnifiedNavBar() {
                             <p className="text-[11px] text-slate-400 mt-0.5">
                               최가 날짜: {n.nearestMatchDate} · {n.matchedDateCount}개 날짜
                             </p>
-                            <p className="text-[10px] text-slate-300 mt-0.5">
-                              {dayjs(n.createdAt).format("MM.DD HH:mm")}
-                            </p>
+                            <div className="flex items-center justify-between mt-1">
+                              <p className="text-[10px] text-slate-300">
+                                {dayjs(n.createdAt).format("MM.DD HH:mm")}
+                              </p>
+                              {!n.isRead && (
+                                confirmingIds.has(n.notificationId) ? (
+                                  <CheckCheck className="size-3.5 text-blue-500" />
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setConfirmingIds((prev) => new Set(prev).add(n.notificationId));
+                                      setTimeout(() => markRead(n.notificationId), 400);
+                                    }}
+                                    className="text-[11px] font-semibold text-white bg-blue-500 hover:bg-blue-600 rounded px-2 py-0.5 transition-colors"
+                                  >
+                                    확인
+                                  </button>
+                                )
+                              )}
+                            </div>
                           </div>
-                          {n.isRead && (
-                            <CheckCheck className="size-3.5 text-slate-300 shrink-0 mt-0.5" />
-                          )}
                         </li>
                       ))}
                     </ul>
