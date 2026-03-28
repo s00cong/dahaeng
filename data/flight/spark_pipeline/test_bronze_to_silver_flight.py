@@ -151,10 +151,11 @@ def test_write_to_mariadb_preserves_is_deleted_zero_flag(monkeypatch):
     assert "b'0'" in captured["sql"]
 
 
-def test_tripcom_aggregate_tracks_trip_collection_date_and_prefers_it_for_flight_collected_date():
+def test_tripcom_aggregate_tracks_actual_ingest_time_and_prefers_it_for_flight_collected_date():
     source = Path(bronze_to_silver_flight.__file__).read_text(encoding="utf-8")
 
     assert 'alias("tc_flight_collected_date")' in source
+    assert 'F.to_timestamp(F.col("ingest_time")).alias("flight_collected_date")' in source
     assert '.withColumn(\n            "flight_collected_date",' in source
     assert 'F.coalesce(F.col("tc_flight_collected_date"), F.col("flight_collected_date"))' in source
 

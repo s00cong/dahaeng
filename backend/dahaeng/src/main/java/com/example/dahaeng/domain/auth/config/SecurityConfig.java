@@ -58,6 +58,7 @@ public class SecurityConfig {
             "/api/*/places",
             "/api/places/**",
             "/api/internal/image/**",
+            "/api/internal/flight-alerts/run",
             "/api/*/nearby-attractions"
     };
 
