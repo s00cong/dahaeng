@@ -9,6 +9,8 @@ import com.example.dahaeng.domain.city.service.CityService;
 import com.example.dahaeng.domain.city.service.CityViewService;
 import com.example.dahaeng.domain.recommend.dto.request.RecommendCitiesRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.repository.query.Param;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,6 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/city")
 @RequiredArgsConstructor
+@Slf4j
 public class CityController {
     private final CityService cityService;
 
@@ -39,8 +42,10 @@ public class CityController {
             @RequestParam(value = "recommendId", required = false) UUID recommendId,
             @AuthenticationPrincipal CustomOAuth2User user
     ) {
+
         if (recommend) {
-            RecommendCitiesRequest request = new RecommendCitiesRequest(selectedTags, userTotalBudget, travelDays, month, recommendId);
+            RecommendCitiesRequest request = new RecommendCitiesRequest(selectedTags, userTotalBudget, travelDays,
+                month, recommendId);
             RecommendCityDetailResponse recommendCityDetailResponse = cityService.getRecommendCityDetail(id, request, user);
             return ResponseEntity.ok(recommendCityDetailResponse);
         }
