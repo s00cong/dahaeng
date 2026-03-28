@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
 import dayjs from "dayjs";
+import { useDisplayCityTags } from "@/hooks/city/useDisplayCityTags";
 
 interface RecommendTabProps {
   city: CityDetail;
@@ -203,6 +204,7 @@ function InfoCard({ icon: Icon, label, value, subValue, onClick }: InfoCardProps
 
 // ── RecommendTab ─────────────────────────────────────────────
 export function RecommendTab({ city, onTabChange, isAiLoading = false }: RecommendTabProps) {
+  const displayTags = useDisplayCityTags(city.tags ?? undefined);
   const recommendText = city.recommendationReason;
 
   // livingCostFor1Day: 백엔드에서 이미 KRW로 변환된 월간 비용
@@ -247,17 +249,15 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
             </p>
           )}
           {/* 키워드 뱃지 */}
-          {city.tags && city.tags.length > 0 && (
+          {displayTags.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-4">
-              {(() => {
-                return [...city.tags!].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).map((t) => t.name);
-              })().map((kw) => (
+              {displayTags.map((t) => (
                 <Badge
-                  key={kw}
+                  key={t.name}
                   variant="outline"
                   className="text-[11px] text-blue-600 border-blue-200 bg-blue-50 rounded-full px-3 py-0.5 font-medium"
                 >
-                  #{kw}
+                  #{t.name}
                 </Badge>
               ))}
             </div>

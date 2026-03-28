@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CityDetail } from "@/schemas/city.schema";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { useDisplayCityTags } from "@/hooks/city/useDisplayCityTags";
 
 interface DestinationHeroCardProps {
   city: CityDetail;
@@ -240,7 +241,7 @@ interface KeywordTagsProps {
 
 function KeywordTags({ keywords }: KeywordTagsProps) {
   return (
-    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto scrollbar-hide">
+    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30">
       {keywords.map((keyword) => {
         const Icon = getKeywordIcon(keyword);
         return (
@@ -279,10 +280,8 @@ export function DestinationHeroCard({
     longitude: city.longitude || cityMeta?.longitude || 0,
   };
 
-  const displayKeywords = (() => {
-    if (!city.tags) return [];
-    return [...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).map((t) => t.name);
-  })();
+  const displayTags = useDisplayCityTags(city.tags ?? undefined);
+  const displayKeywords = displayTags.map((t) => t.name);
 
   return (
     <div

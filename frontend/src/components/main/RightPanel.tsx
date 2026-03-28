@@ -22,6 +22,7 @@ import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 import { useQueryClient } from "@tanstack/react-query";
 import { placesApi } from "@/api/places.api";
 import { nearbyAttractionsApi } from "@/api/nearbyAttractions.api";
+import { useDisplayCityTags } from "@/hooks/city/useDisplayCityTags";
 
 const TAB_W = 24;
 const GAP = 8;
@@ -111,6 +112,7 @@ export function RightPanel() {
   );
 
   const city = cityFromApi ?? null;
+  const displayTags = useDisplayCityTags(city?.tags ?? undefined);
   const { data: flagMap } = useCountryFlagMap();
   const flagUrl = flagMap?.get(city?.danger?.countryName ?? "");
 
@@ -273,16 +275,16 @@ export function RightPanel() {
                     <Skeleton key={i} className="h-5 w-14 rounded-full" />
                   ))}
                 </div>
-              ) : city?.tags && city.tags.length > 0 ? (
+              ) : displayTags.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {[...city.tags].sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0)).map((tag) => (
-                      <span
-                        key={tag.name}
-                        className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"
-                      >
-                        #{tag.name}
-                      </span>
-                    ))}
+                  {displayTags.map((tag) => (
+                    <span
+                      key={tag.name}
+                      className="text-[11px] bg-slate-100 text-slate-600 rounded-full px-2.5 py-0.5 font-medium"
+                    >
+                      #{tag.name}
+                    </span>
+                  ))}
                 </div>
               ) : null}
 
