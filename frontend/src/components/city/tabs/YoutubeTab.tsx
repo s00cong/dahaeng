@@ -624,18 +624,47 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
     .filter((mt) => !mt.isFromYoutube)
     .map((mt) => tagMap.get(mt.tagId))
     .filter((t): t is TagItem => t != null && !youtubeTagNames.has(t.tagName));
-  const matchedCount = allTags.filter((t) => cityTagNames.has(t.tagName)).length;
 
-  // 플로우 다이어그램용 도시 태그: tagScore 내림차순 top10
-  const flowCityTags = [...relevantCityTags]
-    .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
-    .slice(0, 10);
+  // 플로우 다이어그램용 도시 태그: top3 + 유튜브 매칭(무조건) + 사용자 입력 매칭(0.6 초과)
+  const sortedCityTags = [...relevantCityTags]
+    .filter((t) => (t.tagScore ?? 0) > 0.5)
+    .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0));
+  const cityTagScoreMap = new Map(sortedCityTags.map((t) => [t.name, t]));
+  const top3Names = new Set(sortedCityTags.slice(0, 3).map((t) => t.name));
+  const flowAnalysisMatchedNames = new Set(
+    allTags
+      .filter((t) => t.tagId != null && cityTagScoreMap.has(t.tagName))
+      .map((t) => t.tagName),
+  );
+  const flowMemberMatchedNames = new Set(
+    userOnlyTags
+      .filter(
+        (t) =>
+          cityTagScoreMap.has(t.tagName) &&
+          (cityTagScoreMap.get(t.tagName)!.tagScore ?? 0) > 0.6,
+      )
+      .map((t) => t.tagName),
+  );
+  const flowResultNames = new Set(top3Names);
+  const flowExtra: typeof sortedCityTags = [];
+  for (const name of [...flowAnalysisMatchedNames, ...flowMemberMatchedNames]) {
+    if (!flowResultNames.has(name) && cityTagScoreMap.has(name)) {
+      flowExtra.push(cityTagScoreMap.get(name)!);
+      flowResultNames.add(name);
+    }
+  }
+  const flowCityTags = [...sortedCityTags.slice(0, 3), ...flowExtra];
+
+  // 다이어그램에서 실제 표시되는 도시 태그 이름 집합 (연결선/매칭 판단 기준)
+  const flowCityTagNames = new Set(flowCityTags.map((t) => t.name));
+
+  // matchedCount: 표시되는 도시 태그 기준으로 재계산
+  const matchedCount = allTags.filter((t) => flowCityTagNames.has(t.tagName)).length;
 
   // Soft bridge: 직접 매칭 없을 때 스팟 태그 점수로 관심태그↔도시태그 연결
   const softBridge = (() => {
     if (matchedCount > 0) return undefined;
     if (!city.touristSpot?.length) return undefined;
-    // 스팟 전체에서 태그별 점수 합산
     const spotTagScores: Record<string, number> = {};
     city.touristSpot.forEach((spot) => {
       spot.tags?.forEach((tag) => {
@@ -644,12 +673,11 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
         }
       });
     });
-    // 유저 관심 태그 중 spot tagScore가 있고 도시 태그에도 존재하는 최고 점수 쌍
     let best: { interestTagIdx: number; cityTagName: string } | null = null;
     let bestScore = 0;
     allTags.forEach((tag, idx) => {
       const spotScore = spotTagScores[tag.tagName] ?? 0;
-      if (spotScore > 0 && cityTagNames.has(tag.tagName)) {
+      if (spotScore > 0 && flowCityTagNames.has(tag.tagName)) {
         const combined = (tag.score ?? 0) + spotScore;
         if (combined > bestScore) {
           bestScore = combined;
@@ -725,7 +753,7 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
         </p>
         <TagFlowDiagram
           tags={allTags}
-          cityTagNames={cityTagNames}
+          cityTagNames={flowCityTagNames}
           allCityTags={flowCityTags.map((ct) => ({ name: ct.name, tagScore: ct.tagScore }))}
           cityName={city.cityName}
           softBridge={softBridge}
