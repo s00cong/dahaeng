@@ -24,6 +24,9 @@ public class TouristSpot extends BaseEntity {
     @Column(name = "tourist_name", length = 50, nullable = false)
     private String touristName;
 
+    @Column(name = "tourist_name_ko", nullable = false)
+    private String touristNameKo;
+
     private Double lat;
     private Double lon;
 

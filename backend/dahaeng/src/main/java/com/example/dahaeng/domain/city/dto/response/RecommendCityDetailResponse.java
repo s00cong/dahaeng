@@ -83,6 +83,7 @@ public record RecommendCityDetailResponse(
 
     public record TouristSpotResponse(
             String name,
+            String koName,
             Double lat,
             Double lon,
             String address,

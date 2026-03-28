@@ -13,6 +13,7 @@ public interface TouristSpotRecommendRepository extends JpaRepository<TouristSpo
             ts.id as spotId,
             ts.city_id as cityId,
             ts.tourist_name as placeName,
+            ts.tourist_name_ko as placeNameKo,
             ts.description as description,
             null as imageUrl,
             ts.address as address,
@@ -30,7 +31,7 @@ public interface TouristSpotRecommendRepository extends JpaRepository<TouristSpo
            and t.is_deleted = b'0'
         where ts.city_id in (:cityIds)
           and ts.is_deleted = b'0'
-        group by ts.id, ts.city_id, ts.tourist_name, ts.description, ts.address, ts.website, ts.sns, ts.lat, ts.lon
+        group by ts.id, ts.city_id, ts.tourist_name, ts.tourist_name_ko, ts.description, ts.address, ts.website, ts.sns, ts.lat, ts.lon
         order by ts.city_id asc, matchScore desc, ts.id asc
         """, nativeQuery = true)
     List<SpotRecommendationProjection> findSpotCandidates(

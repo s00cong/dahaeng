@@ -8,6 +8,7 @@ import com.example.dahaeng.domain.place.entity.TouristSpot;
 public record PlaceListResponse(
 	Long id,
 	String name,
+	String koName,
 	String address,
 	String socialUrl,
 	String websiteUrl,
@@ -19,6 +20,7 @@ public record PlaceListResponse(
 		return new PlaceListResponse(
 			spot.getId(),
 			spot.getTouristName(),
+			spot.getTouristNameKo(),
 			spot.getAddress(),
 			spot.getSns(),
 			spot.getWebsite(),
