@@ -235,6 +235,7 @@ public class CityService {
         List<RecommendCityDetailResponse.TouristSpotResponse> touristSpots = places.stream()
                 .map(place -> new RecommendCityDetailResponse.TouristSpotResponse(
                         place.placeName(),
+                        place.placeNameKo(),
                         place.location() != null ? place.location().lat() : null,
                         place.location() != null ? place.location().lon() : null,
                         place.address(),
@@ -444,6 +445,11 @@ public class CityService {
             }
 
             @Override
+            public String getPlaceNameKo() {
+                return touristSpot.getTouristNameKo();
+            }
+
+            @Override
             public String getDescription() {
                 return touristSpot.getDescription();
             }
@@ -573,7 +579,7 @@ public class CityService {
                 || request.recommendId() == null) {
             throw new CustomException(
                     ErrorCode.INVALID_REQUEST,
-                    "recommend=true 상세 조회에는 recommendId, userDailyBudget, travelDays, month가 필요합니다."
+                    "recommend=true 상세 조회에는 recommendId, userTotalBudget, travelDays, month가 필요합니다."
             );
         }
     }

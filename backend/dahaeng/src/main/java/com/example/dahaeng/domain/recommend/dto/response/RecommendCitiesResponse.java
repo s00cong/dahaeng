@@ -58,6 +58,7 @@ public record RecommendCitiesResponse(
 
     public record RecommendedPlace(
             String placeName,
+            String placeNameKo,
             List<String> categoryTags,
             Map<String, Double> tagScores,
             String address,

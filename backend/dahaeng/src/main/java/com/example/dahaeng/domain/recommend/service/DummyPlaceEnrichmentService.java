@@ -15,6 +15,7 @@ public class DummyPlaceEnrichmentService implements PlaceEnrichmentService {
     ) {
         return new RecommendCitiesResponse.RecommendedPlace(
                 spot.getPlaceName(),
+                spot.getPlaceNameKo(),
                 selectedTags,
                 tagScores,
                 spot.getAddress(),
