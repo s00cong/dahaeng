@@ -236,7 +236,7 @@ def read_and_agg_tripcom_price(
             F.substring(F.col("event_time"), 1, 7).alias("year_month"),
             tripcom_direction_column.alias("direction"),
             F.col("payload.price").alias("price"),
-            F.to_timestamp(F.col("event_time")).alias("flight_collected_date"),
+            F.to_timestamp(F.col("ingest_time")).alias("flight_collected_date"),
         )
         .filter(F.col("price").isNotNull() & F.col("direction").isin("outbound", "inbound"))
         .withColumn("city_join_key", normalize_city_key("city_code"))
