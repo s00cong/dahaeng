@@ -1106,9 +1106,10 @@ export function GlobeViewer({ width, height }: GlobeViewerProps) {
               ? city.riskLevel / 4
               : 0.5;
 
-        const continentColor =
-          CONTINENT_COLORS[COUNTRY_TO_CONTINENT[city.countryName]] ?? DEFAULT_CONTINENT_COLOR;
-        const color = !isMatched ? "#CBD5E1" : getMarkerColor(score, continentColor);
+        // 대륙별 색상 적용 시 아래 주석 해제 후 defaultColor를 continentColor로 교체
+        // const continentColor = CONTINENT_COLORS[COUNTRY_TO_CONTINENT[city.countryName]] ?? DEFAULT_CONTINENT_COLOR;
+        const defaultColor = "#3b82f6";
+        const color = !isMatched ? "#CBD5E1" : getMarkerColor(score, defaultColor);
         return {
           type: "Feature",
           geometry: {
