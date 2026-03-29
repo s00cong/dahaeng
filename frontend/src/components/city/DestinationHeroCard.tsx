@@ -112,9 +112,10 @@ function DangerDropdown({
 
 interface BookmarkButtonProps {
   city: CityDetail;
+  displayTags: { name: string; tagScore?: number | null }[];
 }
 
-function BookmarkButton({ city }: BookmarkButtonProps) {
+function BookmarkButton({ city, displayTags }: BookmarkButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
   const { selectedCityImgUrl, recommendRequest, bookmarkedCityIds } = useUiStore();
   const isBookmarked = bookmarkedCityIds.includes(city.cityId);
@@ -135,7 +136,7 @@ function BookmarkButton({ city }: BookmarkButtonProps) {
     createBookmark({
       cityId: city.cityId,
       recommendId: recommendRequest!.recommendId!,
-      json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null },
+      json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null, tags: displayTags },
       title: titleInput.trim(),
     });
     setShowModal(false);
@@ -218,9 +219,10 @@ function BookmarkButton({ city }: BookmarkButtonProps) {
 interface MatchCardProps {
   score: number;
   city: CityDetail;
+  displayTags: { name: string; tagScore?: number | null }[];
 }
 
-function MatchCard({ score, city }: MatchCardProps) {
+function MatchCard({ score, city, displayTags }: MatchCardProps) {
   return (
     <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-xl p-3.5 flex items-center justify-between gap-3">
       <div className="flex flex-col gap-0.5">
@@ -231,7 +233,7 @@ function MatchCard({ score, city }: MatchCardProps) {
           {score}%
         </span>
       </div>
-      <BookmarkButton city={city} />
+      <BookmarkButton city={city} displayTags={displayTags} />
     </div>
   );
 }
@@ -352,7 +354,7 @@ export function DestinationHeroCard({
         {/* 매칭 스코어 + 하트 버튼 (추천 도시만) */}
         {city.score?.finalScore !== undefined &&
           city.score.finalScore !== null && (
-            <MatchCard score={city.score.finalScore} city={enrichedCity} />
+            <MatchCard score={city.score.finalScore} city={enrichedCity} displayTags={displayTags} />
           )}
 
         {/* Glassmorphism keyword tags */}
