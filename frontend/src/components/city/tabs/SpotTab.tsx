@@ -68,13 +68,14 @@ function TouristSpotCard({
   const tags = spot.tags ?? [];
   const spotScore = spot.spotScore != null ? Math.round(spot.spotScore * 100) : null;
 
+  const displayName = spot.koName || spot.name;
   const descriptionText = courseDescription ?? (
-    spot.description && spot.description !== "Overture Place" && spot.description !== spot.name
+    spot.description && spot.description !== "Overture Place" && spot.description !== spot.name && spot.description !== displayName
       ? spot.description
       : null
   );
 
-  const mapUrl = buildGoogleMapsUrl(spot.name, spot.address ?? cityName);
+  const mapUrl = buildGoogleMapsUrl(displayName, spot.address ?? cityName);
 
   return (
     <a
@@ -90,7 +91,12 @@ function TouristSpotCard({
               {courseOrder}
             </span>
           )}
-          <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2">{spot.name}</p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground leading-snug line-clamp-2">{displayName}</p>
+            {spot.koName && spot.koName.trim() !== "" && spot.koName !== spot.name && (
+              <p className="text-[10px] text-muted-foreground leading-snug line-clamp-1">{spot.name}</p>
+            )}
+          </div>
         </div>
         {spotScore != null && (
           <div className="flex items-center gap-0.5 shrink-0">
@@ -141,12 +147,18 @@ function TouristSpotCard({
 // ── 2. Places 카드 (/api/{cityId}/places) ────────────────────────────────────
 
 function PlaceCard({ place }: { place: Place }) {
-  const mapUrl = buildGoogleMapsUrl(place.name, place.address);
+  const displayName = place.koName || place.name;
+  const mapUrl = buildGoogleMapsUrl(displayName, place.address);
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-border bg-white p-3 hover:border-blue-200 hover:shadow-sm transition-all">
       {/* 이름 */}
-      <p className="text-xs font-semibold text-foreground leading-snug">{place.name}</p>
+      <div>
+        <p className="text-xs font-semibold text-foreground leading-snug">{displayName}</p>
+        {place.koName && place.koName.trim() !== "" && place.koName !== place.name && (
+          <p className="text-[10px] text-muted-foreground leading-snug">{place.name}</p>
+        )}
+      </div>
 
       {/* 태그 + 점수 */}
       {place.tags.length > 0 && (
@@ -267,9 +279,9 @@ function NearbyAttractionCard({
       </div>
 
       {/* 코스 설명 (우선) 또는 기존 설명 */}
-      {(courseDescription ?? p.description) && (
+      {(courseDescription ?? p.descriptionKo ?? p.description) && (
         <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
-          {courseDescription ?? p.description}
+          {courseDescription ?? p.descriptionKo ?? p.description}
         </p>
       )}
 
@@ -612,7 +624,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
           name,
           type: "nearby",
           imageUrl: p.imageUrl,
-          description: p.description ?? undefined,
+          description: p.descriptionKo ?? p.description ?? undefined,
           address: p.formatted ?? undefined,
           category: p.categories?.[0] ?? undefined,
           courseOrder: info?.order,

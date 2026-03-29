@@ -127,6 +127,7 @@ const BackendExchangeRateSchema = z.object({
 // 백엔드 touristSpot: tags는 string[], tagScores는 Record<string, number>
 const BackendTouristSpotSchema = z.object({
   name: z.string(),
+  koName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   lat: z.number().nullable().optional(),
   lon: z.number().nullable().optional(),
