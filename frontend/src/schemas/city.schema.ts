@@ -79,6 +79,7 @@ export const TagSchema = z.object({
 // ── TouristSpot: 프론트 표현 (tags는 api.ts에서 변환) ─────────────────
 export const TouristSpotSchema = z.object({
   name: z.string(),
+  koName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   lat: z.number().nullable().optional(),
   lon: z.number().nullable().optional(),

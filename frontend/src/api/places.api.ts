@@ -8,6 +8,7 @@ export type PlaceTag = {
 export type Place = {
   id: number;
   name: string;
+  koName: string | null;
   address: string | null;
   socialUrl: string | null;
   websiteUrl: string | null;
