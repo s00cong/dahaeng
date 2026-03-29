@@ -11,6 +11,7 @@ import { SEOUL_CITY_ID } from '@/api/cost.api';
 import { useCostDetail } from '@/hooks/cost/useCostDetail';
 import { useFlightTrend } from '@/hooks/flight/useFlightTrend';
 import type { CityDetail } from '@/schemas/city.schema';
+import { CITY_NAME_KO } from '@/data/cityNameKo';
 
 interface CostCompareTabProps {
   city: CityDetail;
@@ -74,6 +75,8 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
     );
   }
 
+  const cityNameKo = CITY_NAME_KO[city.cityName] ?? city.cityName;
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -102,6 +105,7 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
           data={costCompare.data}
           isLoading={costCompare.isLoading}
           hotelPerDay={city.livingCostFor1Day?.hotel ?? city.livingCostFor1Day?.accommodation ?? avgHotelPerDay}
+          cityName={cityNameKo}
         />
 
         {/* C. 항목별 전체 물가표 (월급, 인구 정보 포함) */}
@@ -109,6 +113,7 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
           data={costDetail.data}
           isLoading={costDetail.isLoading}
           seoulLivingCost={seoulDetail.data?.living_cost}
+          cityName={cityNameKo}
         />
       </motion.div>
     </AnimatePresence>

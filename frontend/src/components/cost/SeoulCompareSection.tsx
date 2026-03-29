@@ -23,6 +23,7 @@ interface SeoulCompareSectionProps {
   data: CostCompare | undefined;
   isLoading: boolean;
   hotelPerDay?: number;
+  cityName?: string;
 }
 
 const PIE_COLORS: Record<string, string> = {
@@ -101,7 +102,7 @@ function BarTooltip({ active, payload, targetName }: {
   );
 }
 
-export function SeoulCompareSection({ data, isLoading, hotelPerDay }: SeoulCompareSectionProps) {
+export function SeoulCompareSection({ data, isLoading, hotelPerDay, cityName: cityNameProp }: SeoulCompareSectionProps) {
   const vs = data?.costCompare;
   // 히어로 카드: localCostCompare 우선, 없으면 costCompare fallback
   const gapPercent = data?.localCostCompare?.localDailyCostGapPercent ?? vs?.dailyBudgetGapPercent ?? 0;
@@ -128,7 +129,7 @@ export function SeoulCompareSection({ data, isLoading, hotelPerDay }: SeoulCompa
   const pieTotal = pieData.reduce((sum, d) => sum + d.value, 0);
   const displayTotal = data ? (pieTotal > 0 ? pieTotal : data.expectedTargetDailyBudget.total) : 0;
 
-  const targetName = data?.target.name ?? '도시';
+  const targetName = cityNameProp ?? data?.target.name ?? '도시';
 
   // 서울=0 기준 ±% 다이버전트 차트 데이터
   const barData =

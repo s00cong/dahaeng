@@ -10,6 +10,7 @@ interface CostDetailTableProps {
   data: CostDetail | undefined;
   isLoading: boolean;
   seoulLivingCost?: LivingCost;
+  cityName?: string;
 }
 
 const EATING_OUT_LABELS: Record<string, string> = {
@@ -271,8 +272,8 @@ function calcTotalCounts(
 }
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────────────────────────
-export function CostDetailTable({ data, isLoading, seoulLivingCost }: CostDetailTableProps) {
-  const cityName = data?.target.name ?? '도시';
+export function CostDetailTable({ data, isLoading, seoulLivingCost, cityName: cityNameProp }: CostDetailTableProps) {
+  const cityName = cityNameProp ?? data?.target.name ?? '도시';
   const lc = data?.living_cost;
 
   // 마트/식료품은 독립 토글, 나머지 3개는 공유 토글 (초기 상태: 닫힘)

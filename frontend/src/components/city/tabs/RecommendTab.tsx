@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
 import dayjs from "dayjs";
 import { useDisplayCityTags } from "@/hooks/city/useDisplayCityTags";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 
 interface RecommendTabProps {
   city: CityDetail;
@@ -234,7 +235,7 @@ export function RecommendTab({ city, onTabChange, isAiLoading = false }: Recomme
       <section className="p-6 pb-0">
         <h2 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
           <Sparkles className="size-5 text-blue-500" aria-hidden="true" />
-          {city.cityName} 추천 이유
+          {CITY_NAME_KO[city.cityName] ?? city.cityName} 추천 이유
         </h2>
         <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-sm">
           {isAiLoading ? (

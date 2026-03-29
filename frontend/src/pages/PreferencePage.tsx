@@ -206,7 +206,7 @@ function SelectionCounter({ count }: SelectionCounterProps) {
 // Main Page
 // ---------------------------------------------------------------------------
 
-const PreferencePage = ({ isEdit = false, onBack }: { isEdit?: boolean; onBack?: () => void }) => {
+const PreferencePage = ({ isEdit = false, onBack, showYoutubeBanner }: { isEdit?: boolean; onBack?: () => void; showYoutubeBanner?: boolean }) => {
   // 서버에서 태그 목록 fetch
   const { data: tagList = [], isLoading: isTagLoading, isError: isTagError } = useTagList();
   const { data: memberTags = [], isLoading: isMemberTagLoading } = useMemberTags();
@@ -412,8 +412,8 @@ const PreferencePage = ({ isEdit = false, onBack }: { isEdit?: boolean; onBack?:
               </div>
             </header>
 
-            {/* YouTube 자동 선택 배너 — 온보딩 직접선택 플로우에서는 숨김 */}
-            {youtubeAutoSelected && !onBack && !isPending && (
+            {/* YouTube 자동 선택 배너 — YouTube 플로우에서만 표시 */}
+            {youtubeAutoSelected && (showYoutubeBanner ?? !onBack) && !isPending && (
               <div className="mb-6 flex items-center gap-3 p-3.5 rounded-xl bg-slate-800/80 border border-slate-700">
                 <div className="size-9 rounded-full bg-red-500 flex items-center justify-center shrink-0">
                   <svg viewBox="0 0 24 24" className="size-4 fill-white" aria-hidden="true">

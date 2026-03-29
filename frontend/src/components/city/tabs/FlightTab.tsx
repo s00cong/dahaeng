@@ -28,6 +28,7 @@ import { useFlightTrend } from "@/hooks/flight/useFlightTrend";
 import { FlightAlertCard } from "@/components/bookmark/FlightAlertCard";
 import dayjs from "@/utils/dayjs";
 import type { CityDetail } from "@/schemas/city.schema";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 import type {
   CitySummary,
   FlightCalendar,
@@ -208,7 +209,7 @@ export function FlightTab({ city }: FlightTabProps) {
             travelDuration={travelDuration}
             onDayClick={handleDayClick}
           />
-          <FlightAlertCard cityId={cityId} cityName={city.cityName} />
+          <FlightAlertCard cityId={cityId} cityName={CITY_NAME_KO[city.cityName] ?? city.cityName} />
         </div>
 
         <div ref={rightColRef} className="flex flex-col gap-4 min-w-0">

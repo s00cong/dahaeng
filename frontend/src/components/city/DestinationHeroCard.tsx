@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CityDetail } from "@/schemas/city.schema";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 import { useDisplayCityTags } from "@/hooks/city/useDisplayCityTags";
 
 interface DestinationHeroCardProps {
@@ -341,7 +342,10 @@ export function DestinationHeroCard({
             {flagUrl && (
               <img src={flagUrl} alt="" className="h-3.5 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
             )}
-            {countryName}
+            {COUNTRY_NAME_KO[countryName] ?? countryName}
+            {COUNTRY_NAME_KO[countryName] && (
+              <span className="text-xs text-white/40">{countryName}</span>
+            )}
           </p>
         </div>
 
