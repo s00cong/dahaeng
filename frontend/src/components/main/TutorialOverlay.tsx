@@ -8,6 +8,7 @@ import {
   PanelRight,
 } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
+import { useCityList } from "@/hooks/city/useCityList";
 
 const TUTORIAL_KEY = "dahaeng_tutorial_seen";
 
@@ -89,6 +90,8 @@ export function TutorialOverlay() {
   const [rect, setRect] = useState<SpotlightRect | null>(null);
   const tutorialOpenedPanel = useRef(false);
 
+  const { data: cityList } = useCityList();
+
   const {
     isLeftSidebarCollapsed,
     toggleLeftSidebar,
@@ -155,7 +158,8 @@ export function TutorialOverlay() {
     // step 3: cityId=1 RightPanel 열기
     if (step === 3) {
       tutorialOpenedPanel.current = true;
-      openRightPanel(1);
+      const imgUrl = cityList?.find((c) => c.cityId === 1)?.imgUrl ?? undefined;
+      openRightPanel(1, imgUrl);
     }
 
     const delay = STEP_DELAYS[step] ?? 80;

@@ -182,6 +182,7 @@ const BackendRecommendDetailSchema = z.object({
 const BackendNotRecommendDetailSchema = z.object({
   id: z.number().nullable().optional(),
   name: z.string(),
+  imgUrl: z.string().nullable().optional(),
   livingCostFor1Day: BackendLivingCostSchema.nullable().optional(),
   airTicketAndHotel: BackendAirTicketSchema.nullable().optional(),  // 백엔드 키: airTicketAndHotel
   danger: BackendCountryDangerSchema,
@@ -266,7 +267,7 @@ export const cityApi = {
         cityName: city.name,
         countryId: 0,
         countryName: "",
-        imgUrl: "",
+        imgUrl: city.imgUrl ?? "",
         latitude: 0,
         longitude: 0,
         livingCostFor1Day: city.livingCostFor1Day ? {
