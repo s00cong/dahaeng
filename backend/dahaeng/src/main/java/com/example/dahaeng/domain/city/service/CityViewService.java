@@ -70,7 +70,7 @@ public class CityViewService {
 			.map((city) -> CityViewHistoryResponse.from(
 				city,
 				getKrw(livingCostByCityId.get(city.getId()).getDailyBudget()),
-				livingCostByCityId.get(city.getId()).getUpdatedAt()
+				historyMap.get(city.getId()).getUpdatedAt()
 			))
 			.toList();
 	}
