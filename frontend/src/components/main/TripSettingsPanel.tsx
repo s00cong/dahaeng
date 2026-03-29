@@ -15,28 +15,17 @@ import { useRecommend } from "@/hooks/city/useRecommend";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-const MONTHS = [
-  { value: 1, label: "1월" },
-  { value: 2, label: "2월" },
-  { value: 3, label: "3월" },
-  { value: 4, label: "4월" },
-  { value: 5, label: "5월" },
-  { value: 6, label: "6월" },
-  { value: 7, label: "7월" },
-  { value: 8, label: "8월" },
-  { value: 9, label: "9월" },
-  { value: 10, label: "10월" },
-  { value: 11, label: "11월" },
-  { value: 12, label: "12월" },
-];
-
-// 현재 연/월을 기준으로 선택 가능 범위를 제한한다.
+// 현재 월부터 6개월치 유효한 year/month 쌍 생성
 const now = new Date();
 const currentYear = now.getFullYear();
 const currentMonth = now.getMonth() + 1;
-console.log("currentYear:", currentYear, "currentMonth:", currentMonth);
-// 현재 연도부터 3개 연도만 보여준다.
-const YEARS = [currentYear, currentYear + 1, currentYear + 2];
+
+const VALID_MONTHS: { year: number; month: number; label: string }[] = Array.from({ length: 6 }, (_, i) => {
+  const date = new Date(currentYear, currentMonth - 1 + i);
+  return { year: date.getFullYear(), month: date.getMonth() + 1, label: `${date.getMonth() + 1}월` };
+});
+
+const VALID_YEARS = [...new Set(VALID_MONTHS.map((m) => m.year))];
 
 export function TripSettingsPanel() {
   const {
@@ -57,51 +46,18 @@ export function TripSettingsPanel() {
   const { selectedTags } = usePreferenceStore();
   const { mutate: recommend, isPending } = useRecommend();
 
-  // 선택한 연/월이 현재 시점보다 과거인지 검사한다.
-  const isPastMonth = useCallback((year: number, month: number) => {
-    if (year < currentYear) return true;
-    if (year === currentYear && month < currentMonth) return true;
-    return false;
+  // 연도 변경 시, 해당 연도의 첫 번째 유효한 월로 자동 이동
+  const handleYearChange = useCallback((value: string) => {
+    const nextYear = Number(value);
+    setSelectedYear(nextYear);
+    const firstValidMonth = VALID_MONTHS.find((m) => m.year === nextYear)?.month;
+    if (firstValidMonth) setSelectedMonth(firstValidMonth);
   }, []);
 
-  // 연도 변경 시, 현재 선택된 월과 조합해서 과거가 되면 변경하지 않는다.
-  const handleYearChange = useCallback(
-    (value: string) => {
-      const nextYear = Number(value);
-
-      if (isPastMonth(nextYear, selectedMonth)) {
-        toast.error("과거는 선택할 수 없습니다.");
-        return;
-      }
-
-      setSelectedYear(nextYear);
-    },
-    [isPastMonth, selectedMonth],
-  );
-
-  // 월 변경 시, 현재 선택된 연도와 조합해서 과거가 되면 변경하지 않는다.
-  const handleMonthChange = useCallback(
-    (value: string) => {
-      const nextMonth = Number(value);
-
-      console.log({
-        selectedYear,
-        nextMonth,
-        currentYear,
-        currentMonth,
-        isPast: isPastMonth(selectedYear, nextMonth),
-      });
-
-      if (isPastMonth(selectedYear, nextMonth)) {
-        console.log("toast called");
-        toast.error("과거는 선택할 수 없습니다.");
-        return;
-      }
-
-      setSelectedMonth(nextMonth);
-    },
-    [isPastMonth, selectedYear],
-  );
+  // 월 변경
+  const handleMonthChange = useCallback((value: string) => {
+    setSelectedMonth(Number(value));
+  }, []);
 
   // 초기화 시 현재 연/월로 되돌리고 추천 상태도 해제한다.
   const handleReset = useCallback(() => {
@@ -230,7 +186,7 @@ export function TripSettingsPanel() {
               <SelectValue placeholder="년도" />
             </SelectTrigger>
             <SelectContent>
-              {YEARS.map((year) => (
+              {VALID_YEARS.map((year) => (
                 <SelectItem key={year} value={String(year)}>
                   {year}년
                 </SelectItem>
@@ -246,8 +202,8 @@ export function TripSettingsPanel() {
               <SelectValue placeholder="월" />
             </SelectTrigger>
             <SelectContent>
-              {MONTHS.map(({ value, label }) => (
-                <SelectItem key={value} value={String(value)}>
+              {VALID_MONTHS.filter((m) => m.year === selectedYear).map(({ month, label }) => (
+                <SelectItem key={month} value={String(month)}>
                   {label}
                 </SelectItem>
               ))}
