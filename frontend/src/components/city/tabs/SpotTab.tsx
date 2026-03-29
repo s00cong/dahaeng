@@ -798,7 +798,7 @@ export function SpotTab({ city, isRecommended = false }: SpotTabProps) {
                       <TouristSpotCard
                         key={i}
                         spot={spot}
-                        cityName={city.cityName}
+                        cityName={cityNameKo}
                         courseOrder={info?.order}
                         courseDescription={info?.description}
                         courseTip={info?.tip}

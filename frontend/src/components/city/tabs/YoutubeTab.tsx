@@ -3,6 +3,7 @@ import { Tv2, AlertCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { CityDetail } from "@/schemas/city.schema";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
 import { useInterestAnalysis } from "@/hooks/youtube/useInterestAnalysis";
 import type { InterestTag, TopKeyword } from "@/api/youtube.api";
 import { youtubeApi } from "@/api/youtube.api";
@@ -755,7 +756,7 @@ export function YoutubeTab({ city }: { city: CityDetail }) {
           tags={allTags}
           cityTagNames={flowCityTagNames}
           allCityTags={flowCityTags.map((ct) => ({ name: ct.name, tagScore: ct.tagScore }))}
-          cityName={city.cityName}
+          cityName={CITY_NAME_KO[city.cityName] ?? city.cityName}
           softBridge={softBridge}
           userTags={userOnlyTags}
           syncEnabled={syncEnabled}
