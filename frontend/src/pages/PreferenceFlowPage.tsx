@@ -266,7 +266,7 @@ function YoutubeIcon({
 
 const PreferenceFlowPage = () => {
   const { hasCompletedPreference } = useAuthStore();
-  const { setYoutubeAutoSelected, setYoutubeTagIds } = usePreferenceStore();
+  const { youtubeAutoSelected, setYoutubeAutoSelected, setYoutubeTagIds } = usePreferenceStore();
   const { preview } = useSearch({ from: "/preference" });
 
   // 마이페이지에서 "태그 수정"으로 진입한 경우만 edit 모드
@@ -328,7 +328,7 @@ const PreferenceFlowPage = () => {
     );
   }
 
-  return <PreferencePage isEdit={isEditMode} onBack={isEditMode ? undefined : () => setStep("onboarding")} />;
+  return <PreferencePage isEdit={isEditMode} onBack={isEditMode ? undefined : () => setStep("onboarding")} showYoutubeBanner={youtubeAutoSelected} />;
 };
 
 export default PreferenceFlowPage;
