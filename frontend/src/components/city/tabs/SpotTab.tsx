@@ -160,10 +160,10 @@ function PlaceCard({ place }: { place: Place }) {
         )}
       </div>
 
-      {/* 태그 + 점수 */}
+      {/* 태그 + 점수 (score 상위 5개) */}
       {place.tags.length > 0 && (
         <div className="flex flex-col gap-1">
-          {place.tags.map((t) => {
+          {[...place.tags].filter((t) => t.score > 0).sort((a, b) => b.score - a.score).slice(0, 5).map((t) => {
             const score = Math.round(t.score * 100);
             return (
               <span key={t.tagName} className="self-start flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5">
