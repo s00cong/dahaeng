@@ -21,6 +21,8 @@ function getDangerClass(level: string) {
 }
 
 export function RecommendReasonCard({ data }: RecommendReasonCardProps) {
+  const displayTags = (data.tags ?? []).slice(0, 5);
+
   return (
     <Card className="gap-4">
       <CardHeader className="pb-0">
@@ -40,13 +42,13 @@ export function RecommendReasonCard({ data }: RecommendReasonCardProps) {
         )}
 
         {/* 태그 */}
-        {data.tags && data.tags.length > 0 && (
+        {displayTags.length > 0 && (
           <div className="flex flex-col gap-1.5">
             <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
               <Tag className="size-3" /> 키워드
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {data.tags.map((tag) => (
+              {displayTags.map((tag) => (
                 <Badge
                   key={tag}
                   variant="outline"
