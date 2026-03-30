@@ -5,8 +5,8 @@ import AuthenticatedLayout from '@/components/layout/AuthenticatedLayout';
 export const Route = createFileRoute('/_authenticated')({
   // beforeLoad: 인증 가드 (비동기 가능)
   beforeLoad: () => {
-    const { isLoggedIn, hasCompletedPreference } = useAuthStore.getState();
-    if (!isLoggedIn) {
+    const { isLoggedIn, isGuest, hasCompletedPreference } = useAuthStore.getState();
+    if (!isLoggedIn && !isGuest) {
       throw redirect({ to: '/login' });
     }
     if (!hasCompletedPreference) {

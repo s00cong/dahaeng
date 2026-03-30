@@ -7,10 +7,12 @@ interface AuthState {
   user: User | null;
   hasCompletedPreference: boolean;
   isLoggedIn: boolean;
+  isGuest: boolean;
 
   setAccessToken: (token: string) => void;
   setUser: (user: User) => void;
   setHasCompletedPreference: (v: boolean) => void;
+  setGuest: () => void;
   logout: () => void;
 }
 
@@ -21,16 +23,19 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       hasCompletedPreference: false,
       isLoggedIn: false,
+      isGuest: false,
 
-      setAccessToken: (token) => set({ accessToken: token, isLoggedIn: true }),
+      setAccessToken: (token) => set({ accessToken: token, isLoggedIn: true, isGuest: false }),
       setUser: (user) => set({ user }),
       setHasCompletedPreference: (v) => set({ hasCompletedPreference: v }),
+      setGuest: () => set({ isGuest: true, hasCompletedPreference: true }),
       logout: () =>
         set({
           accessToken: null,
           user: null,
           hasCompletedPreference: false,
           isLoggedIn: false,
+          isGuest: false,
         }),
     }),
     {
@@ -40,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         hasCompletedPreference: state.hasCompletedPreference,
         isLoggedIn: state.isLoggedIn,
+        isGuest: state.isGuest,
       }),
     },
   ),

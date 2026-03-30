@@ -26,6 +26,7 @@ public class GooglePlacesEnrichmentService implements PlaceEnrichmentService {
 
         return new RecommendCitiesResponse.RecommendedPlace(
                 spot.getPlaceName(),
+                spot.getPlaceNameKo(),
                 selectedTags,
                 tagScores,
                 spot.getAddress(),

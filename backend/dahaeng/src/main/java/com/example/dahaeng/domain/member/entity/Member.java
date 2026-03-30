@@ -3,6 +3,7 @@ package com.example.dahaeng.domain.member.entity;
 import com.example.dahaeng.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDateTime;
 
@@ -37,9 +38,18 @@ public class Member extends BaseEntity {
     @Column(length = 20, nullable = false)
     private String role;
 
+    @Builder.Default
+    @Column(name = "email_alert_enabled", nullable = false)
+    @ColumnDefault("1")
+    private boolean emailAlertEnabled = true;
+
     public void updateProfile(String nickname, String profileImageUrl) {
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public void updateEmailAlertEnabled(boolean emailAlertEnabled) {
+        this.emailAlertEnabled = emailAlertEnabled;
     }
 
     public void withdraw() {

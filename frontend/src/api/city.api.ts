@@ -2,6 +2,17 @@ import { axiosInstance } from "./axiosInstance";
 import type { CityDetail } from "@/schemas/city.schema";
 import { z } from "zod";
 
+// ── 최근 본 도시 ────────────────────────────────────────────────────────────
+export const ViewHistoryItemSchema = z.object({
+  cityId: z.number(),
+  cityName: z.string(),
+  countryName: z.string(),
+  dailyBudget: z.number(),
+  imgUrl: z.string().nullable(),
+  lastViewTime: z.string(),
+});
+export type ViewHistoryItem = z.infer<typeof ViewHistoryItemSchema>;
+
 // 백엔드 CountryDanger { level, description }
 const BackendCountryDangerItemSchema = z.object({
   level: z.string(),
@@ -36,8 +47,17 @@ const dangerToRiskLevel = (
     | undefined,
 ): number => {
   if (!danger || danger.items.length === 0) return 0;
-  const levels = danger.items.map((item) => item.level);
-  if (levels.some((l) => l.includes("금지") || l.includes("철수"))) return 5;
+  // 철수권고(일부)·여행금지(일부)는 오버레이로 처리 → 베이스 계산에서 제외
+  const levels = danger.items
+    .filter((item) => {
+      const l = item.level;
+      if (l.includes("(일부)") && (l.includes("철수") || l.includes("금지"))) return false;
+      return true;
+    })
+    .map((item) => item.level);
+  if (levels.length === 0) return 0;
+  if (levels.some((l) => l.includes("금지"))) return 6;
+  if (levels.some((l) => l.includes("철수"))) return 5;
   if (levels.some((l) => l.includes("자제"))) return 4;
   if (levels.some((l) => l.includes("주의"))) return 3;
   if (levels.some((l) => l.includes("유의"))) return 2;
@@ -107,6 +127,7 @@ const BackendExchangeRateSchema = z.object({
 // 백엔드 touristSpot: tags는 string[], tagScores는 Record<string, number>
 const BackendTouristSpotSchema = z.object({
   name: z.string(),
+  koName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   lat: z.number().nullable().optional(),
   lon: z.number().nullable().optional(),
@@ -161,6 +182,7 @@ const BackendRecommendDetailSchema = z.object({
 const BackendNotRecommendDetailSchema = z.object({
   id: z.number().nullable().optional(),
   name: z.string(),
+  imgUrl: z.string().nullable().optional(),
   livingCostFor1Day: BackendLivingCostSchema.nullable().optional(),
   airTicketAndHotel: BackendAirTicketSchema.nullable().optional(),  // 백엔드 키: airTicketAndHotel
   danger: BackendCountryDangerSchema,
@@ -194,7 +216,7 @@ export const cityApi = {
     recommend: boolean,
     recommendParams?: {
       selectedTags: string[];
-      userDailyBudget: number;
+      userTotalBudget: number;
       travelDays: number;
       month: number;
       recommendId?: string;
@@ -203,7 +225,7 @@ export const cityApi = {
     try {
     const { data } = await axiosInstance.get(`/api/city/${cityId}`, {
       params: recommend && recommendParams
-        ? { recommend, selectedTags: recommendParams.selectedTags, userDailyBudget: recommendParams.userDailyBudget, travelDays: recommendParams.travelDays, month: recommendParams.month, recommendId: recommendParams.recommendId }
+        ? { recommend, selectedTags: recommendParams.selectedTags, userTotalBudget: recommendParams.userTotalBudget, travelDays: recommendParams.travelDays, month: recommendParams.month, recommendId: recommendParams.recommendId }
         : { recommend },
       timeout: recommend ? 60_000 : 10_000,
     });
@@ -245,7 +267,7 @@ export const cityApi = {
         cityName: city.name,
         countryId: 0,
         countryName: "",
-        imgUrl: "",
+        imgUrl: city.imgUrl ?? "",
         latitude: 0,
         longitude: 0,
         livingCostFor1Day: city.livingCostFor1Day ? {
@@ -271,7 +293,7 @@ export const cityApi = {
   // POST /api/recommend → RecommendCitySummaryResponse
   recommend: async (body: {
     selectedTags: string[];
-    userDailyBudget: number;
+    userTotalBudget: number;
     travelDays: number;
     month: number;
   }) => {
@@ -279,7 +301,7 @@ export const cityApi = {
       recommendId: z.string().nullable().optional(),
       requestContext: z.object({
         selectedTags: z.array(z.string()),
-        userDailyBudget: z.number(),
+        userTotalBudget: z.number(),
         travelDays: z.number(),
         month: z.number(),
       }).optional(),
@@ -315,5 +337,11 @@ export const cityApi = {
         reason: null,
       })),
     };
+  },
+
+  // GET /api/city/view-history
+  getViewHistory: async (): Promise<ViewHistoryItem[]> => {
+    const { data } = await axiosInstance.get("/api/city/view-history");
+    return z.array(ViewHistoryItemSchema).parse(data);
   },
 };

@@ -1,15 +1,17 @@
 import { useState, type MouseEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Bell, BellOff } from "lucide-react";
 import defaultCityImg from "@/assets/no-picture.png";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import dayjs from "@/utils/dayjs";
 import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
+import { useDeleteFlightAlert } from "@/hooks/flight-alert/useDeleteFlightAlert";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
 import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
 import type { BookmarkListItem } from "@/schemas/bookmark.schema";
+import type { FlightAlertSubscription } from "@/schemas/flight-alert.schema";
 
 const CONTINENT_LABEL_MAP: Record<string, string> = {
   asia: "ASIA",
@@ -36,12 +38,14 @@ function getContinentBadgeClass(continent: string): string {
 interface BookmarkCardProps {
   item: BookmarkListItem;
   onDelete: (bookmarkId: number) => void;
+  subscription?: FlightAlertSubscription;
 }
 
-export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
+export function BookmarkCard({ item, onDelete, subscription }: BookmarkCardProps) {
   const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
   const { data: flagMap } = useCountryFlagMap();
+  const { mutate: deleteAlert, isPending: isUnsubscribing } = useDeleteFlightAlert();
   const flagUrl = flagMap?.get(item.countryName);
 
   const handleCardClick = () => {
@@ -55,7 +59,8 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
 
   const continentLabel =
     CONTINENT_LABEL_MAP[item.countryName.toLowerCase()] ??
-    (COUNTRY_NAME_KO[item.countryName] ?? item.countryName.toUpperCase());
+    COUNTRY_NAME_KO[item.countryName] ??
+    item.countryName.toUpperCase();
   const badgeClass = getContinentBadgeClass(item.countryName);
 
   return (
@@ -90,24 +95,58 @@ export function BookmarkCard({ item, onDelete }: BookmarkCardProps) {
         >
           <X className="size-3.5" aria-hidden="true" />
         </button>
+
       </div>
 
       {/* 텍스트 영역 */}
       <div className="flex flex-col gap-1.5 p-4">
-        <Badge
-          className={cn(
-            "w-fit border text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1",
-            badgeClass,
+        {/* 나라 배지 + 알림 정보 (우측 상단) */}
+        <div className="flex items-start justify-between gap-2">
+          <Badge
+            className={cn(
+              "w-fit border text-[10px] font-semibold uppercase tracking-wide flex items-center gap-1",
+              badgeClass,
+            )}
+          >
+            {flagUrl && (
+              <img
+                src={flagUrl}
+                alt=""
+                className="h-3 w-auto rounded-[2px] object-cover shrink-0"
+                aria-hidden="true"
+              />
+            )}
+            {continentLabel}
+          </Badge>
+
+          {subscription && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1 rounded-lg bg-amber-50 border border-amber-200 px-2 py-1">
+                <Bell className="size-3 text-amber-500" />
+                <span className="text-xs font-bold text-amber-700">
+                  {Math.round(subscription.thresholdPrice / 10000)}만원
+                </span>
+              </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); deleteAlert(item.cityId); }}
+                disabled={isUnsubscribing}
+                className="flex items-center justify-center size-6 rounded-md bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-400 transition-colors"
+                aria-label="알림 해제"
+              >
+                <BellOff className="size-3.5" />
+              </button>
+            </div>
           )}
-        >
-          {flagUrl && (
-            <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
-          )}
-          {continentLabel}
-        </Badge>
-        <h3 className="text-base font-bold text-slate-900 leading-tight">
+        </div>
+
+        <h3 className="text-base font-bold text-slate-600 leading-tight">
           {CITY_NAME_KO[item.cityName] ?? item.cityName}
         </h3>
+        <p
+          className={`text-xl font-bold truncate ${item.title ? "text-slate-900" : "text-slate-400"}`}
+        >
+          {item.title ?? "제목 없음"}
+        </p>
         <p className="text-xs text-slate-400 mt-0.5">
           {dayjs(item.createdAt).format("YYYY.MM.DD HH:mm")}
         </p>

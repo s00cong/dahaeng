@@ -1,7 +1,6 @@
 import { Bookmark, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCreateBookmark } from '@/hooks/bookmark/useCreateBookmark';
-import { useUiStore } from '@/stores/uiStore';
 import type { CityDetail } from '@/schemas/city.schema';
 
 interface SaveButtonProps {
@@ -10,14 +9,14 @@ interface SaveButtonProps {
 
 export function SaveButton({ city }: SaveButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
-  const { recommendRequest } = useUiStore();
 
   const handleSave = () => {
     if (!city.recommendId) return;
     createBookmark({
       cityId: city.cityId,
-      recommendId: recommendRequest!.recommendId!,
+      recommendId: city.recommendId,
       json: city,
+      title: `${city.cityName} Trip`,
     });
   };
 

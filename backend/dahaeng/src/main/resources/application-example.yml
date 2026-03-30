@@ -26,7 +26,7 @@
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/dahaeng}
     redis:
-      host: ${REDIS_URI:localhost}
+      host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
       database: ${REDIS_DATABASE:0}
@@ -57,9 +57,21 @@
     access-expiration: ${JWT_ACCESS_EXPIRATION:360000000}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
 
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
+
 
 app:
-  front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:3000/}
+  front-callback-url: ${FRONT_CALLBACK_URL:http://localhost:3000/auth/callback}
   internal-image-upload:
     enabled: ${INTERNAL_IMAGE_UPLOAD_ENABLED:false}
     max-files: ${INTERNAL_IMAGE_UPLOAD_MAX_FILES:5}

@@ -11,6 +11,7 @@ Hash-based city IDs are no longer used.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 
@@ -108,6 +109,17 @@ def build_city_name_mapping_expr(code_to_city_name: dict[str, str]):
     return F.create_map(*items)
 
 
+def resolve_tripcom_direction_column():
+    normalized_direction = F.lower(F.trim(F.col("entity.direction")))
+    normalized_origin = normalize_city_key("entity.origin")
+    return (
+        F.when(normalized_direction.isin("outbound", "inbound"), normalized_direction)
+        .when(normalized_origin == F.lit("ICN"), F.lit("outbound"))
+        .when(normalized_origin.isNotNull(), F.lit("inbound"))
+        .otherwise(F.lit(None))
+    )
+
+
 def read_google_normalized(spark: SparkSession, google_path: str) -> DataFrame:
     print(f"[INFO] Reading Google Flights normalized JSONL from: {google_path}")
     df_raw = spark.read.json(google_path)
@@ -123,13 +135,17 @@ def transform_to_silver(df: DataFrame, df_tripcom_avg: DataFrame | None = None) 
         df,
         ["entity.city_id", "entity.city_code"],
     )
+    duration_column = build_first_available_column(
+        df,
+        ["payload.min_duration_minutes", "payload.avg_duration_minutes"],
+    )
     df_silver = df.select(
         google_city_column.alias("city_code"),
         F.col("entity.city_name").alias("city_name"),
         F.col("entity.year_month").alias("year_month"),
         F.col("entity.origin_airport").alias("origin_airport"),
         F.col("payload.typical_stops_count").cast(IntegerType()).alias("stops"),
-        F.col("payload.avg_duration_minutes").cast(IntegerType()).alias("flight_duration"),
+        duration_column.cast(IntegerType()).alias("flight_duration"),
         F.col("payload.hotel_price").cast(IntegerType()).alias("avg_hotel_price"),
         F.col("payload.peak_season_months_list").alias("peak_month_list"),
         F.col("payload.off_season_months_list").alias("off_month_list"),
@@ -142,13 +158,37 @@ def transform_to_silver(df: DataFrame, df_tripcom_avg: DataFrame | None = None) 
         F.to_date(F.col("ingest_time")).alias("ingest_date"),
     ).withColumn("city_join_key", normalize_city_key("city_code"))
 
-    window = Window.partitionBy("city_join_key", "year_month").orderBy(
+    latest_window = Window.partitionBy("city_join_key", "year_month").orderBy(
         F.col("flight_collected_date").desc()
     )
-    df_dedup = (
-        df_silver.withColumn("rn", F.row_number().over(window))
+    best_flight_window = Window.partitionBy("city_join_key").orderBy(
+        F.col("flight_duration").asc_nulls_last(),
+        F.col("stops").asc_nulls_last(),
+        F.col("flight_collected_date").desc(),
+    )
+    df_latest = (
+        df_silver.withColumn("rn", F.row_number().over(latest_window))
         .filter(F.col("rn") == 1)
         .drop("rn")
+    )
+    df_best_flight = (
+        df_silver.withColumn("best_flight_rn", F.row_number().over(best_flight_window))
+        .filter(F.col("best_flight_rn") == 1)
+        .select(
+            F.col("city_join_key"),
+            F.col("stops").alias("best_stops"),
+            F.col("flight_duration").alias("best_flight_duration"),
+        )
+        .drop("best_flight_rn")
+    )
+    df_dedup = (
+        df_latest.join(df_best_flight, on=["city_join_key"], how="left")
+        .withColumn("stops", F.coalesce(F.col("best_stops"), F.col("stops")))
+        .withColumn(
+            "flight_duration",
+            F.coalesce(F.col("best_flight_duration"), F.col("flight_duration")),
+        )
+        .drop("best_stops", "best_flight_duration")
     )
 
     if df_tripcom_avg is None:
@@ -161,7 +201,11 @@ def transform_to_silver(df: DataFrame, df_tripcom_avg: DataFrame | None = None) 
             how="left",
         )
         .withColumn("avg_flight_price", F.col("tc_avg_flight_price"))
-        .drop("tc_avg_flight_price")
+        .withColumn(
+            "flight_collected_date",
+            F.coalesce(F.col("tc_flight_collected_date"), F.col("flight_collected_date")),
+        )
+        .drop("tc_avg_flight_price", "tc_flight_collected_date")
     )
 
 
@@ -184,17 +228,28 @@ def read_and_agg_tripcom_price(
         df_raw,
         ["entity.city_code", "entity.city_id"],
     )
+    tripcom_direction_column = resolve_tripcom_direction_column()
 
-    return (
+    directional_averages = (
         df_raw.select(
             tripcom_city_column.alias("city_code"),
             F.substring(F.col("event_time"), 1, 7).alias("year_month"),
+            tripcom_direction_column.alias("direction"),
             F.col("payload.price").alias("price"),
+            F.to_timestamp(F.col("ingest_time")).alias("flight_collected_date"),
         )
-        .filter(F.col("price").isNotNull())
+        .filter(F.col("price").isNotNull() & F.col("direction").isin("outbound", "inbound"))
         .withColumn("city_join_key", normalize_city_key("city_code"))
-        .groupBy("city_join_key", "year_month")
-        .agg(F.round(F.avg("price")).cast("integer").alias("tc_avg_flight_price"))
+        .groupBy("city_join_key", "year_month", "direction")
+        .agg(
+            F.round(F.avg("price")).cast("integer").alias("directional_avg_flight_price"),
+            F.max("flight_collected_date").alias("directional_flight_collected_date"),
+        )
+    )
+
+    return directional_averages.groupBy("city_join_key", "year_month").agg(
+        F.sum("directional_avg_flight_price").cast("integer").alias("tc_avg_flight_price"),
+        F.max("directional_flight_collected_date").alias("tc_flight_collected_date"),
     )
 
 
@@ -271,6 +326,92 @@ def attach_city_ids(
             F.col("city_join_key"),
         )
     )
+
+
+def apply_cross_month_fallbacks(df: DataFrame) -> DataFrame:
+    city_flight_window = (
+        Window.partitionBy("city_id")
+        .orderBy(F.col("flight_collected_date").desc_nulls_last())
+        .rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+    )
+    city_hotel_window = (
+        Window.partitionBy("city_id")
+        .orderBy(F.col("hotel_collected_date").desc_nulls_last())
+        .rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+    )
+
+    return (
+        df.withColumn(
+            "city_latest_avg_flight_price",
+            F.first("avg_flight_price", ignorenulls=True).over(city_flight_window),
+        )
+        .withColumn(
+            "city_latest_avg_hotel_price",
+            F.first("avg_hotel_price", ignorenulls=True).over(city_hotel_window),
+        )
+        .withColumn(
+            "avg_flight_price_was_missing",
+            F.col("avg_flight_price").isNull() & F.col("city_latest_avg_flight_price").isNull(),
+        )
+        .withColumn(
+            "avg_hotel_price_was_missing",
+            F.col("avg_hotel_price").isNull() & F.col("city_latest_avg_hotel_price").isNull(),
+        )
+        .withColumn(
+            "avg_flight_price",
+            F.coalesce(
+                F.col("avg_flight_price"),
+                F.col("city_latest_avg_flight_price"),
+                F.lit(0),
+            ).cast(IntegerType()),
+        )
+        .withColumn(
+            "avg_hotel_price",
+            F.coalesce(
+                F.col("avg_hotel_price"),
+                F.col("city_latest_avg_hotel_price"),
+                F.lit(0),
+            ).cast(IntegerType()),
+        )
+        .drop("city_latest_avg_flight_price", "city_latest_avg_hotel_price")
+    )
+
+
+def collect_missing_value_alerts(df: DataFrame) -> list[dict]:
+    alert_rows = (
+        df.select(
+            F.col("city_id"),
+            F.col("city_code"),
+            F.col("year_month"),
+            F.col("avg_flight_price_was_missing"),
+            F.col("avg_hotel_price_was_missing"),
+        )
+        .filter(F.col("avg_flight_price_was_missing") | F.col("avg_hotel_price_was_missing"))
+        .collect()
+    )
+
+    missing_value_alerts: list[dict] = []
+    for row in alert_rows:
+        if row["avg_flight_price_was_missing"]:
+            missing_value_alerts.append(
+                {
+                    "city_id": row["city_id"],
+                    "city_code": row["city_code"],
+                    "year_month": row["year_month"],
+                    "metric": "avg_flight_price",
+                }
+            )
+        if row["avg_hotel_price_was_missing"]:
+            missing_value_alerts.append(
+                {
+                    "city_id": row["city_id"],
+                    "city_code": row["city_code"],
+                    "year_month": row["year_month"],
+                    "metric": "avg_hotel_price",
+                }
+            )
+
+    return missing_value_alerts
 
 
 def write_silver(df: DataFrame, silver_path: str) -> None:
@@ -394,9 +535,24 @@ def main():
         city_lookup = read_city_lookup(spark, args.db_url, args.db_user, args.db_password)
         code_to_city_name = load_code_to_city_name(args.mapping_path)
         df_silver_resolved = attach_city_ids(df_silver, city_lookup, code_to_city_name)
-        write_silver(df_silver_resolved, args.silver_path)
+        df_silver_filled = apply_cross_month_fallbacks(df_silver_resolved)
+        missing_value_alerts = collect_missing_value_alerts(df_silver_filled)
+        if missing_value_alerts:
+            print(
+                json.dumps(
+                    {"missing_value_alerts": missing_value_alerts},
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+
+        df_final = df_silver_filled.drop(
+            "avg_flight_price_was_missing",
+            "avg_hotel_price_was_missing",
+        )
+        write_silver(df_final, args.silver_path)
         write_to_mariadb(
-            df_silver_resolved,
+            df_final,
             args.db_url,
             args.db_user,
             args.db_password,

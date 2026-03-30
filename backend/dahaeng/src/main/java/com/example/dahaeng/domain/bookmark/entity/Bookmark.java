@@ -9,6 +9,7 @@ import com.example.dahaeng.global.entity.BaseEntity;
 import com.example.dahaeng.global.exception.CustomException;
 import com.example.dahaeng.global.exception.ErrorCode;
 
+import io.micrometer.common.util.StringUtils;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -33,6 +34,8 @@ public class Bookmark extends BaseEntity {
 	@JoinColumn(name = "city_id", nullable = false)
 	private City city;
 
+	private String title;
+
 	@Column(columnDefinition = "TEXT")
 	private String json;
 
@@ -44,6 +47,13 @@ public class Bookmark extends BaseEntity {
 			throw new CustomException(ErrorCode.INVALID_REQUEST, "이미 삭제된 북마크입니다.");
 		}
 		super.delete();
+	}
+
+	public void modifyTitle(String title) {
+		if (StringUtils.isEmpty(title)) {
+			return;
+		}
+		this.title = title;
 	}
 
 	public void createdAt(LocalDateTime createdAt) {

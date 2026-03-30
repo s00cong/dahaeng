@@ -59,6 +59,7 @@ public class SecurityConfig {
             "/api/*/places",
             "/api/places/**",
             "/api/internal/image/**",
+            "/api/internal/flight-alerts/run",
             "/api/*/nearby-attractions"
     };
 
@@ -116,6 +117,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests((auth) -> auth
                         .requestMatchers(PUBLIC_URLS).permitAll()
+                        .requestMatchers("/api/city/view-history").authenticated()
                         .anyRequest().authenticated());
 
         http

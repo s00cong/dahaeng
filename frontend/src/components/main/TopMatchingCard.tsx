@@ -1,15 +1,28 @@
-import { useState, useCallback, useEffect, useRef, type KeyboardEvent } from 'react';
-import { motion } from 'framer-motion';
-import defaultCityImg from '@/assets/no-picture.png';
-import { Badge } from '@/components/ui/badge';
-import { useUiStore } from '@/stores/uiStore';
-import { useCountryFlagMap } from '@/hooks/country/useCountryFlagMap';
-import { cn } from '@/lib/utils';
-import { CITY_NAME_KO } from '@/data/cityNameKo';
-import { COUNTRY_NAME_KO } from '@/data/countryNameKo';
-import type { CityListItem } from '@/schemas/city.schema';
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type KeyboardEvent,
+} from "react";
+import { motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
+import defaultCityImg from "@/assets/no-picture.png";
+import { Badge } from "@/components/ui/badge";
+import { useUiStore } from "@/stores/uiStore";
+import { useCountryFlagMap } from "@/hooks/country/useCountryFlagMap";
+import { cn } from "@/lib/utils";
+import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
+import type { CityListItem } from "@/schemas/city.schema";
 
-function MarqueeText({ text, className }: { text: string; className?: string }) {
+function MarqueeText({
+  text,
+  className,
+}: {
+  text: string;
+  className?: string;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const [distance, setDistance] = useState(0);
@@ -30,21 +43,28 @@ function MarqueeText({ text, className }: { text: string; className?: string }) 
     return () => ro.disconnect();
   }, [text]);
 
-  const duration = 2 + distance / 35;
+  const duration = 3;
 
   return (
-    <div ref={containerRef} className={cn('overflow-hidden whitespace-nowrap', className)}>
+    <div
+      ref={containerRef}
+      className={cn("overflow-hidden whitespace-nowrap", className)}
+    >
       <motion.span
         ref={textRef}
-        style={{ display: 'inline-block' }}
-        animate={distance > 0 ? { x: [0, 0, -(distance + 4), -(distance + 4), 0] } : { x: 0 }}
+        style={{ display: "inline-block" }}
+        animate={
+          distance > 0
+            ? { x: [0, 0, -(distance + 4), -(distance + 4), 0] }
+            : { x: 0 }
+        }
         transition={
           distance > 0
             ? {
                 duration,
                 times: [0, 0.15, 0.7, 0.85, 1],
                 repeat: Infinity,
-                ease: 'easeInOut',
+                ease: "easeInOut",
               }
             : undefined
         }
@@ -61,30 +81,48 @@ interface TopMatchingCardProps {
 }
 
 function getMatchColor(score: number | undefined): string {
-  if (score === undefined) return 'bg-slate-100 text-slate-600';
-  if (score >= 80) return 'bg-emerald-100 text-emerald-700';
-  if (score >= 50) return 'bg-blue-100 text-blue-700';
-  return 'bg-amber-100 text-amber-700';
+  if (score === undefined) return "bg-slate-100 text-slate-600";
+  if (score >= 80) return "bg-emerald-100 text-emerald-700";
+  if (score >= 50) return "bg-blue-100 text-blue-700";
+  return "bg-amber-100 text-amber-700";
 }
 
 export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
-  const { openRightPanel } = useUiStore();
+  const { openRightPanel, setPlaneTrackingDest, recommendRequest } = useUiStore();
   const { data: flagMap } = useCountryFlagMap();
   const flagUrl = flagMap?.get(city.countryName);
   const [imgError, setImgError] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleClick = useCallback(() => {
-    openRightPanel(city.cityId, city.imgUrl, { lat: city.latitude, lng: city.longitude });
-  }, [city, openRightPanel]);
+    // 현재 recommendRequest까지 포함한 정확한 키로 캐시 확인
+    // (추천 업데이트 후 recommendId가 바뀌면 이전 캐시를 캐시 있음으로 오판하지 않도록)
+    const cached = queryClient.getQueriesData({
+      queryKey: ["city", "detail", city.cityId, true, recommendRequest ?? null],
+    });
+    const hasCached = cached.some(([, data]) => data != null);
+
+    if (hasCached) {
+      // 캐시 있음 → 기존 globe zoom + 우측 패널
+      openRightPanel(city.cityId, city.imgUrl, {
+        lat: city.latitude,
+        lng: city.longitude,
+      });
+    } else {
+      // 캐시 없음 → 서울로 먼저 이동 후 비행기 추적 애니메이션
+      openRightPanel(city.cityId, city.imgUrl, { lat: 37.5665, lng: 126.978 });
+      setPlaneTrackingDest({ lat: city.latitude, lng: city.longitude });
+    }
+  }, [city, openRightPanel, setPlaneTrackingDest, queryClient, recommendRequest]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
-      if (e.key === 'Enter' || e.key === ' ') {
+      if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        openRightPanel(city.cityId, city.imgUrl, { lat: city.latitude, lng: city.longitude });
+        handleClick();
       }
     },
-    [city, openRightPanel],
+    [handleClick],
   );
 
   return (
@@ -94,9 +132,9 @@ export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       className={cn(
-        'flex items-center gap-3 p-2.5 rounded-xl cursor-pointer',
-        'hover:bg-white/60 transition-all duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400',
+        "flex items-center gap-2 p-2.5 rounded-xl cursor-pointer",
+        "hover:bg-white/60 transition-all duration-150",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400",
       )}
       aria-label={`${city.cityName} 상세 정보 보기`}
     >
@@ -117,12 +155,23 @@ export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
 
       {/* 텍스트 */}
       <div className="flex flex-col flex-1 min-w-0">
-        <MarqueeText text={CITY_NAME_KO[city.cityName] ?? city.cityName} className="text-sm font-semibold text-slate-800" />
+        <MarqueeText
+          text={CITY_NAME_KO[city.cityName] ?? city.cityName}
+          className="text-sm font-semibold text-slate-800"
+        />
         <div className="flex items-center gap-1 min-w-0">
           {flagUrl && (
-            <img src={flagUrl} alt="" className="h-3 w-auto rounded-[2px] shrink-0 object-cover" aria-hidden="true" />
+            <img
+              src={flagUrl}
+              alt=""
+              className="h-3 w-auto rounded-[2px] shrink-0 object-cover"
+              aria-hidden="true"
+            />
           )}
-          <MarqueeText text={COUNTRY_NAME_KO[city.countryName] ?? city.countryName} className="text-xs text-slate-500" />
+          <MarqueeText
+            text={COUNTRY_NAME_KO[city.countryName] ?? city.countryName}
+            className="text-xs text-slate-500"
+          />
         </div>
       </div>
 
@@ -130,7 +179,7 @@ export function TopMatchingCard({ city, rank }: TopMatchingCardProps) {
       {city.matchingScore !== undefined && (
         <Badge
           className={cn(
-            'text-xs shrink-0 border-none',
+            "text-xs shrink-0 border-none",
             getMatchColor(city.matchingScore),
           )}
         >

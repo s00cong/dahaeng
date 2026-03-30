@@ -1,6 +1,13 @@
 import { axiosInstance } from "./axiosInstance";
 import { z } from "zod";
 
+export interface YoutubeSyncStatus {
+  connected: boolean;
+  syncEnabled: boolean | null;
+  syncStatus: "PENDING" | "SYNCED" | "FAILED" | null;
+  lastSyncedAt: string | null;
+}
+
 const EvidenceKeywordSchema = z.object({
   keyword: z.string(),
   sourceType: z.string(),
@@ -20,7 +27,7 @@ const TopKeywordSchema = z.object({
 });
 
 export const InterestTagSchema = z.object({
-  tagId: z.number(),
+  tagId: z.number().nullish(),
   categoryName: z.string(),
   tagName: z.string(),
   score: z.number().optional(),
@@ -55,6 +62,17 @@ export const youtubeApi = {
     });
   },
 
+  // GET /api/youtube/sync-status — YouTube 연동 및 동기화 상태 조회
+  getSyncStatus: async (): Promise<YoutubeSyncStatus> => {
+    const { data } = await axiosInstance.get("/api/youtube/sync-status");
+    return data as YoutubeSyncStatus;
+  },
+
+  // PATCH /api/youtube/sync-preference — syncEnabled 변경
+  updateSyncPreference: async (syncEnabled: boolean): Promise<void> => {
+    await axiosInstance.patch("/api/youtube/sync-preference", { syncEnabled });
+  },
+
   // GET /api/interest/analyze — 저장된 여행 태그 목록 + 풀 분석 데이터 조회
   getInterestTags: async (): Promise<{
     tagIds: number[];
@@ -63,9 +81,10 @@ export const youtubeApi = {
     const { data } = await axiosInstance.get("/api/interest/analyze");
     const parsed = InterestAnalyzeResponseSchema.safeParse(data);
     const tags = parsed.success ? parsed.data.tags : z.array(InterestTagSchema).parse(data);
+    const validTags = tags.filter((t) => t.tagId != null);
     return {
-      tagIds: tags.map((t) => t.tagId),
-      tagNames: tags.map((t) => t.tagName),
+      tagIds: validTags.map((t) => t.tagId!),
+      tagNames: validTags.map((t) => t.tagName),
     };
   },
 

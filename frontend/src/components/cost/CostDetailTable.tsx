@@ -10,7 +10,7 @@ interface CostDetailTableProps {
   data: CostDetail | undefined;
   isLoading: boolean;
   seoulLivingCost?: LivingCost;
-  krwPerTarget?: number;
+  cityName?: string;
 }
 
 const EATING_OUT_LABELS: Record<string, string> = {
@@ -57,9 +57,7 @@ interface ItemRowProps {
   cityVal: number;
   seoulVal: number | undefined;
   label: string;
-  currency: string;
   cityName: string;
-  krwPerTarget: number | undefined;
 }
 
 function priceSize(isExpensive: boolean, absDiff: number): string {
@@ -70,11 +68,10 @@ function priceSize(isExpensive: boolean, absDiff: number): string {
   return 'text-[11px] font-semibold';
 }
 
-function ItemRow({ cityVal, seoulVal, label, currency, cityName, krwPerTarget }: ItemRowProps) {
+function ItemRow({ cityVal, seoulVal, label, cityName }: ItemRowProps) {
   const diff = seoulVal !== undefined ? calcDiff(cityVal, seoulVal) : null;
-  const isHigher = diff !== null && diff >= 0; // 도시가 더 비쌈
+  const isHigher = diff !== null && diff >= 0;
   const absDiff = diff !== null ? Math.abs(diff) : 0;
-  const cityKRW = currency === 'KRW' ? cityVal : (krwPerTarget ? cityVal * krwPerTarget : null);
 
   return (
     <div className="px-3.5 py-3">
@@ -106,14 +103,7 @@ function ItemRow({ cityVal, seoulVal, label, currency, cityName, krwPerTarget }:
           <div className="flex-1 min-w-0 text-right">
             <p className="text-[9px] text-muted-foreground mb-0.5">{cityName}</p>
             <p className={cn('leading-none', priceSize(isHigher, absDiff), isHigher ? 'text-red-600' : 'text-blue-600')}>
-              {cityKRW !== null && (
-                <span>{Math.round(cityKRW).toLocaleString()}원</span>
-              )}
-              {currency !== 'KRW' && (
-                <span className={cn('font-normal', cityKRW !== null ? 'text-muted-foreground text-[9px]' : '')}>
-                  {' '}({cityVal.toFixed(2)} {currency})
-                </span>
-              )}
+              {Math.round(cityVal).toLocaleString()}원
             </p>
           </div>
         </div>
@@ -128,9 +118,7 @@ interface CategoryCardProps {
   cityData: Record<string, number>;
   seoulData: Record<string, number> | undefined;
   labels: Record<string, string>;
-  currency: string;
   cityName: string;
-  krwPerTarget: number | undefined;
   isOpen: boolean;
   onToggle: () => void;
   /** 내부 항목을 몇 열로 표시할지 (기본 1) */
@@ -139,7 +127,7 @@ interface CategoryCardProps {
 }
 
 function CategoryCard({
-  title, cityData, seoulData, labels, currency, cityName, krwPerTarget,
+  title, cityData, seoulData, labels, cityName,
   isOpen, onToggle, innerCols = 1, className,
 }: CategoryCardProps) {
   const itemCount = Object.keys(cityData).length;
@@ -241,9 +229,7 @@ function CategoryCard({
                     cityVal={cityVal}
                     seoulVal={seoulData?.[key]}
                     label={labels[key] ?? key}
-                    currency={currency}
                     cityName={cityName}
-                    krwPerTarget={krwPerTarget}
                   />
                 </div>
               ))}
@@ -286,9 +272,8 @@ function calcTotalCounts(
 }
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────────────────────────
-export function CostDetailTable({ data, isLoading, seoulLivingCost, krwPerTarget }: CostDetailTableProps) {
-  const currency = data?.target.currency ?? 'USD';
-  const cityName = data?.target.name ?? '도시';
+export function CostDetailTable({ data, isLoading, seoulLivingCost, cityName: cityNameProp }: CostDetailTableProps) {
+  const cityName = cityNameProp ?? data?.target.name ?? '도시';
   const lc = data?.living_cost;
 
   // 마트/식료품은 독립 토글, 나머지 3개는 공유 토글 (초기 상태: 닫힘)
@@ -309,7 +294,7 @@ export function CostDetailTable({ data, isLoading, seoulLivingCost, krwPerTarget
         {lc && (
           <Badge className="text-xs bg-blue-500/10 text-blue-600 border-none px-2 py-0.5 gap-1">
             <DollarSign className="size-3" />
-            하루 예산 {lc.daily_budget.toFixed(1)} {currency}
+            하루 예산 {Math.round(lc.daily_budget).toLocaleString()}원
           </Badge>
         )}
       </div>
@@ -376,9 +361,7 @@ export function CostDetailTable({ data, isLoading, seoulLivingCost, krwPerTarget
             cityData={lc.groceries as Record<string, number>}
             seoulData={seoulLivingCost?.groceries as Record<string, number> | undefined}
             labels={GROCERIES_LABELS}
-            currency={currency}
             cityName={cityName}
-            krwPerTarget={krwPerTarget}
             isOpen={groceriesOpen}
             onToggle={() => setGroceriesOpen((v) => !v)}
             innerCols={3}
@@ -391,9 +374,7 @@ export function CostDetailTable({ data, isLoading, seoulLivingCost, krwPerTarget
               cityData={lc.eating_out as Record<string, number>}
               seoulData={seoulLivingCost?.eating_out as Record<string, number> | undefined}
               labels={EATING_OUT_LABELS}
-              currency={currency}
               cityName={cityName}
-              krwPerTarget={krwPerTarget}
               isOpen={bottomOpen}
               onToggle={toggleBottom}
             />
@@ -402,9 +383,7 @@ export function CostDetailTable({ data, isLoading, seoulLivingCost, krwPerTarget
               cityData={lc.transportation as Record<string, number>}
               seoulData={seoulLivingCost?.transportation as Record<string, number> | undefined}
               labels={TRANSPORT_LABELS}
-              currency={currency}
               cityName={cityName}
-              krwPerTarget={krwPerTarget}
               isOpen={bottomOpen}
               onToggle={toggleBottom}
             />
@@ -413,9 +392,7 @@ export function CostDetailTable({ data, isLoading, seoulLivingCost, krwPerTarget
               cityData={lc.other as Record<string, number>}
               seoulData={seoulLivingCost?.other as Record<string, number> | undefined}
               labels={OTHER_LABELS}
-              currency={currency}
               cityName={cityName}
-              krwPerTarget={krwPerTarget}
               isOpen={bottomOpen}
               onToggle={toggleBottom}
             />

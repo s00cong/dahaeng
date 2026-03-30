@@ -47,7 +47,7 @@ public final class DailyLivingCostCalculator {
 
         double localTransportTicket = toKrw(nz(localTransportTicketUsd), usdToKrwRate);
         double transportationTotal = localTransportTicket * DAILY_TRANSPORT_TICKET_COUNT;
-        double hotel = Math.round(nz(hotelPerDayKrw) / 2.0);
+        double hotel = Math.round(nz(hotelPerDayKrw));
 
         return new DailyLivingCost(
                 foodTotal + transportationTotal + hotel,
@@ -58,7 +58,7 @@ public final class DailyLivingCostCalculator {
     }
 
     private static DailyLivingCost empty(Double hotelPerDayKrw) {
-        double hotel = Math.round(nz(hotelPerDayKrw) / 2.0);
+        double hotel = Math.round(nz(hotelPerDayKrw));
         return new DailyLivingCost(
                 hotel,
                 new FoodCost(0.0, 0.0, 0.0, 0.0, 0.0, 0.0),

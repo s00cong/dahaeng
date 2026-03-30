@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { Loader2, AlertCircle, X } from "lucide-react";
+import { Loader2, AlertCircle, X, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUiStore } from "@/stores/uiStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useCityDetail } from "@/hooks/city/useCityDetail";
 import { useCityList } from "@/hooks/city/useCityList";
 import { DestinationHeroCard } from "@/components/city/DestinationHeroCard";
@@ -12,6 +13,7 @@ import { YoutubeTab } from "@/components/city/tabs/YoutubeTab";
 import { CostCompareTab } from "@/components/city/tabs/CostCompareTab";
 import { FlightTab } from "@/components/city/tabs/FlightTab";
 import { SpotTab } from "@/components/city/tabs/SpotTab";
+import { FlightLoadingOverlay } from "@/components/city/FlightLoadingOverlay";
 // 배경 오버레이 페이드 인/아웃 애니메이션 정의
 const backdropVariants: Variants = {
   hidden: { opacity: 0 },
@@ -72,33 +74,49 @@ export function CityDetailModal() {
     setActiveCityTab,
   } = useUiStore();
 
+  const { isGuest } = useAuthStore();
   const { data: cities } = useCityList();
-  const selectedCityName = cities?.find(
-    (c) => c.cityId === selectedCityId,
-  )?.cityName;
+  const selectedCity = cities?.find((c) => c.cityId === selectedCityId);
+  const selectedCityName = selectedCity?.cityName;
   const isRecommendedCity =
     isRecommendActive &&
     recommendResults.some((r) => r.city === selectedCityName);
+
+  // 게스트 모드에서는 recommend=false, 추천 이유/유튜브 탭 숨김
+  const showRecommendTabs = isRecommendedCity && !isGuest;
 
   const {
     data: basicCity,
     isLoading,
     isError,
-  } = useCityDetail(selectedCityId, isRecommendedCity, {
+    refetch,
+  } = useCityDetail(selectedCityId, showRecommendTabs, {
     enabled: isCityModalOpen,
     recommendParams:
-      isRecommendedCity && recommendRequest ? recommendRequest : undefined,
+      showRecommendTabs && recommendRequest ? recommendRequest : undefined,
   });
 
   const city = basicCity ?? null;
   const showError = isError && !city;
 
-  // 비추천 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
+  // 비추천/게스트 도시 열릴 때 추천 이유 탭이 활성이면 생활물가 탭으로 전환
   useEffect(() => {
-    if (!isRecommendedCity && (activeCityTab === "recommend" || activeCityTab === "youtube")) {
+    if (!showRecommendTabs && (activeCityTab === "recommend" || activeCityTab === "youtube")) {
       setActiveCityTab("cost");
     }
-  }, [isRecommendedCity, activeCityTab, setActiveCityTab]);
+  }, [showRecommendTabs, activeCityTab, setActiveCityTab]);
+
+  // ESC 키로 모달 닫기
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") closeCityModal();
+  }, [closeCityModal]);
+
+  useEffect(() => {
+    if (isCityModalOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [isCityModalOpen, handleKeyDown]);
 
   return (
     // 모달 열림/닫힘 시 AnimatePresence가 exit 애니메이션을 실행한 후 DOM에서 제거
@@ -129,8 +147,7 @@ export function CityDetailModal() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="fixed top-12 left-18 right-18 bottom-12 z-50
-                       rounded-2xl overflow-hidden flex flex-row shadow-2xl"
+            className="fixed top-12 left-18 right-18 bottom-12 z-50 rounded-2xl overflow-hidden flex flex-row shadow-2xl"
           >
             {/* 우측 상단 X 버튼으로 모달 닫기 */}
             <button
@@ -140,6 +157,26 @@ export function CityDetailModal() {
             >
               <X className="size-4" />
             </button>
+
+            {/* recommend=true 최초 로딩 시 비행 애니메이션 오버레이 */}
+            <AnimatePresence>
+              {isLoading && showRecommendTabs && selectedCity && (
+                <motion.div
+                  key="flight-loading"
+                  className="absolute inset-0 z-30 rounded-2xl overflow-hidden"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <FlightLoadingOverlay
+                    destLon={selectedCity.longitude}
+                    destLat={selectedCity.latitude}
+                    destName={selectedCity.cityName}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* 좌측: 로딩 중이거나 데이터 없으면 스켈레톤, 준비되면 히어로 카드 렌더링 */}
             {isLoading || !city ? (
@@ -154,7 +191,7 @@ export function CityDetailModal() {
               <CityDetailTabNav
                 activeTab={activeCityTab}
                 onTabChange={setActiveCityTab}
-                showRecommendTab={isRecommendedCity}
+                showRecommendTab={showRecommendTabs}
               />
 
               {/* 스크롤 가능한 탭 콘텐츠 패널 */}
@@ -178,6 +215,13 @@ export function CityDetailModal() {
                     <p className="text-sm text-muted-foreground">
                       도시 정보를 불러오는데 실패했습니다.
                     </p>
+                    <button
+                      onClick={() => void refetch()}
+                      className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <RefreshCw className="size-3.5" />
+                      다시 시도
+                    </button>
                   </div>
                 )}
 

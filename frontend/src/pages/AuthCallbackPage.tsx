@@ -7,7 +7,7 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const isPopup = () =>
-  typeof window !== 'undefined' && !!window.opener && !window.opener.closed;
+  typeof window !== 'undefined' && window.name === 'googleLogin';
 
 const AuthCallbackPage = () => {
   const navigate = useNavigate();
@@ -35,17 +35,16 @@ const AuthCallbackPage = () => {
       }
 
       if (isPopup()) {
-        // 팝업 모드: 부모 창에 결과 전달 후 팝업 닫기
-        window.opener.postMessage(
-          {
-            type: 'GOOGLE_AUTH_SUCCESS',
-            accessToken,
-            user: member,
-            hasCompletedPreference: hasTags,
-            nextRoute,
-          },
-          window.location.origin,
-        );
+        // 팝업 모드: BroadcastChannel로 결과 전달 후 팝업 닫기
+        const channel = new BroadcastChannel('google_auth');
+        channel.postMessage({
+          type: 'GOOGLE_AUTH_SUCCESS',
+          accessToken,
+          user: member,
+          hasCompletedPreference: hasTags,
+          nextRoute,
+        });
+        channel.close();
         window.close();
       } else {
         // 리다이렉트 모드 폴백 (팝업이 막힌 경우)
@@ -54,10 +53,9 @@ const AuthCallbackPage = () => {
     },
     onError: () => {
       if (isPopup()) {
-        window.opener.postMessage(
-          { type: 'GOOGLE_AUTH_ERROR' },
-          window.location.origin,
-        );
+        const channel = new BroadcastChannel('google_auth');
+        channel.postMessage({ type: 'GOOGLE_AUTH_ERROR' });
+        channel.close();
         window.close();
       } else {
         navigate({ to: '/login' });

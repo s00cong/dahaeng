@@ -164,6 +164,7 @@ export function MainNavBar() {
               src={user.profileImageUrl}
               alt={user.nickname ?? "사용자"}
               className="size-full object-cover"
+              referrerPolicy="no-referrer"
             />
           ) : (
             <User className="size-4 text-slate-500" aria-hidden="true" />

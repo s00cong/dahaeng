@@ -23,3 +23,5 @@ deploy/app/.env.*
 data/flight/trip_com/__pycache__/*
 
 docs/plans/*
+
+ai/

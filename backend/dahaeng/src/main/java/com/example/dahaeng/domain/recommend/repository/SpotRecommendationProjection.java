@@ -4,6 +4,7 @@ public interface SpotRecommendationProjection {
     Long getSpotId();
     Long getCityId();
     String getPlaceName();
+    String getPlaceNameKo();
     String getDescription();
     String getImageUrl();
     String getAddress();

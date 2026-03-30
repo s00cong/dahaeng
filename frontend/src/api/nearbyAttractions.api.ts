@@ -8,6 +8,7 @@ export type NearbyAttractionProperties = {
   website: string | null;
   opening_hours: string | null;
   description: string | null;
+  descriptionKo?: string | null;
   facilities: {
     wheelchair?: string | null;
     internet_access?: string | null;
@@ -89,6 +90,9 @@ export const nearbyAttractionsApi = {
         const ni = feature.properties?.name_international;
         if (ni?.ko) feature.properties.nameKo = ni.ko as string;
         if (ni?.en) feature.properties.nameEn = ni.en as string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const descKo = (feature.properties as any)?.description_ko;
+        if (descKo) feature.properties.descriptionKo = descKo as string;
       });
 
       // 이미지 해석: wiki_and_media.image → resolveImageField, wikipedia → fetchWikipediaThumbnail
