@@ -18,33 +18,33 @@ import com.example.dahaeng.domain.member.entity.Member;
 public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 	Optional<Bookmark> findFirstByIdAndMemberAndIsDeletedFalse(Long id, Member member);
 
-	@Query(    value = """
-        select b
-        from Bookmark b
-        where (
-            :keyword is null
-            or trim(:keyword) = ''
-            or b.city.cityName like concat('%', :keyword, '%')
-            or b.city.country.countryName like concat('%', :keyword, '%')
-            or b.json like concat('%', :keyword, '%')
-        )
-        and b.member = :member
-        and b.isDeleted = false
-    """,
+	@Query(value = """
+		    select b
+		    from Bookmark b
+		    where (
+				    :keyword is null or
+					trim(:keyword) like '' or
+					b.title like concat('%', :keyword, '%')	    
+			)
+			and	b.member = :member
+		    and b.isDeleted = false
+		""",
 		countQuery = """
-        select count(b)
-        from Bookmark b
-        where (
-            :keyword is null
-            or trim(:keyword) = ''
-            or b.city.cityName like concat('%', :keyword, '%')
-            or b.city.country.countryName like concat('%', :keyword, '%')
-            or b.json like concat('%', :keyword, '%')
-        )
-        and b.member = :member
-        and b.isDeleted = false
-    """)
-	Page<Bookmark> findAllByKeywordAndMember(@Param("keyword") String keyword, @Param("member") Member member, Pageable pageable);
+			    select count(b)
+			    from Bookmark b
+			    where (
+				    :keyword is null or
+					trim(:keyword) like '' or 
+					b.title like concat('%', :keyword, '%')	    
+			)
+			and	b.member = :member
+		    and b.isDeleted = false
+			""")
+	Page<Bookmark> findALlByKeywordAndMember(
+		@Param("keyword") String keyword,
+		@Param("member") Member member,
+		Pageable pageable);
+
 
 	@Query(
 		"""
@@ -60,6 +60,8 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 		"""
 	)
 	List<CityBookmarkCountDto> findTopCityCounts(@Param("memberId") Long memberId, Pageable pageable);
+
+
 
 	@Query(
 		"""
@@ -105,6 +107,8 @@ public interface BookmarkRepository extends JpaRepository<Bookmark, Long> {
 		@Param("recommendId") UUID recommendId,
 		@Param("member") Member member
 	);
+
+	boolean existsByMemberIdAndCityIdAndIsDeletedFalse(Long memberId, Long cityId);
 
 	boolean existsByIsDeletedFalseAndCityIdAndRecommendId(Long cityId, UUID recommendId);
 }

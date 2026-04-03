@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, RefreshCw, Lightbulb, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Lightbulb, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -59,9 +59,6 @@ export function ExchangeRateCombinedSection({
   // 차트용 데이터 (현재 선택된 타입: 월/주/일)
   const { data: historyData, isLoading: isHistoryLoading } = useExchangeRateHistory(currency, type);
 
-  // 기준점 계산용 데이터 (사용자 요청에 따라 '주별(W)' 고정 사용)
-  const { data: weeklyData } = useExchangeRateHistory(currency, 'W');
-
   // 사용자가 입력한 금액 기준 KRW 계산
   const krwPer1 = exchangeRateData?.krw_per_1target ?? null;
   const displayedKrw = krwPer1 !== null ? Math.round(inputAmount * krwPer1) : null;
@@ -72,18 +69,6 @@ export function ExchangeRateCombinedSection({
     ? [1, 5, 10, 100].map((m) => exchangeRateData.display_unit! * m).filter((v) => v <= 1_000_000)
     : [1, 100, 1000, 10000];
 
-  // 주별 평균 및 변동률 계산 (API 명세: history 배열 및 krwPer1target 필드)
-  const weeklyAvg =
-    weeklyData && weeklyData.history.length > 0
-      ? weeklyData.history.reduce((sum, t) => sum + t.krwPer1target, 0) / weeklyData.history.length
-      : null;
-
-  const latestRate = exchangeRateData ? exchangeRateData.krw_per_1target : (historyData?.latest.krwPer1target ?? null);
-  
-  // 퍼센트 계산: ((현재 - 평균) / 평균) * 100
-  const diffPercent = (weeklyAvg && latestRate) 
-    ? ((latestRate - weeklyAvg) / weeklyAvg) * 100 
-    : null;
 
   // History logic (Chart)
   const chartData = historyData?.history.map((item) => ({
@@ -96,7 +81,7 @@ export function ExchangeRateCombinedSection({
       ? historyData.history.reduce((sum, t) => sum + t.krwPer1target, 0) / historyData.history.length
       : null;
 
-  const isFavorable = currentChartAvg !== null && latestRate !== null && latestRate < currentChartAvg;
+  const isFavorable = currentChartAvg !== null && krwPer1 !== null && krwPer1 < currentChartAvg;
 
   return (
     <div className="flex flex-col md:flex-row gap-4 w-full">
@@ -123,15 +108,15 @@ export function ExchangeRateCombinedSection({
               </Badge>
 
               {/* KRW 결과 */}
-              <div className="flex items-end gap-1.5">
-                <span className="text-4xl font-bold text-foreground tracking-tight">
+              <div className="flex items-end gap-2">
+                <span className="text-6xl font-bold text-foreground tracking-tight">
                   {displayedKrw.toLocaleString()}
                 </span>
-                <span className="text-base text-muted-foreground mb-1">KRW</span>
+                <span className="text-xl text-muted-foreground mb-1.5">KRW</span>
               </div>
 
               {/* 환산식 */}
-              <p className="text-sm text-muted-foreground">
+              <p className="text-base text-muted-foreground">
                 {inputAmount.toLocaleString()} {(exchangeRateData.display_symbol ?? exchangeRateData.target).replace(/\(\d+\)$/, '').trim()} = {displayedKrw.toLocaleString()} KRW
               </p>
 
@@ -175,11 +160,6 @@ export function ExchangeRateCombinedSection({
         </div>
 
         <div className="mt-4">
-          <RateTrendStatus 
-            diffPercent={diffPercent} 
-            latestRate={latestRate} 
-            avgRate={weeklyAvg} 
-          />
         </div>
       </CostCard>
 
@@ -275,56 +255,3 @@ export function ExchangeRateCombinedSection({
   );
 }
 
-function RateTrendStatus({ 
-  diffPercent, 
-  latestRate, 
-  avgRate 
-}: { 
-  diffPercent: number | null, 
-  latestRate: number | null, 
-  avgRate: number | null 
-}) {
-  if (diffPercent === null || latestRate === null || avgRate === null) return null;
-
-  const isStrong = latestRate > avgRate;
-  const absPercent = Math.abs(diffPercent).toFixed(2);
-
-  return (
-    <div
-      className={cn(
-        'flex flex-col gap-2 p-3 rounded-lg border transition-all relative overflow-hidden',
-        isStrong 
-          ? 'bg-red-50 border-red-100 text-red-600 dark:bg-red-950/20 dark:border-red-900/30 dark:text-red-400' 
-          : 'bg-blue-50 border-blue-100 text-blue-600 dark:bg-blue-950/20 dark:border-blue-900/30 dark:text-blue-400',
-      )}
-    >
-      {!isStrong && (
-        <div className="absolute top-0 right-0 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold animate-pulse">
-          추천
-        </div>
-      )}
-      
-      <div className="flex items-center gap-2">
-        {isStrong ? (
-          <TrendingUp className="size-4" />
-        ) : (
-          <TrendingDown className="size-4" />
-        )}
-        <span className="text-sm font-bold">
-          주별 평균 대비 {isStrong ? '강세' : '약세'}
-        </span>
-      </div>
-      
-      <div className="flex flex-col gap-0.5">
-        <p className="text-[13px] font-medium opacity-90">
-          평균보다 <span className="underline decoration-2 underline-offset-2">{absPercent}%</span> {isStrong ? '높음' : '낮음'}
-        </p>
-        {!isStrong && (
-          <p className="text-[12px] font-bold mt-1 text-blue-700 dark:text-blue-300">
-            지금이 여행 적기예요! ✨
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}

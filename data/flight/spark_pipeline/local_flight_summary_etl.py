@@ -7,7 +7,8 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
-from city_id_mapping import parse_mysql_connection_info
+from city_id_mapping import parse_mysql_connection_info, resolve_tripcom_direction
+from flight_summary_fallback import fill_missing_summary_metrics
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -100,6 +101,7 @@ def parse_collected_at(value: str) -> datetime:
 def select_latest_google_records(records: list[dict]) -> list[dict]:
     latest_by_key: dict[tuple[str, str], dict] = {}
     latest_hotel_by_key: dict[tuple[str, str], tuple[datetime, int]] = {}
+    best_flight_by_city: dict[str, tuple[int, int | None, datetime]] = {}
 
     for record in records:
         entity = record.get("entity", {})
@@ -113,18 +115,34 @@ def select_latest_google_records(records: list[dict]) -> list[dict]:
 
         collected_at_dt = parse_collected_at(collected_at)
         hotel_price = payload.get("hotel_price")
+        flight_duration = payload.get("min_duration_minutes", payload.get("avg_duration_minutes"))
+        stops = payload.get("typical_stops_count")
         if hotel_price is not None:
             previous_hotel = latest_hotel_by_key.get((city_code, year_month))
             if previous_hotel is None or collected_at_dt > previous_hotel[0]:
                 latest_hotel_by_key[(city_code, year_month)] = (collected_at_dt, hotel_price)
+
+        if flight_duration is not None:
+            candidate = (int(flight_duration), stops, collected_at_dt)
+            previous_best = best_flight_by_city.get(city_code)
+            if previous_best is None or (
+                candidate[0],
+                float("inf") if candidate[1] is None else candidate[1],
+                -candidate[2].timestamp(),
+            ) < (
+                previous_best[0],
+                float("inf") if previous_best[1] is None else previous_best[1],
+                -previous_best[2].timestamp(),
+            ):
+                best_flight_by_city[city_code] = candidate
 
         row = {
             "city_code": city_code,
             "year_month": year_month,
             "origin_airport": entity.get("origin_airport"),
             "avg_hotel_price": payload.get("hotel_price"),
-            "stops": payload.get("typical_stops_count"),
-            "flight_duration": payload.get("avg_duration_minutes"),
+            "stops": stops,
+            "flight_duration": flight_duration,
             "peak_month_list": payload.get("peak_season_months_list"),
             "off_month_list": payload.get("off_season_months_list"),
             "flight_collected_date": collected_at,
@@ -139,6 +157,10 @@ def select_latest_google_records(records: list[dict]) -> list[dict]:
     for key, row in latest_by_key.items():
         if row["avg_hotel_price"] is None and key in latest_hotel_by_key:
             row["avg_hotel_price"] = latest_hotel_by_key[key][1]
+        city_code = row["city_code"]
+        if city_code in best_flight_by_city:
+            row["flight_duration"] = best_flight_by_city[city_code][0]
+            row["stops"] = best_flight_by_city[city_code][1]
 
     return list(latest_by_key.values())
 
@@ -165,26 +187,33 @@ def resolve_trip_city_code(entity: dict, mapping_indexes: dict[str, dict] | None
 def compute_trip_monthly_averages(
     records: list[dict], mapping_indexes: dict[str, dict] | None = None
 ) -> dict[tuple[str, str], int]:
-    grouped: dict[tuple[str, str], list[int]] = defaultdict(list)
+    directional_grouped: dict[tuple[str, str, str], list[int]] = defaultdict(list)
+    monthly_totals: dict[tuple[str, str], int] = defaultdict(int)
 
     for record in records:
         entity = record.get("entity", {})
         payload = record.get("payload", {})
         city_code = resolve_trip_city_code(entity, mapping_indexes)
+        direction = resolve_tripcom_direction(entity)
         event_time = (record.get("event_time") or "").strip()
         price = payload.get("price")
 
-        if not city_code or len(event_time) < 7 or price is None:
+        if (
+            not city_code
+            or direction not in {"outbound", "inbound"}
+            or len(event_time) < 7
+            or price is None
+        ):
             continue
 
         year_month = event_time[:7]
-        grouped[(city_code, year_month)].append(int(price))
+        directional_grouped[(city_code, year_month, direction)].append(int(price))
 
-    return {
-        key: round(sum(values) / len(values))
-        for key, values in grouped.items()
-        if values
-    }
+    for (city_code, year_month, _direction), values in directional_grouped.items():
+        if values:
+            monthly_totals[(city_code, year_month)] += round(sum(values) / len(values))
+
+    return dict(monthly_totals)
 
 
 def build_flight_summary_rows(
@@ -192,7 +221,7 @@ def build_flight_summary_rows(
     trip_averages: dict[tuple[str, str], int],
     code_to_city_name: dict[str, str],
     city_name_to_id: dict[str, int],
-) -> list[dict]:
+) -> tuple[list[dict], list[dict]]:
     rows: list[dict] = []
     unmatched_codes: set[str] = set()
 
@@ -228,7 +257,7 @@ def build_flight_summary_rows(
         joined = ", ".join(sorted(unmatched_codes))
         raise RuntimeError(f"Unmatched city codes for local flight_summary ETL: {joined}")
 
-    return rows
+    return fill_missing_summary_metrics(rows)
 
 
 def upsert_flight_summary(rows: list[dict], connection) -> None:
@@ -299,7 +328,7 @@ def main():
     )
     try:
         city_name_to_id = load_city_name_to_id(connection)
-        summary_rows = build_flight_summary_rows(
+        summary_rows, missing_value_alerts = build_flight_summary_rows(
             google_rows,
             trip_averages,
             mapping_indexes["code_to_city_name"],
@@ -309,7 +338,16 @@ def main():
     finally:
         connection.close()
 
-    print(json.dumps({"rows_upserted": len(summary_rows)}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "rows_upserted": len(summary_rows),
+                "missing_value_alerts": missing_value_alerts,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

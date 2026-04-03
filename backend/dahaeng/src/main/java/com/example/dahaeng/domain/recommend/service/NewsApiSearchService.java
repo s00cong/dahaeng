@@ -42,7 +42,7 @@ public class NewsApiSearchService implements NewsSearchService {
                 .queryParam("language", "en")
                 .queryParam("sortBy", "publishedAt")
                 .queryParam("pageSize", 5)
-                .queryParam("from", LocalDate.now().minusDays(7))
+                .queryParam("from", LocalDate.now().minusDays(14))
                 .build()
                 .toUriString();
 
@@ -114,9 +114,6 @@ public class NewsApiSearchService implements NewsSearchService {
     }
 
     private String buildQuery(String city, String country, double newsPenaltyScore) {
-        if (newsPenaltyScore <= -8) {
-            return "\"" + city + "\" AND \"" + country + "\" AND (travel OR safety OR crime OR protest OR accident)";
-        }
         return "\"" + city + "\" AND \"" + country + "\" AND (travel OR tourism OR attraction OR restaurant OR festival)";
     }
 
@@ -130,9 +127,7 @@ public class NewsApiSearchService implements NewsSearchService {
                 .reduce((a, b) -> a + "\n" + b)
                 .orElse("");
 
-        String mode = newsPenaltyScore <= -8
-                ? "부정 뉴스 관점에서 여행 리스크를 중심으로 요약해 주세요."
-                : "여행자 관점에서 최근 이슈와 분위기를 중심으로 요약해 주세요.";
+        String mode = "여행자 관점에서 최근 이슈와 분위기를 중심으로 요약해 주세요.";
 
         try {
             String content = chatClientBuilder.build()

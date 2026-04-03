@@ -9,7 +9,7 @@ export const CityListItemSchema = z.object({
   countryName: z.string(),
   imgUrl: z.string(),
   estimatedBudget: z.number(),
-  riskLevel: z.number().min(0).max(5), // danger object에서 파생
+  riskLevel: z.number().min(0).max(6), // danger object에서 파생
   latitude: z.number(),
   longitude: z.number(),
   matchingScore: z.number().min(0).max(100).optional(),
@@ -38,11 +38,12 @@ export const CityScoreSchema = z.object({
   newPenaltyScore: z.number().nullable().optional(),
 });
 
-// ── LivingCostFor1Day: 백엔드 { food, transportation, accommodation } ──────────────────
+// ── LivingCostFor1Day: 백엔드 { food, transportation, hotel(비추천)/accommodation(추천) } ──
 export const LivingCostFor1DaySchema = z.object({
   food: z.number(),
   transportation: z.number(),
   accommodation: z.number().nullable().optional(),
+  hotel: z.number().nullable().optional(),
   total: z.number().nullable().optional(),
 });
 
@@ -78,6 +79,7 @@ export const TagSchema = z.object({
 // ── TouristSpot: 프론트 표현 (tags는 api.ts에서 변환) ─────────────────
 export const TouristSpotSchema = z.object({
   name: z.string(),
+  koName: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   lat: z.number().nullable().optional(),
   lon: z.number().nullable().optional(),
@@ -128,7 +130,7 @@ export type CityDetail = z.infer<typeof CityDetailSchema>;
 
 export const RecommendRequestSchema = z.object({
   selectedTags: z.array(z.string()),
-  userDailyBudget: z.number().positive(),
+  userTotalBudget: z.number().positive(),
   travelDays: z.number().int().positive(),
   month: z.number().int().min(1).max(12),
   recommendId: z.string().uuid(),

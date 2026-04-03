@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { useCostDetail } from '@/hooks/cost/useCostDetail';
-import { costApi, SEOUL_CITY_ID } from '@/api/cost.api';
+import { costApi, SEOUL_CITY_ID, SEOUL_COUNTRY_ID } from '@/api/cost.api';
 import { useQuery } from '@tanstack/react-query';
 import { SalaryPopulationSection } from '@/components/cost/SalaryPopulationSection';
 import { SeoulCompareSection } from '@/components/cost/SeoulCompareSection';
@@ -15,6 +15,7 @@ import { CostDetailTable } from '@/components/cost/CostDetailTable';
 import { ExchangeRateCombinedSection } from '@/components/cost/ExchangeRateCombinedSection';
 import { useCostDetail as useSeoulDetail } from '@/hooks/cost/useCostDetail';
 import { useFlightTrend } from '@/hooks/flight/useFlightTrend';
+import { useCountryHotelAvg } from '@/hooks/flight/useCountryHotelAvg';
 import { useCityDetail } from '@/hooks/city/useCityDetail';
 import { useExchangeRateNew } from '@/hooks/cost/useExchangeRateNew';
 
@@ -33,7 +34,7 @@ function CityHeroSection({
 }: {
   name: string;
   imgUrl: string | null | undefined;
-  currency: string;
+  currency: string | null | undefined;
   parentRegion?: string;
 }) {
   const [imgError, setImgError] = useState(false);
@@ -59,7 +60,7 @@ function CityHeroSection({
         )}
         <h1 className="text-3xl font-bold text-white">{name}</h1>
         <Badge className="mt-2 bg-white/20 text-white border-white/30 text-xs">
-          {currency}
+          {currency ?? 'N/A'}
         </Badge>
       </div>
     </div>
@@ -90,12 +91,13 @@ const CountryCostDetailPage = () => {
 
   const { data, isLoading, isError, refetch } = useCostDetail(targetType, targetId);
 
-  // 서울 대비 비교
+  // 서울/한국 대비 비교
   const compareTargetType = targetType === 'country' ? 'COUNTRY' : 'CITY';
+  const baseId = targetType === 'country' ? SEOUL_COUNTRY_ID : SEOUL_CITY_ID;
   const { data: compareData, isLoading: isCompareLoading } = useQuery({
     queryKey: ['cost', 'compare', compareTargetType, targetId],
-    queryFn: () => costApi.getCostCompare(compareTargetType, SEOUL_CITY_ID, targetId),
-    enabled: targetId > 0 && targetId !== SEOUL_CITY_ID,
+    queryFn: () => costApi.getCostCompare(compareTargetType, baseId, targetId),
+    enabled: targetId > 0 && targetId !== baseId,
     staleTime: 60 * 60 * 1000,
   });
 
@@ -110,14 +112,21 @@ const CountryCostDetailPage = () => {
   const foreignCurrency = cityDetail?.exchangeRate?.currency ?? null;
   const { data: exchangeRateData, isLoading: isExchangeLoading } = useExchangeRateNew(foreignCurrency ?? '');
 
-  // 6개월 항공 추이 → avg_hotel_price 평균 / 2 (city 타입일 때만)
+  // city 타입: 해당 도시 항공 추이에서 숙박비 추출
   const { data: flightTrend } = useFlightTrend(targetType === 'city' ? targetId : null);
-  const avgHotelPerDay = flightTrend?.trend_data?.length
+  const cityHotelPerDay = flightTrend?.trend_data?.length
     ? Math.round(
         flightTrend.trend_data.reduce((sum, t) => sum + t.avg_hotel_price, 0) /
         flightTrend.trend_data.length / 2,
       )
     : undefined;
+
+  // country 타입: 해당 국가 도시들의 숙박비 평균 (city list에서 countryName으로 필터링)
+  const countryHotelPerDay = useCountryHotelAvg(
+    targetType === 'country' ? (data?.target.name ?? null) : null,
+  );
+
+  const avgHotelPerDay = cityHotelPerDay ?? countryHotelPerDay;
 
   return (
     <motion.div
@@ -187,7 +196,7 @@ const CountryCostDetailPage = () => {
             </section>
 
             {/* C. 서울 대비 비교 */}
-            {targetId !== SEOUL_CITY_ID && (
+            {targetId !== baseId && (
               <section aria-label="서울 대비 물가 비교">
                 <SeoulCompareSection
                   data={compareData}

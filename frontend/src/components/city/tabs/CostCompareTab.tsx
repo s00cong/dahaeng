@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants } from 'framer-motion';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { ExchangeRateCombinedSection } from '@/components/cost/ExchangeRateCombinedSection';
 import { CostDetailTable } from '@/components/cost/CostDetailTable';
 import { SeoulCompareSection } from '@/components/cost/SeoulCompareSection';
@@ -11,6 +11,7 @@ import { SEOUL_CITY_ID } from '@/api/cost.api';
 import { useCostDetail } from '@/hooks/cost/useCostDetail';
 import { useFlightTrend } from '@/hooks/flight/useFlightTrend';
 import type { CityDetail } from '@/schemas/city.schema';
+import { CITY_NAME_KO } from '@/data/cityNameKo';
 
 interface CostCompareTabProps {
   city: CityDetail;
@@ -63,9 +64,18 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
       <div className="flex flex-col items-center justify-center h-full gap-3 p-10 text-center">
         <AlertCircle className="size-10 text-destructive" />
         <p className="text-sm text-muted-foreground">물가 정보를 불러오는 데 실패했습니다.</p>
+        <button
+          onClick={() => void costDetail.refetch()}
+          className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          <RefreshCw className="size-3.5" />
+          다시 시도
+        </button>
       </div>
     );
   }
+
+  const cityNameKo = CITY_NAME_KO[city.cityName] ?? city.cityName;
 
   return (
     <AnimatePresence mode="wait">
@@ -94,8 +104,8 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
         <SeoulCompareSection
           data={costCompare.data}
           isLoading={costCompare.isLoading}
-          hotelPerDay={avgHotelPerDay ?? city.livingCostFor1Day?.accommodation ?? undefined}
-          totalWithHotel={city.livingCostFor1Day?.total ?? undefined}
+          hotelPerDay={city.livingCostFor1Day?.hotel ?? city.livingCostFor1Day?.accommodation ?? avgHotelPerDay}
+          cityName={cityNameKo}
         />
 
         {/* C. 항목별 전체 물가표 (월급, 인구 정보 포함) */}
@@ -103,7 +113,7 @@ export function CostCompareTab({ city }: CostCompareTabProps) {
           data={costDetail.data}
           isLoading={costDetail.isLoading}
           seoulLivingCost={seoulDetail.data?.living_cost}
-          krwPerTarget={exchangeRate.data ? Math.round(exchangeRate.data.krw_per_1target) : undefined}
+          cityName={cityNameKo}
         />
       </motion.div>
     </AnimatePresence>

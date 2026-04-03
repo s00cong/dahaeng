@@ -8,6 +8,7 @@ export const BookmarkListItemSchema = z.object({
   countryName: z.string(),
   imgUrl: z.string().nullable(),
   createdAt: z.string(),
+  title: z.string().nullable().optional(),
 });
 export type BookmarkListItem = z.infer<typeof BookmarkListItemSchema>;
 
@@ -73,6 +74,7 @@ export const BookmarkDetailSchema = z.object({
   countryName: z.string(),
   imgUrl: z.string().nullable(),
   createdAt: z.string(),
+  title: z.string().nullable().optional(),
   matchingScore: z.number().optional(),
   // 환율
   exchangeAtSaved: ExchangeAtSavedSchema.optional(),
@@ -101,5 +103,6 @@ export const CreateBookmarkRequestSchema = z.object({
   cityId: z.number(),
   recommendId: z.string().uuid(),
   json: z.unknown(),
+  title: z.string(),
 });
 export type CreateBookmarkRequest = z.infer<typeof CreateBookmarkRequestSchema>;

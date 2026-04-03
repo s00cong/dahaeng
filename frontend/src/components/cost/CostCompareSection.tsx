@@ -26,6 +26,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { costApi, SEOUL_CITY_ID, SEOUL_COUNTRY_ID } from '@/api/cost.api';
 import type { CostCompare } from '@/schemas/cost.schema';
 import { cn } from '@/lib/utils';
+import { CITY_NAME_KO } from '@/data/cityNameKo';
+import { COUNTRY_NAME_KO } from '@/data/countryNameKo';
+
+function toKo(name: string) { return CITY_NAME_KO[name] ?? COUNTRY_NAME_KO[name]; }
 
 // ─── 상수 ────────────────────────────────────────────────────────
 const ITEM_EMOJI: Record<string, string> = {
@@ -53,7 +57,7 @@ const ITEM_KO: Record<string, string> = {
 };
 
 // ─── 검색 드롭다운 ────────────────────────────────────────────────
-interface Option { id: number; name: string; dailyBudget: number }
+interface Option { id: number; name: string; nameKo: string; dailyBudget: number; imgUrl?: string | null }
 
 function Selector({
   label,
@@ -73,7 +77,9 @@ function Selector({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const filtered = useMemo(
-    () => options.filter((o) => o.name.toLowerCase().includes(q.toLowerCase())).slice(0, 60),
+    () => options.filter((o) =>
+      o.name.toLowerCase().includes(q.toLowerCase()) || o.nameKo.includes(q)
+    ).slice(0, 60),
     [options, q],
   );
   const selected = options.find((o) => o.id === selectedId);
@@ -96,7 +102,7 @@ function Selector({
         )}
       >
         <span className={selected ? 'text-foreground text-base' : 'text-muted-foreground'}>
-          {selected ? selected.name : placeholder}
+          {selected ? (selected.nameKo || selected.name) : placeholder}
         </span>
         <div className="flex items-center gap-2">
           {selected && (
@@ -141,7 +147,10 @@ function Selector({
                       o.id === selectedId && (accentColor === 'blue' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'),
                     )}
                   >
-                    <span className="font-medium">{o.name}</span>
+                    <span className="font-medium">
+                      {o.nameKo || o.name}
+                      {o.nameKo && <span className="text-xs text-muted-foreground ml-1">{o.name}</span>}
+                    </span>
                     <span className="text-xs text-muted-foreground">₩{o.dailyBudget.toLocaleString()}/일</span>
                   </button>
                 </li>
@@ -213,10 +222,13 @@ function CompareResult({ data }: { data: CostCompare }) {
   const cheaper = gap < 0;
   const maxBudget = Math.max(costCompare.baseDailyBudget, costCompare.targetDailyBudget);
 
+  const baseNameKo = toKo(data.base.name) ?? data.base.name;
+  const targetNameKo = toKo(data.target.name) ?? data.target.name;
+
   const chartData = itemComparison.items.map((item) => ({
     name: `${ITEM_EMOJI[item.itemKey] ?? ''} ${ITEM_KO[item.itemKey] ?? item.itemName}`,
-    [data.base.name]: item.basePrice,
-    [data.target.name]: item.targetPrice,
+    [baseNameKo]: item.basePrice,
+    [targetNameKo]: item.targetPrice,
     diff: item.differencePercent,
   }));
 
@@ -230,24 +242,17 @@ function CompareResult({ data }: { data: CostCompare }) {
     >
       {/* ── 메인 서머리 카드 ── */}
       <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600">
-        {/* 배경 이미지 */}
-        {data.target.img_url && (
-          <img
-            src={data.target.img_url}
-            alt={data.target.name}
-            className="absolute inset-0 w-full h-full object-cover opacity-20"
-          />
-        )}
+
         <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10" />
         <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full bg-white/10" />
 
         <div className="relative p-6">
           <div className="flex items-center gap-2 mb-1">
             {cheaper ? <TrendingDown className="size-5 text-white/80" /> : <TrendingUp className="size-5 text-white/80" />}
-            <span className="text-white/80 text-sm font-medium">{data.target.name} 기준</span>
+            <span className="text-white/80 text-sm font-medium">{targetNameKo} 기준</span>
           </div>
           <p className="text-white text-3xl font-black tracking-tight">
-            {data.base.name}보다{' '}
+            {baseNameKo}보다{' '}
             <span className="underline decoration-white/40">
               {Math.abs(costCompare.dailyBudgetGapPercent).toFixed(1)}%
             </span>{' '}
@@ -261,9 +266,9 @@ function CompareResult({ data }: { data: CostCompare }) {
           <div className="mt-5 grid grid-cols-2 gap-4">
             <div className="bg-white/15 rounded-xl p-3">
               {data.base.img_url && (
-                <img src={data.base.img_url} alt={data.base.name} className="w-full h-12 object-cover rounded-lg mb-2 opacity-80" />
+                <img src={data.base.img_url} alt={baseNameKo} className="w-full h-48 object-cover rounded-lg mb-2 opacity-80" />
               )}
-              <p className="text-white/70 text-xs mb-1">{data.base.name}</p>
+              <p className="text-white/70 text-xs mb-1">{baseNameKo}</p>
               <p className="text-white text-xl font-black">₩{costCompare.baseDailyBudget.toLocaleString()}</p>
               <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
                 <div
@@ -274,9 +279,9 @@ function CompareResult({ data }: { data: CostCompare }) {
             </div>
             <div className="bg-white/25 rounded-xl p-3">
               {data.target.img_url && (
-                <img src={data.target.img_url} alt={data.target.name} className="w-full h-12 object-cover rounded-lg mb-2 opacity-80" />
+                <img src={data.target.img_url} alt={targetNameKo} className="w-full h-48 object-cover rounded-lg mb-2 opacity-80" />
               )}
-              <p className="text-white/70 text-xs mb-1">{data.target.name}</p>
+              <p className="text-white/70 text-xs mb-1">{targetNameKo}</p>
               <p className="text-white text-xl font-black">₩{costCompare.targetDailyBudget.toLocaleString()}</p>
               <div className="mt-2 h-1.5 bg-white/20 rounded-full overflow-hidden">
                 <div
@@ -298,8 +303,8 @@ function CompareResult({ data }: { data: CostCompare }) {
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             {[
-              { name: data.base.name, burden: affordabilityCompare.baseLocalCostBurdenPercent, income: affordabilityCompare.baseDailyIncome },
-              { name: data.target.name, burden: affordabilityCompare.targetLocalCostBurdenPercent, income: affordabilityCompare.targetDailyIncome },
+              { name: baseNameKo, burden: affordabilityCompare.baseLocalCostBurdenPercent, income: affordabilityCompare.baseDailyIncome },
+              { name: targetNameKo, burden: affordabilityCompare.targetLocalCostBurdenPercent, income: affordabilityCompare.targetDailyIncome },
             ].map((item) => {
               const level = getBurdenLevel(item.burden);
               return (
@@ -324,7 +329,7 @@ function CompareResult({ data }: { data: CostCompare }) {
             'text-xs font-medium rounded-lg px-3 py-2 text-center',
             affordabilityCompare.targetMoreAffordable ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700',
           )}>
-            {data.target.name}이(가) {data.base.name}보다{' '}
+            {targetNameKo}이(가) {baseNameKo}보다{' '}
             {affordabilityCompare.targetMoreAffordable ? '생활비 부담이 낮습니다' : '생활비 부담이 높습니다'}
             {' '}({Math.abs(affordabilityCompare.burdenGapPercentPoint).toFixed(1)}%p 차이)
           </p>
@@ -340,11 +345,11 @@ function CompareResult({ data }: { data: CostCompare }) {
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-muted/40 p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">{data.base.name}</p>
+              <p className="text-xs text-muted-foreground mb-1">{baseNameKo}</p>
               <p className="text-base font-black">{localCostCompare.baseLocalDailyCost.toLocaleString()}</p>
             </div>
             <div className="rounded-xl bg-muted/40 p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">{data.target.name}</p>
+              <p className="text-xs text-muted-foreground mb-1">{targetNameKo}</p>
               <p className="text-base font-black">{localCostCompare.targetLocalDailyCost.toLocaleString()}</p>
             </div>
           </div>
@@ -364,11 +369,11 @@ function CompareResult({ data }: { data: CostCompare }) {
         <div className="flex items-center gap-4 mb-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm bg-blue-400 inline-block" />
-            {data.base.name}
+            {baseNameKo}
           </span>
           <span className="flex items-center gap-1.5">
             <span className={cn('w-3 h-3 rounded-sm inline-block', cheaper ? 'bg-emerald-400' : 'bg-rose-400')} />
-            {data.target.name}
+            {targetNameKo}
           </span>
         </div>
 
@@ -397,12 +402,12 @@ function CompareResult({ data }: { data: CostCompare }) {
               tickLine={false}
             />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: '#f8fafc' }} />
-            <Bar dataKey={data.base.name} radius={[0, 4, 4, 0]}>
+            <Bar dataKey={baseNameKo} radius={[0, 4, 4, 0]}>
               {chartData.map((_, i) => (
                 <Cell key={i} fill="#60a5fa" />
               ))}
             </Bar>
-            <Bar dataKey={data.target.name} radius={[0, 4, 4, 0]}>
+            <Bar dataKey={targetNameKo} radius={[0, 4, 4, 0]}>
               {chartData.map((entry, i) => (
                 <Cell key={i} fill={entry.diff < 0 ? '#34d399' : entry.diff > 0 ? '#f87171' : '#94a3b8'} />
               ))}
@@ -484,8 +489,8 @@ export function CostCompareSection() {
     staleTime: 60 * 60 * 1000,
   });
 
-  const cityOptions: Option[] = (cityList ?? []).map((c) => ({ id: c.id, name: c.name, dailyBudget: c.dailyBudget }));
-  const countryOptions: Option[] = (countryList ?? []).map((c) => ({ id: c.id, name: c.name, dailyBudget: c.dailyBudget }));
+  const cityOptions: Option[] = (cityList ?? []).map((c) => ({ id: c.id, name: c.name, nameKo: toKo(c.name) ?? '', dailyBudget: c.dailyBudget, imgUrl: c.imgUrl }));
+  const countryOptions: Option[] = (countryList ?? []).map((c) => ({ id: c.id, name: c.name, nameKo: toKo(c.name) ?? '', dailyBudget: c.dailyBudget, imgUrl: c.imgUrl }));
 
   // 도시 비교 결과
   const { data: cityCompareData, isLoading: isCityLoading } = useQuery({
@@ -493,6 +498,7 @@ export function CostCompareSection() {
     queryFn: () => costApi.getCostCompare('CITY', cityCompareIds!.base, cityCompareIds!.target),
     enabled: cityCompareIds !== null,
     staleTime: 60 * 60 * 1000,
+    retry: false,
   });
 
   // 국가 비교 결과
@@ -501,6 +507,7 @@ export function CostCompareSection() {
     queryFn: () => costApi.getCostCompare('COUNTRY', countryCompareIds!.base, countryCompareIds!.target),
     enabled: countryCompareIds !== null,
     staleTime: 60 * 60 * 1000,
+    retry: false,
   });
 
   const isCity = mode === 'city';
@@ -632,7 +639,17 @@ export function CostCompareSection() {
         {isLoading && <LoadingSkeleton />}
 
         {compareData && !isLoading && (
-          <CompareResult data={compareData} />
+          <CompareResult data={{
+            ...compareData,
+            base: {
+              ...compareData.base,
+              img_url: compareData.base.img_url ?? options.find((o) => o.id === baseId)?.imgUrl ?? null,
+            },
+            target: {
+              ...compareData.target,
+              img_url: compareData.target.img_url ?? options.find((o) => o.id === targetId)?.imgUrl ?? null,
+            },
+          }} />
         )}
 
         {!compareIds && !isLoading && (

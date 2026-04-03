@@ -28,11 +28,12 @@ interface UiState {
   // 추천 상태
   isRecommendActive: boolean;
   isRecommendLoading: boolean;
+  isRecommendError: boolean;
 
   recommendResults: RecommendResultItem[];
   recommendRequest: {
     selectedTags: string[];
-    userDailyBudget: number;
+    userTotalBudget: number;
     travelDays: number;
     month: number;
     recommendId?: string;
@@ -55,6 +56,7 @@ interface UiState {
     coords?: { lat: number; lng: number },
   ) => void;
   closeRightPanel: () => void;
+  resetUiState: () => void;
   toggleLeftSidebar: () => void;
   toggleRightPanelCollapse: () => void;
   openCityModal: (tab?: CityDetailTab) => void;
@@ -65,15 +67,17 @@ interface UiState {
   setGlobeTravelMonth: (year: number, month: number) => void;
   setRecommendActive: (v: boolean) => void;
   setRecommendLoading: (v: boolean) => void;
+  setRecommendError: (v: boolean) => void;
   setRecommendResults: (results: RecommendResultItem[]) => void;
   setRecommendRequest: (req: {
     selectedTags: string[];
-    userDailyBudget: number;
+    userTotalBudget: number;
     travelDays: number;
     month: number;
     recommendId?: string;
   }) => void;
   setSelectedCityScore: (score: number | null) => void;
+  setSelectedCityCoords: (coords: { lat: number; lng: number } | null) => void;
 
   // 현재 추천 세션에서 북마크한 도시 ID 목록 (새 추천 시 초기화)
   bookmarkedCityIds: number[];
@@ -82,6 +86,10 @@ interface UiState {
   // 나라 검색 → 글로브 카메라 이동 트리거 (영어 나라명)
   globeCountryTarget: string | null;
   setGlobeCountryTarget: (name: string | null) => void;
+
+  // 비행 추적 모드: 카메라가 서울 출발 비행기를 따라가야 할 실제 목적지
+  planeTrackingDest: { lat: number; lng: number } | null;
+  setPlaneTrackingDest: (dest: { lat: number; lng: number } | null) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -105,9 +113,26 @@ export const useUiStore = create<UiState>((set) => ({
       isRightPanelOpen: true,
       isRightPanelCollapsed: false, // 도시 선택 시 자동 확장
       isCityModalOpen: false,
+      planeTrackingDest: null, // 새 도시 선택 시 이전 추적 초기화
     }),
   closeRightPanel: () => set({ isRightPanelOpen: false, selectedCityScore: null }),
   setSelectedCityScore: (score) => set({ selectedCityScore: score }),
+  setSelectedCityCoords: (coords) => set({ selectedCityCoords: coords }),
+  resetUiState: () => set({
+    selectedCityId: null,
+    selectedCityImgUrl: null,
+    selectedCityCoords: null,
+    selectedCityScore: null,
+    isRightPanelOpen: false,
+    isRightPanelCollapsed: false,
+    isCityModalOpen: false,
+    activeCityTab: "recommend",
+    isRecommendActive: false,
+    recommendResults: [],
+    recommendRequest: null,
+    bookmarkedCityIds: [],
+    planeTrackingDest: null,
+  }),
   toggleLeftSidebar: () =>
     set((s) => ({ isLeftSidebarCollapsed: !s.isLeftSidebarCollapsed })),
   toggleRightPanelCollapse: () =>
@@ -126,14 +151,18 @@ export const useUiStore = create<UiState>((set) => ({
     set({ globeTravelYear: year, globeTravelMonth: month }),
   isRecommendActive: false,
   isRecommendLoading: false,
+  isRecommendError: false,
   recommendResults: [],
   recommendRequest: null,
   setRecommendActive: (v) => set({ isRecommendActive: v }),
   setRecommendLoading: (v) => set({ isRecommendLoading: v }),
+  setRecommendError: (v) => set({ isRecommendError: v }),
   setRecommendResults: (results) => set({ recommendResults: results }),
   setRecommendRequest: (req) => set({ recommendRequest: req, bookmarkedCityIds: [] }),
   bookmarkedCityIds: [],
   addBookmarkedCity: (cityId) => set((s) => ({ bookmarkedCityIds: [...s.bookmarkedCityIds, cityId] })),
   globeCountryTarget: null,
   setGlobeCountryTarget: (name) => set({ globeCountryTarget: name }),
+  planeTrackingDest: null,
+  setPlaneTrackingDest: (dest) => set({ planeTrackingDest: dest }),
 }));

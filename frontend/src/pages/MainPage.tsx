@@ -1,11 +1,13 @@
 import { useSearch } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { CityDetailModal } from "@/components/city/CityDetailModal";
 import { LeftSidebar } from "@/components/main/LeftSidebar";
 import { GlobeContainer } from "@/components/globe/GlobeContainer";
 import { RightPanel } from "@/components/main/RightPanel";
+import { TutorialOverlay } from "@/components/main/TutorialOverlay";
 import { youtubeApi } from "@/api/youtube.api";
 import { authApi } from "@/api/auth.api";
 import { tagApi } from "@/api/tag.api";
@@ -18,8 +20,10 @@ const MainPage = () => {
   // 메인 진입 시 유저 관심 태그 로드 → selectedTags 초기화
   // 우선순위: DB 저장 태그 → YouTube 관심 태그
   const { selectedTags, setSelectedTags } = usePreferenceStore();
+  const tagFetchedRef = useRef(false);
   useEffect(() => {
-    if (selectedTags.length > 0) return;
+    if (selectedTags.length > 0 || tagFetchedRef.current) return;
+    tagFetchedRef.current = true;
     Promise.all([authApi.getMemberTags(), tagApi.getList()])
       .then(([memberTags, tagList]) => {
         const savedTagIds = memberTags.map((t) => t.tagId);
@@ -35,7 +39,9 @@ const MainPage = () => {
           if (ytNames.length > 0) setSelectedTags(ytNames);
         });
       })
-      .catch(() => {});
+      .catch(() => {
+        toast.error("관심 태그를 불러오지 못했습니다. 태그를 선택했는지 확인 후 새로고침 해주세요.");
+      });
   }, []);
 
   // navbar 애니메이션(0.4s)이 끝난 뒤 Globe를 마운트해 JS 스레드 경합 방지
@@ -74,6 +80,9 @@ const MainPage = () => {
 
       {/* City Detail Modal — 전체 화면, 상세 보기 버튼으로 진입 */}
       <CityDetailModal />
+
+      {/* 최초 방문 튜토리얼 */}
+      <TutorialOverlay />
     </motion.div>
   );
 };

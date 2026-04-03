@@ -1,10 +1,7 @@
 import { motion, type Variants } from 'framer-motion';
-import { type LucideIcon, Loader2, Zap, Bot, FlaskConical } from 'lucide-react';
+import { type LucideIcon, Loader2, Zap, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useGoogleLogin } from '@/hooks/auth/useGoogleLogin';
-import { useAuthStore } from '@/stores/authStore';
-import { authApi } from '@/api/auth.api';
-import { useNavigate } from '@tanstack/react-router';
 import maldiveImg from '@/assets/Maldive_beach_1.jpg';
 import TopNavBar from '@/components/layout/TopNavBar';
 import introBg from '@/assets/treesky.jpg';
@@ -172,16 +169,6 @@ const RightImagePanel = () => (
 // ─── LoginPage ────────────────────────────────────────────────────
 const LoginPage = () => {
   const { mutate: loginWithGoogle, isPending } = useGoogleLogin();
-  const { setAccessToken, setUser, setHasCompletedPreference } = useAuthStore();
-  const navigate = useNavigate();
-
-  const handleDevLogin = async () => {
-    const { accessToken, member } = await authApi.devLogin();
-    setAccessToken(accessToken);
-    setUser(member);
-    setHasCompletedPreference(true);
-    navigate({ to: '/main' });
-  };
 
   return (
     <div
@@ -239,21 +226,6 @@ const LoginPage = () => {
                 isPending={isPending}
               />
             </motion.div>
-
-            {/* 개발 모드 버튼 (백엔드 없이 UI 확인용) */}
-            {import.meta.env.DEV && (
-              <motion.div variants={fadeInUp} className="mb-6">
-                <Button
-                  onClick={handleDevLogin}
-                  variant="outline"
-                  size="lg"
-                  className="w-full h-10 gap-2 border-dashed border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100 text-sm font-medium"
-                >
-                  <FlaskConical className="size-4" aria-hidden="true" />
-                  개발 모드로 입장 (백엔드 없이)
-                </Button>
-              </motion.div>
-            )}
 
             {/* 구분선 */}
             <motion.div

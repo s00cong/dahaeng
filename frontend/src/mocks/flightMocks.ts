@@ -24,7 +24,7 @@ export function getMockCitySummary(_cityId: number, _yearMonth: string): CitySum
     avg_flight_price: 240000,
     avg_hotel_price: 180000,
     typical_stops_text: '직항',
-    avg_duration_text: '2시간 30분',
+    min_duration_text: '2시간 30분',
     peak_season_months: [3, 11, 12],
     off_season_months: [4, 5, 6, 7],
   };

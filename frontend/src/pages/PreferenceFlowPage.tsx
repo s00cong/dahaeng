@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   ListChecks,
@@ -265,7 +266,7 @@ function YoutubeIcon({
 
 const PreferenceFlowPage = () => {
   const { hasCompletedPreference } = useAuthStore();
-  const { setYoutubeAutoSelected, setYoutubeTagIds } = usePreferenceStore();
+  const { youtubeAutoSelected, setYoutubeAutoSelected, setYoutubeTagIds } = usePreferenceStore();
   const { preview } = useSearch({ from: "/preference" });
 
   // 마이페이지에서 "태그 수정"으로 진입한 경우만 edit 모드
@@ -274,6 +275,15 @@ const PreferenceFlowPage = () => {
 
   const [step, setStep] = useState<Step>(isEditMode ? "select" : "onboarding");
   const [loadingStep, setLoadingStep] = useState<YoutubeLoadStep>("idle");
+
+  // 브라우저 뒤로가기 → select 단계에서 onboarding으로 이동
+  useEffect(() => {
+    if (step !== "select" || isEditMode) return;
+    window.history.pushState(null, "");
+    const handlePopState = () => setStep("onboarding");
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [step, isEditMode]);
 
   const handleYoutubeAgree = async () => {
     try {
@@ -285,13 +295,15 @@ const PreferenceFlowPage = () => {
       const { tagIds, tagNames } = await youtubeApi.getInterestTags();
       setYoutubeTagIds(tagIds);
       usePreferenceStore.getState().setSelectedTags(tagNames);
+      await youtubeApi.updateSyncPreference(true);
       setYoutubeAutoSelected(true);
+      setLoadingStep("idle");
+      setStep("select");
     } catch {
-      // 실패 시에도 select 단계로 진행 (자동 선택 없이)
+      setLoadingStep("idle");
       setYoutubeAutoSelected(false);
+      toast.error("YouTube 분석에 실패했습니다. 뒤로가기 후 직접 선택해주세요.");
     }
-    setLoadingStep("idle");
-    setStep("select");
   };
 
   if (step === "onboarding") {
@@ -316,7 +328,7 @@ const PreferenceFlowPage = () => {
     );
   }
 
-  return <PreferencePage isEdit={isEditMode} />;
+  return <PreferencePage isEdit={isEditMode} onBack={isEditMode ? undefined : () => setStep("onboarding")} showYoutubeBanner={youtubeAutoSelected} />;
 };
 
 export default PreferenceFlowPage;

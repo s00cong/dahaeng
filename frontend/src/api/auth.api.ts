@@ -1,18 +1,20 @@
-import { axiosInstance } from './axiosInstance';
+import { axiosInstance } from "./axiosInstance";
 import {
   AuthCallbackResponseSchema,
   TokenReissueResponseSchema,
   GoogleLoginUrlResponseSchema,
   PreferenceTagRequestSchema,
   YoutubeStatusSchema,
-} from '@/schemas/auth.schema';
-import type { PreferenceTagRequest, AuthCallbackResponse } from '@/schemas/auth.schema';
+} from "@/schemas/auth.schema";
+import type {
+  PreferenceTagRequest,
+} from "@/schemas/auth.schema";
 
 export const authApi = {
   // GET /api/auth/google/login-url
   // 백엔드: bare { loginUrl: "/oauth2/authorization/google" }
   getGoogleLoginUrl: async () => {
-    const { data } = await axiosInstance.get('/api/auth/google/login-url');
+    const { data } = await axiosInstance.get("/api/auth/google/login-url");
     return GoogleLoginUrlResponseSchema.parse(data);
   },
 
@@ -25,56 +27,39 @@ export const authApi = {
   // POST /api/auth/exchange (토큰 교환)
   // 백엔드: bare ExchangeResponse { tokenType, accessToken, member }
   exchangeCode: async (code: string) => {
-    const { data } = await axiosInstance.post('/api/auth/exchange', { code });
+    const { data } = await axiosInstance.post("/api/auth/exchange", { code });
     return AuthCallbackResponseSchema.parse(data);
   },
 
   // POST /api/auth/reissue
   // 백엔드: bare { accessToken }
   reissueToken: async () => {
-    const { data } = await axiosInstance.post('/api/auth/reissue');
+    const { data } = await axiosInstance.post("/api/auth/reissue");
     return TokenReissueResponseSchema.parse(data);
-  },
-
-  // POST /api/auth/logout
-  logout: async () => {
-    await axiosInstance.post('/api/auth/logout');
   },
 
   // DELETE /api/auth/withdraw
   withdraw: async () => {
-    await axiosInstance.delete('/api/auth/withdraw');
-  },
-
-  // 개발 전용 — 백엔드 없이 로컬 목 로그인
-  devLogin: async (): Promise<AuthCallbackResponse> => {
-    return {
-      tokenType: 'Bearer',
-      accessToken: 'dev-token',
-      member: {
-        id: 1,
-        role: 'USER',
-        nickname: '개발자',
-        profileImageUrl: null,
-      },
-    };
+    await axiosInstance.delete("/api/auth/withdraw");
   },
 
   // POST /api/member/tag (선호도 태그 등록 — 신규/수정 모두 POST, 백엔드가 upsert 처리)
   submitPreference: async (body: PreferenceTagRequest) => {
     PreferenceTagRequestSchema.parse(body);
-    await axiosInstance.post('/api/member/tag', body); // { tagIds: number[] }
+    await axiosInstance.post("/api/member/tag", body); // { tagIds: number[] }
   },
 
   // POST /api/member/tag (선호도 태그 수정 — 백엔드에 PATCH 없음, POST upsert 재사용)
   updatePreference: async (body: PreferenceTagRequest) => {
     PreferenceTagRequestSchema.parse(body);
-    await axiosInstance.post('/api/member/tag', body); // { tagIds: number[] }
+    await axiosInstance.post("/api/member/tag", body); // { tagIds: number[] }
   },
 
   // GET /api/member/tag — 내 태그 목록 조회 (태그 등록 여부 확인용)
-  getMemberTags: async (): Promise<{ id: number; tagId: number; isFromYoutube: boolean }[]> => {
-    const { data } = await axiosInstance.get('/api/member/tag');
+  getMemberTags: async (): Promise<
+    { id: number; tagId: number; isFromYoutube: boolean }[]
+  > => {
+    const { data } = await axiosInstance.get("/api/member/tag");
     return data;
   },
 
@@ -85,13 +70,13 @@ export const authApi = {
 
   // GET /api/members/youtube/status
   getYoutubeStatus: async () => {
-    const { data } = await axiosInstance.get('/api/members/youtube/status');
+    const { data } = await axiosInstance.get("/api/members/youtube/status");
     return YoutubeStatusSchema.parse(data);
   },
 
-  // GET /api/members/youtube/tag
+  // GET /api/member/youtube/tag
   getYoutubeConsentUrl: async () => {
-    const { data } = await axiosInstance.get('/api/members/youtube/tag');
+    const { data } = await axiosInstance.get("/api/member/tag");
     return GoogleLoginUrlResponseSchema.parse(data);
   },
 };

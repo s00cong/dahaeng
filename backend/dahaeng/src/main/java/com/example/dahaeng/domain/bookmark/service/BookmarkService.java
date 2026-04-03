@@ -12,7 +12,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.dahaeng.domain.bookmark.dto.request.BookMarkCreateRequest;
+import com.example.dahaeng.domain.bookmark.dto.request.BookmarkCreateRequest;
+import com.example.dahaeng.domain.bookmark.dto.request.BookmarkModifyRequest;
 import com.example.dahaeng.domain.bookmark.dto.response.BookmarkDetailResponse;
 import com.example.dahaeng.domain.bookmark.dto.response.BookmarkSummaryResponse;
 import com.example.dahaeng.domain.bookmark.dto.response.BookmarkTop5Response;
@@ -61,13 +62,14 @@ public class BookmarkService {
 
 		return new BookmarkDetailResponse(
 			bookmark.getId(),
+			bookmark.getTitle(),
 			mapper.readTree(bookmark.getJson()),
 			ExchangeRateResponse.from(exchange),
 			bookmark.getCreatedAt()
 		);
 	}
 
-	public NoContentResponse save(BookMarkCreateRequest request, Long memberId) throws JsonProcessingException {
+	public NoContentResponse save(BookmarkCreateRequest request, Long memberId) throws JsonProcessingException {
 		Member member = validMember(memberId);
 
 		bookmarkRepository
@@ -82,6 +84,7 @@ public class BookmarkService {
 		Bookmark bookmark = Bookmark.builder()
 			.member(member)
 			.city(city)
+			.title(request.title())
 			.recommendId(request.recommendId())
 			.json(mapper.writeValueAsString(request.json()))
 			.build();
@@ -93,7 +96,7 @@ public class BookmarkService {
 	public PageResponse<BookmarkSummaryResponse> summaries(String keyword, Long memberId, Pageable pageable) {
 		Member member = validMember(memberId);
 
-		Page<Bookmark> bookmarks = bookmarkRepository.findAllByKeywordAndMember(keyword, member, pageable);
+		Page<Bookmark> bookmarks = bookmarkRepository.findALlByKeywordAndMember(keyword, member, pageable);
 
 		return PageResponse.from(
 			new PageImpl<>(bookmarks.stream()
@@ -151,6 +154,28 @@ public class BookmarkService {
 			.toList();
 	}
 
+	public BookmarkDetailResponse modify(Long id, BookmarkModifyRequest request, Long memberId) throws
+		JsonProcessingException {
+		Member member = validMember(memberId);
+		Bookmark bookmark = bookmarkRepository
+			.findFirstByIdAndMemberAndIsDeletedFalse(id, member)
+			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "유효하지 않은 북마크 아이디입니다."));
+
+		bookmark.modifyTitle(request.title());
+
+		Exchange exchange = exchangeRepository.findFirstByCurrencyOrderByEventDateDesc(
+				bookmark.getCity().getCountry().getCurrency())
+			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "유효하지 않는 통화입니다."));
+
+		return new BookmarkDetailResponse(
+			bookmark.getId(),
+			bookmark.getTitle(),
+			mapper.readTree(bookmark.getJson()),
+			ExchangeRateResponse.from(exchange),
+			bookmark.getUpdatedAt()
+		);
+	}
+
 	private JsonNode parseBookmarkJson(String json) {
 		try {
 			return mapper.readTree(json);
@@ -163,4 +188,6 @@ public class BookmarkService {
 		return memberRepository.findById(memberId)
 			.orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다."));
 	}
+
+
 }

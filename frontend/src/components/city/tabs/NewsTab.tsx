@@ -5,6 +5,7 @@ import { useNews } from '@/hooks/news/useNews';
 import dayjs from '@/utils/dayjs';
 import { cn } from '@/lib/utils';
 import type { CityDetail } from '@/schemas/city.schema';
+import { CITY_NAME_KO } from '@/data/cityNameKo';
 import type { NewsItem } from '@/schemas/news.schema';
 
 interface NewsTabProps {
@@ -139,7 +140,7 @@ export function NewsTab({ city }: NewsTabProps) {
         <div className="flex items-center gap-2">
           <Newspaper className="size-4 text-blue-500" />
           <h3 className="text-sm font-semibold text-foreground">
-            {city.cityName} 뉴스 요약
+            {CITY_NAME_KO[city.cityName] ?? city.cityName} 뉴스 요약
           </h3>
         </div>
 

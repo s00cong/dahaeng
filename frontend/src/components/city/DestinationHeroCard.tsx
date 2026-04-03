@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -24,6 +25,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { CityDetail } from "@/schemas/city.schema";
 import { CITY_NAME_KO } from "@/data/cityNameKo";
+import { COUNTRY_NAME_KO } from "@/data/countryNameKo";
+import { useDisplayCityTags } from "@/hooks/city/useDisplayCityTags";
 
 interface DestinationHeroCardProps {
   city: CityDetail;
@@ -109,50 +112,117 @@ function DangerDropdown({
 
 interface BookmarkButtonProps {
   city: CityDetail;
+  displayTags: { name: string; tagScore?: number | null }[];
 }
 
-function BookmarkButton({ city }: BookmarkButtonProps) {
+function BookmarkButton({ city, displayTags }: BookmarkButtonProps) {
   const { mutate: createBookmark, isPending } = useCreateBookmark();
   const { selectedCityImgUrl, recommendRequest, bookmarkedCityIds } = useUiStore();
   const isBookmarked = bookmarkedCityIds.includes(city.cityId);
+  const [showModal, setShowModal] = useState(false);
+  const [titleInput, setTitleInput] = useState("");
+
+  const handleClick = () => {
+    if (isBookmarked) {
+      toast.error("이미 북마크된 도시입니다. 다른 조건으로 검색해주세요.");
+      return;
+    }
+    setTitleInput("");
+    setShowModal(true);
+  };
+
+  const handleConfirm = () => {
+    if (titleInput.trim().length < 1) return;
+    createBookmark({
+      cityId: city.cityId,
+      recommendId: recommendRequest!.recommendId!,
+      json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null, tags: displayTags },
+      title: titleInput.trim(),
+    });
+    setShowModal(false);
+  };
 
   return (
-    <button
-      onClick={() => {
-        if (isBookmarked) {
-          toast.error("이미 북마크된 도시입니다. 다른 조건으로 검색해주세요.");
-          return;
-        }
-        createBookmark({ cityId: city.cityId, recommendId: recommendRequest!.recommendId!, json: { ...city, imgUrl: city.imgUrl || selectedCityImgUrl || null } });
-      }}
-      disabled={isPending}
-      aria-label="저장하기"
-      className={cn(
-        "w-14 h-14 rounded-full border-[3px]",
-        "flex items-center justify-center shrink-0",
-        "active:scale-95 transition-all duration-150",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60",
-        isBookmarked
-          ? "bg-pink-500/80 border-pink-300 cursor-default"
-          : "bg-blue-500/20 border-blue-400/80 hover:bg-blue-500/40",
-        isPending && "opacity-70 cursor-not-allowed",
+    <>
+      <button
+        onClick={handleClick}
+        disabled={isPending}
+        aria-label="저장하기"
+        className={cn(
+          "w-14 h-14 rounded-full border-[3px]",
+          "flex items-center justify-center shrink-0",
+          "active:scale-95 transition-all duration-150",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/60",
+          isBookmarked
+            ? "bg-pink-500/80 border-pink-300 cursor-default"
+            : "bg-blue-500/20 border-blue-400/80 hover:bg-blue-500/40",
+          isPending && "opacity-70 cursor-not-allowed",
+        )}
+      >
+        {isPending ? (
+          <Loader2 className="size-5 text-white animate-spin" />
+        ) : (
+          <Heart className={cn("size-5 text-white", isBookmarked && "fill-white")} />
+        )}
+      </button>
+
+      {showModal && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm"
+          onClick={() => setShowModal(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.15 }}
+            className="bg-white rounded-2xl p-6 w-80 mx-4 flex flex-col gap-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-slate-800">북마크 제목 입력</h3>
+            <input
+              type="text"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              placeholder="여행 제목을 입력해주세요"
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && titleInput.trim().length >= 1) handleConfirm();
+                if (e.key === "Escape") setShowModal(false);
+              }}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="flex-1 h-10 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium rounded-xl transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={titleInput.trim().length < 1}
+                className="flex-1 h-10 bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors"
+              >
+                저장
+              </button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
       )}
-    >
-      {isPending ? (
-        <Loader2 className="size-5 text-white animate-spin" />
-      ) : (
-        <Heart className={cn("size-5 text-white", isBookmarked && "fill-white")} />
-      )}
-    </button>
+    </>
   );
 }
 
 interface MatchCardProps {
   score: number;
   city: CityDetail;
+  displayTags: { name: string; tagScore?: number | null }[];
 }
 
-function MatchCard({ score, city }: MatchCardProps) {
+function MatchCard({ score, city, displayTags }: MatchCardProps) {
   return (
     <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-xl p-3.5 flex items-center justify-between gap-3">
       <div className="flex flex-col gap-0.5">
@@ -163,7 +233,7 @@ function MatchCard({ score, city }: MatchCardProps) {
           {score}%
         </span>
       </div>
-      <BookmarkButton city={city} />
+      <BookmarkButton city={city} displayTags={displayTags} />
     </div>
   );
 }
@@ -174,7 +244,7 @@ interface KeywordTagsProps {
 
 function KeywordTags({ keywords }: KeywordTagsProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/30">
       {keywords.map((keyword) => {
         const Icon = getKeywordIcon(keyword);
         return (
@@ -213,14 +283,8 @@ export function DestinationHeroCard({
     longitude: city.longitude || cityMeta?.longitude || 0,
   };
 
-  // tagScore 내림차순 정렬 후 상위 10개
-  const displayKeywords = city.tags
-    ? [...city.tags]
-        .filter((t) => (t.tagScore ?? 0) >= 0.6)
-        .sort((a, b) => (b.tagScore ?? 0) - (a.tagScore ?? 0))
-        .slice(0, 10)
-        .map((t) => t.name)
-    : [];
+  const displayTags = useDisplayCityTags(city.tags ?? undefined);
+  const displayKeywords = displayTags.map((t) => t.name);
 
   return (
     <div
@@ -280,14 +344,17 @@ export function DestinationHeroCard({
             {flagUrl && (
               <img src={flagUrl} alt="" className="h-3.5 w-auto rounded-[2px] object-cover shrink-0" aria-hidden="true" />
             )}
-            {countryName}
+            {COUNTRY_NAME_KO[countryName] ?? countryName}
+            {COUNTRY_NAME_KO[countryName] && (
+              <span className="text-xs text-white/40">{countryName}</span>
+            )}
           </p>
         </div>
 
         {/* 매칭 스코어 + 하트 버튼 (추천 도시만) */}
         {city.score?.finalScore !== undefined &&
           city.score.finalScore !== null && (
-            <MatchCard score={city.score.finalScore} city={enrichedCity} />
+            <MatchCard score={city.score.finalScore} city={enrichedCity} displayTags={displayTags} />
           )}
 
         {/* Glassmorphism keyword tags */}

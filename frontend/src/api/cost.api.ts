@@ -14,9 +14,7 @@ import {
   type CostDetail,
   type CostCompare,
 } from '@/schemas/cost.schema';
-import {
-  DUMMY_COST_COMPARE,
-} from '@/data/cost.dummy';
+
 import { z } from 'zod';
 
 export const SEOUL_CITY_ID = 162;
@@ -26,6 +24,7 @@ export type CostCardItem = {
   rank: number;
   id: number;
   name: string;
+  countryName?: string;
   imgUrl: string | null;
   dailyBudget: number; // KRW
 };
@@ -185,12 +184,13 @@ export const costApi = {
       const { data } = await axiosInstance.get('/api/cost/card', {
         params: { mode: 'TOP' },
       });
-      return (data.cards as CostCardItem[]).map((c) => ({
+      return (data.cards as any[]).map((c) => ({
         rank: c.rank ?? 0,
         id: c.id,
         name: c.name,
+        countryName: c.danger?.countryName ?? undefined,
         imgUrl: c.imgUrl ?? null,
-        dailyBudget: c.dailyBudget,
+        dailyBudget: c.dailyBudget ?? c.livingCostFor1Day,
       }));
     } catch {
       return [];
@@ -207,12 +207,13 @@ export const costApi = {
       const { data } = await axiosInstance.get('/api/cost/card', {
         params: { mode: 'SEARCH', type, keyword, sort },
       });
-      return (data.cards as CostCardItem[]).map((c, i) => ({
+      return (data.cards as any[]).map((c, i) => ({
         rank: i + 1,
         id: c.id,
         name: c.name,
+        countryName: c.danger?.countryName ?? undefined,
         imgUrl: c.imgUrl ?? null,
-        dailyBudget: c.dailyBudget,
+        dailyBudget: c.dailyBudget ?? c.livingCostFor1Day,
       }));
     } catch {
       return [];
@@ -268,11 +269,9 @@ export const costApi = {
         localCostCompare: data.localCostCompare,
         affordabilityCompare: data.affordabilityCompare,
       });
-    } catch {
-      return {
-        ...DUMMY_COST_COMPARE,
-        target: { ...DUMMY_COST_COMPARE.target, id: targetId },
-      };
+    } catch (e) {
+      console.error('[getCostCompare] failed:', e);
+      throw e;
     }
   },
 };

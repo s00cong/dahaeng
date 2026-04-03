@@ -7,6 +7,7 @@ import QueryErrorFallback from '@/components/common/QueryErrorFallback';
 import { CITY_NAME_KO } from '@/data/cityNameKo';
 import { Button } from '@/components/ui/button';
 import { BookmarkHeroSection } from '@/components/bookmark/BookmarkHeroSection';
+import { FlightTrendCard } from '@/components/bookmark/FlightTrendCard';
 import { SavedFlightPriceCard } from '@/components/bookmark/SavedFlightPriceCard';
 import { ExchangeRateCard } from '@/components/bookmark/ExchangeRateCard';
 import { SavedNewsCard } from '@/components/bookmark/SavedNewsCard';
@@ -20,7 +21,7 @@ const BookmarkDetailPage = () => {
   return (
     <div
       className="relative min-h-screen"
-      style={{ background: 'linear-gradient(135deg, #93C5FD 0%, #93C5FD 100%)' }}
+      style={{ background: '#0d1b2e' }}
     >
       <motion.div
         initial={{ opacity: 0 }}
@@ -44,7 +45,7 @@ const BookmarkDetailPage = () => {
         {data && (
           <>
             {/* 히어로 섹션 */}
-            <BookmarkHeroSection data={data} />
+            <BookmarkHeroSection data={data} bookmarkId={id} />
 
             {/* 대시보드 영역 */}
             <div className="mx-auto max-w-7xl px-6 py-8">
@@ -79,7 +80,7 @@ const BookmarkDetailPage = () => {
 
               {/* 2열 대시보드 그리드 */}
               <div className="grid grid-cols-1 gap-5 lg:grid-cols-[55fr_45fr]">
-                {/* 좌측 열: AI 추천 이유 + 항공권 */}
+                {/* 좌측 열: AI 추천 이유 + 항공권 + 6개월 추이 */}
                 <div className="flex flex-col gap-5">
                   <RecommendReasonCard data={data} />
                   <SavedFlightPriceCard
@@ -87,9 +88,10 @@ const BookmarkDetailPage = () => {
                     savedAirTicket={data.savedAirTicket}
                     savedHotel={data.savedHotel}
                   />
+                  <FlightTrendCard cityId={data.cityId} />
                 </div>
 
-                {/* 우측 열: 주요 이슈 + 환율 + 해외 물가 */}
+                {/* 우측 열: 주요 이슈 + 환율 + 해외 물가 + 항공권 알림 */}
                 <div className="flex flex-col gap-5 pb-8">
                   <SavedNewsCard news={data.newsAtSaved} summation={data.newsSummation} />
                   <ExchangeRateCard exchange={data.exchangeAtSaved} />

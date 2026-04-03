@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { authApi } from '@/api/auth.api';
 
 const POPUP_WIDTH = 500;
@@ -15,9 +16,14 @@ export const useGoogleLogin = () =>
   useMutation({
     mutationFn: authApi.getGoogleLoginUrl,
     onSuccess: (data) => {
+      // 로컬 dev: Vite에 /oauth2/** 라우트가 없으므로 백엔드 URL을 직접 사용
+      // 프로덕션: nginx가 /oauth2/** → 백엔드로 프록시하므로 같은 오리진 사용
+      const base = import.meta.env.DEV
+        ? (import.meta.env.VITE_API_BASE_URL as string ?? '').replace(/\/+$/, '')
+        : window.location.origin;
       const loginUrl = data.loginUrl.startsWith('http')
         ? data.loginUrl
-        : new URL(data.loginUrl, import.meta.env.VITE_API_BASE_URL).toString();
+        : `${base}${data.loginUrl.startsWith('/') ? '' : '/'}${data.loginUrl}`;
 
       const left = Math.round(window.screenX + (window.outerWidth - POPUP_WIDTH) / 2);
       const top = Math.round(window.screenY + (window.outerHeight - POPUP_HEIGHT) / 2);
@@ -27,5 +33,8 @@ export const useGoogleLogin = () =>
         'googleLogin',
         `popup,width=${POPUP_WIDTH},height=${POPUP_HEIGHT},left=${left},top=${top}`,
       );
+    },
+    onError: () => {
+      toast.error('Google 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
     },
   });

@@ -156,7 +156,7 @@ public class FlightService {
             .avgHotelPrice(summary.getAvgHotelPrice())
             .typicalStopsText(summary.getStops() == null || summary.getStops() == 0 ? "직항"
                     : "경유 " + summary.getStops() + "회")
-            .avgDurationText(formatDuration(summary.getFlightDuration()))
+            .minDurationText(formatDuration(summary.getFlightDuration()))
             .peakSeasonMonths(parseMonthList(summary.getPeakMonthList()))
             .offSeasonMonths(parseMonthList(summary.getOffMonthList()))
             .build();
@@ -165,6 +165,8 @@ public class FlightService {
     private String formatDuration(Integer minutes) {
         if (minutes == null)
             return "-";
+        if (minutes == 0)
+            return "0분";
         int h = minutes / 60;
         int m = minutes % 60;
         return h + "시간 " + m + "분";

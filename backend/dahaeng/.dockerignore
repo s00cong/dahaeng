@@ -14,7 +14,6 @@ out
 # Local env / secrets
 .env
 .env.*
-src/main/resources/application.yml
 
 # OS files
 .DS_Store
