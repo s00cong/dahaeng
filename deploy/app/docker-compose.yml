@@ -1,13 +1,43 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: dahaeng-rabbitmq
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VIRTUAL_HOST:-/}
+      TZ: ${TZ:-Asia/Seoul}
+    restart: unless-stopped
+    ports:
+      - "5672:5672"       # AMQP port
+      - "15672:15672"     # Management UI
+    networks:
+      - app-internal
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
   backend:
     build:
       context: ../../backend/dahaeng
       dockerfile: Dockerfile
     container_name: dahaeng-backend
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     env_file:
       - .env
     environment:
       TZ: ${TZ:-Asia/Seoul}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
     restart: unless-stopped
     networks:
       - app-internal
@@ -50,3 +80,8 @@ networks:
   db-external:
     external: true
     name: ${DB_EXTERNAL_NETWORK:-dahaeng-db-net}
+
+volumes:
+  rabbitmq-data:
+    driver: local
+
