@@ -11,6 +11,8 @@ data/flight/google_flight/bronze_airticket/*
 .idea/*
 data/flight/silver/*
 
+data/**/*.jsonl
+
 # Global env files
 .env
 .env.*
